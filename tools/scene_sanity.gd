@@ -148,6 +148,7 @@ func _run() -> void:
 	failed += _water_splash()
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
+	failed += _wisp_trails()
 	failed += _manual_save_guard()
 	failed += _load_confirm()
 	failed += await _bench_cancel()
@@ -581,6 +582,41 @@ func _forge_wisp_ring() -> int:
 	wisp.queue_free()
 	if failed == 0:
 		print("FORGE_WISP_RING_OK")
+	return failed
+
+
+func _wisp_trails() -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/wisp.tscn") as PackedScene
+	failed += _check(packed != null, "wisp scene for trail wiring")
+	if packed == null:
+		return failed
+	var wisp: Node = packed.instantiate()
+	root.add_child(wisp)
+	var trail: CPUParticles2D = wisp.get_node_or_null("Trail") as CPUParticles2D
+	var spark: CPUParticles2D = wisp.get_node_or_null("Spark") as CPUParticles2D
+	failed += _check(trail != null, "wisp has Trail CPUParticles2D")
+	failed += _check(spark != null, "wisp has Spark CPUParticles2D")
+	if trail != null:
+		failed += _check(not trail.local_coords, "trail uses world coords")
+		failed += _check(trail.amount == 6, "trail amount is 6")
+		failed += _check(is_equal_approx(trail.lifetime, 0.45), "trail lifetime is 0.45 s")
+		failed += _check(trail.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "trail nearest filter")
+		var strip_path: String = trail.texture.resource_path if trail.texture != null else ""
+		failed += _check(strip_path.ends_with("wisp_trail_strip_5x5x3.png"), "trail uses the 3-frame strip")
+		var mat: CanvasItemMaterial = trail.material as CanvasItemMaterial
+		failed += _check(mat != null and mat.particles_animation and mat.particles_anim_h_frames == 3, "trail animates 3 h-frames")
+	if spark != null:
+		failed += _check(spark.amount == 1, "spark amount is 1")
+		failed += _check(is_equal_approx(spark.lifetime, 0.3), "spark lifetime is 0.3 s")
+		failed += _check(is_equal_approx(spark.randomness, 1.0), "spark randomness is 1")
+		var spark_path: String = spark.texture.resource_path if spark.texture != null else ""
+		failed += _check(spark_path.ends_with("wisp_spark_3x3.png"), "spark uses the 3x3 texture")
+	var wisp_src: String = FileAccess.get_file_as_string("res://scripts/wisp.gd")
+	failed += _check(wisp_src.find("TRAIL_EMIT_SPEED: float = 8.0") >= 0, "trail speed gate is ~8 px/s")
+	wisp.queue_free()
+	if failed == 0:
+		print("WISP_TRAILS_OK")
 	return failed
 
 

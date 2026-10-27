@@ -23,6 +23,10 @@ const TARGET_CHEST_OFFSET: Vector2 = Vector2(0, -48)
 const KEEPER_SHOULDER_OFFSET: Vector2 = Vector2(0, -56)
 ## Was five sprite heights (-160). The ring now matches the shoulder line above.
 const HOVER_LIFT: float = -56.0
+const TRAIL_STRIP_TEX: String = "res://assets/art/fx/wisp_trail/wisp_trail_strip_5x5x3.png"
+const TRAIL_SPARK_TEX: String = "res://assets/art/fx/wisp_trail/wisp_spark_3x3.png"
+const TRAIL_LIFETIME: float = 0.45
+const TRAIL_EMIT_SPEED: float = 8.0
 
 enum MotionKind { KEEPER_ORBIT, FLY, NODE_ORBIT }
 
@@ -41,6 +45,9 @@ var _placed: bool = false
 var _orbit_anchor: Vector2 = Vector2.ZERO
 var _hovered: bool = false
 var _outline_mat: ShaderMaterial
+var _trail: CPUParticles2D
+var _trail_spark: CPUParticles2D
+var _prev_trail_pos: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -59,7 +66,74 @@ func _ready() -> void:
 	add_to_group("interactable")
 	z_index = 1
 	_orbit_angle = _even_slot_angle()
+	_prev_trail_pos = global_position
+	_ensure_trail()
 	_refresh_label()
+
+
+func _ensure_trail() -> void:
+	if _trail != null:
+		return
+	_trail = CPUParticles2D.new()
+	_trail.name = &"Trail"
+	_trail.texture = load(TRAIL_STRIP_TEX) as Texture2D
+	_trail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_trail.local_coords = false
+	_trail.amount = 6
+	_trail.lifetime = TRAIL_LIFETIME
+	_trail.explosiveness = 0.0
+	_trail.randomness = 0.0
+	_trail.direction = Vector2(0, -1)
+	_trail.spread = 180.0
+	_trail.gravity = Vector2.ZERO
+	_trail.initial_velocity_min = 0.0
+	_trail.initial_velocity_max = 4.0
+	_trail.emitting = false
+	var strip_mat := CanvasItemMaterial.new()
+	strip_mat.particles_animation = true
+	strip_mat.particles_anim_h_frames = 3
+	strip_mat.particles_anim_v_frames = 1
+	strip_mat.particles_anim_loop = false
+	_trail.material = strip_mat
+	_trail.anim_speed_min = 1.0
+	_trail.anim_speed_max = 1.0
+	add_child(_trail)
+	_trail_spark = CPUParticles2D.new()
+	_trail_spark.name = &"Spark"
+	_trail_spark.texture = load(TRAIL_SPARK_TEX) as Texture2D
+	_trail_spark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_trail_spark.local_coords = false
+	_trail_spark.amount = 1
+	_trail_spark.lifetime = 0.3
+	_trail_spark.explosiveness = 0.0
+	_trail_spark.randomness = 1.0
+	_trail_spark.direction = Vector2(0, -1)
+	_trail_spark.spread = 180.0
+	_trail_spark.gravity = Vector2.ZERO
+	_trail_spark.initial_velocity_min = 0.0
+	_trail_spark.initial_velocity_max = 4.0
+	_trail_spark.emitting = false
+	add_child(_trail_spark)
+	_sync_trail_depth()
+
+
+func _sync_trail_depth() -> void:
+	if _trail != null and sprite != null:
+		_trail.z_index = sprite.z_index - 1
+	if _trail_spark != null and sprite != null:
+		_trail_spark.z_index = sprite.z_index - 1
+
+
+func _tick_trail_emit(delta: float) -> void:
+	if _trail == null or delta <= 0.0:
+		return
+	var speed: float = global_position.distance_to(_prev_trail_pos) / delta
+	_prev_trail_pos = global_position
+	var moving: bool = speed > TRAIL_EMIT_SPEED
+	_trail.emitting = moving
+	if _trail_spark != null:
+		_trail_spark.emitting = moving
+	_sync_trail_depth()
 
 
 func _build_frames() -> SpriteFrames:
@@ -219,6 +293,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 func _process(delta: float) -> void:
 	_bob_t += delta
+	_tick_trail_emit(delta)
 	var assigned_now: String = GameState.get_wisp_assignment(wisp_id)
 	if has_node("/root/ForgeJobs"):
 		var in_forge: bool = get_tree().get_first_node_in_group("forge_room") != null
