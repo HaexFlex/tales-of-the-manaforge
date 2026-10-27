@@ -5,8 +5,8 @@
 |---|---|---|---|
 | rain_streak_strip_2x6x4.png | 8×6 | 4 | soft rain, NEAREST, scale 1 |
 | mist_puff_strip_8x6x4.png | 32×6 | 4 | low mist, dither fade |
-| snow_flake_small_strip_3x3x4.png | 12×3 | 4 | light snow (small) |
-| snow_flake_large_strip_5x5x4.png | 20×5 | 4 | light snow (large) |
+| snow_flake_small_strip_4x4x4.png | 16×4 | 4 | light snow (small) |
+| snow_flake_large_strip_6x6x4.png | 24×6 | 4 | light snow (large) |
 | blossom_petal_strip_4x4x4.png | 16×4 | 4 | blossom fall (pink; not leaf_fall) |
 | puddle_sparkle_strip_12x8x4.png | 48×8 | 4 | ground sparkles after rain |
 
@@ -235,21 +235,27 @@ east/corner/ext) was 99.55–99.85%, not 100%. Retimed same filenames with
 **100% opaque interiors**; ragged feather only on south (north tile) or
 south+west (east/corner/ext). Hard alpha preserved.
 
-## Snow flakes (readable @1x, 2026-10-27)
+## Snow flakes (v2 readable @1x, 2026-10-27)
 
-Old `snow_flake_strip_3x3x4.png` (pure white) → `assets/library/legacy/snow_flake_3x3x4_2026-10-27/` (+ REPLACED.md).
+Legacy:
+- original pure-white → `assets/library/legacy/snow_flake_3x3x4_2026-10-27/`
+- v1 3×3+5×5 (`5c450a7`) → `assets/library/legacy/snow_flake_v1_3x3_5x5_2026-10-27/` (+ REPLACED.md)
 
 | Sheet | Cell | Strip | Frames |
 |---|---|---|---|
-| `snow_flake_small_strip_3x3x4.png` | 3×3 | 12×3 | 4 horizontal |
-| `snow_flake_large_strip_5x5x4.png` | 5×5 | 20×5 | 4 horizontal |
+| `snow_flake_small_strip_4x4x4.png` | 4×4 | 16×4 | 4 horizontal |
+| `snow_flake_large_strip_6x6x4.png` | 6×6 | 24×6 | 4 horizontal |
 
-**Frame layout** (both sizes, left→right):
-0. rest — bright + / diamond with cool-blue outline
-1. soft — same pose, lighter outline / gentler
-2. twinkle — smaller spark (center-weighted)
-3. rotate — X / diagonal pose
+**Frame layout** (both, left→right):
+0. solid — bright body, full `#5a6e8c` outline
+1. solid — alternate solid mass (most common with f0)
+2. twinkle — same mass, slightly softer outline (`#6a7e9c`)
+3. rotate — subtle diagonal lean, outline kept
 
-Palette: near-white `#f4f8fc` body, darker core `#b8c4d4`, soft cool-blue outline `#7a8ea8` / `#9aacc0`. Hard alpha (0/255). Cozy, not stormy.
+Palette: pure `#ffffff` centre, 1 px darker cool-blue outline `#5a6e8c` all the way round. Hard alpha (0/255). Cozy, not stormy. Designed to separate from bright glade grass ~`#8cc040`.
 
-Code: mix small + large on the Snow emitter (e.g. two ParticleProcessMaterial textures or random atlas). **Amount and spread stay Design's** — art only swapped the texture readability.
+Code: mix small + large on the Snow emitter. **Amount and spread stay Design's.**
+
+Ref crops in `snow_flake_v2_ref_crops/`: bright_glade + moss_bank from `caps/light_snow_*`; canopy from `caps/clear_nw`; dark_grass from caps grass band; path plate from in-glade `grass_path_h` tile (caps cameras rarely frame a clean dirt strip without bark/UI).
+
+Contacts: `snow_flake_v2_contact_{1x,2x}.png` (old / v1 / v2 over bright glade, dark grass, moss bank, canopy, path).
