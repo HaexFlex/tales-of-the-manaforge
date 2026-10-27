@@ -767,9 +767,12 @@ func _apply_modular_frame(
 			if not anchor.is_empty():
 				var hx: float = float(anchor.get("hand_x", 0.0))
 				var hy: float = float(anchor.get("hand_y", 0.0))
-				weapon.position = Vector2(-FIGHTER_SOLE.x + hx, -FIGHTER_SOLE.y + hy) - CombatAnimsConfig.WEAPON_GRIP
+				var rot_index: int = int(anchor.get("rot_index", 0))
 				if weapon.texture != null:
 					weapon.size = weapon.texture.get_size()
+				weapon.pivot_offset = CombatAnimsConfig.WEAPON_GRIP
+				weapon.position = Vector2(-FIGHTER_SOLE.x + hx, -FIGHTER_SOLE.y + hy) - weapon.pivot_offset
+				weapon.rotation = CombatAnimsConfig.weapon_rotation_rad(rot_index)
 				var z: String = str(anchor.get("z", "front"))
 				var sprite_idx: int = sprite.get_index()
 				if z == "behind" and weapon.get_index() > sprite_idx:

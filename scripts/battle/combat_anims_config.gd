@@ -137,6 +137,17 @@ static func hand_anchor(actor: String, clip: String, art_frame: int) -> Dictiona
 	return {}
 
 
+## CODE_NOTES.md: rot_index 0 = tip east / no rot. No other indices are defined in art notes.
+static func weapon_rotation_rad(rot_index: int) -> float:
+	if rot_index == 0:
+		return 0.0
+	return 0.0
+
+
+static func weapon_rot_index_documented(rot_index: int) -> bool:
+	return rot_index == 0
+
+
 static func clips_with_weapon_overlay(actor: String) -> Array[String]:
 	var out: Array[String] = ["attack", "cast"]
 	return out

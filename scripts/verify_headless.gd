@@ -26769,8 +26769,16 @@ func _combat_anims_r6_ok() -> int:
 		"8x shows last keyframe",
 	)
 	failed += _assert(
-		CombatAnimsConfigScript.weapon_sprite_id_for_item("weapon_rod") == "wpn_sword_t0",
-		"weapon rod maps to wpn_sword_t0",
+		CombatAnimsConfigScript.weapon_sprite_id_for_item("weapon_rod") == "wpn_wand_t0",
+		"weapon rod maps to wpn_wand_t0",
+	)
+	failed += _assert(
+		ResourceLoader.exists(CombatAnimsConfigScript.weapon_texture_path("wpn_wand_t0")),
+		"wpn_wand_t0 art",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.weapon_rotation_rad(0), 0.0),
+		"rot_index 0 is no rotation per CODE_NOTES",
 	)
 	failed += _assert(
 		CombatAnimsConfigScript.weapon_sprite_id_for_item("rootsteel_edge") == "wpn_sword_t2",
