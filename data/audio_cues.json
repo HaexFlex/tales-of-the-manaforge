@@ -206,6 +206,12 @@
       "loop": false,
       "path": "res://assets/audio/sfx_bench_open.ogg"
     },
+    "sfx_bench_rest": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_bench_rest.ogg",
+      "volume_db": 0.0
+    },
     "sfx_door_bark": {
       "bus": "SFX_World",
       "loop": false,

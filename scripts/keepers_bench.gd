@@ -1,6 +1,8 @@
 extends Area2D
 class_name KeepersBench
 const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
+## KeeperSeat marks the seat top edge; feet for the idle sit land SEAT_FEET_BELOW_TOP_PX lower.
+const SEAT_FEET_BELOW_TOP_PX: float = 23.0
 ## Hub handcraft station. The Keeper walks to KeeperStand, then the bench opens.
 ## Idle and busy frames are the 192px bench art, feet on the node origin.
 
@@ -12,6 +14,7 @@ const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
 @onready var sprite: Sprite2D = get_node_or_null("Sprite") as Sprite2D
 @onready var placeholder: Polygon2D = get_node_or_null("Placeholder") as Polygon2D
 @onready var keeper_stand: Marker2D = get_node_or_null("KeeperStand") as Marker2D
+@onready var keeper_seat: Marker2D = get_node_or_null("KeeperSeat") as Marker2D
 @onready var badge_art: Sprite2D = get_node_or_null("BadgeArt") as Sprite2D
 
 var _awaiting_arrival: bool = false
@@ -79,6 +82,12 @@ func stand_global() -> Vector2:
 	if keeper_stand:
 		return keeper_stand.global_position
 	return global_position + Vector2(0, 40)
+
+
+func seat_global() -> Vector2:
+	if keeper_seat:
+		return keeper_seat.global_position + Vector2(0.0, SEAT_FEET_BELOW_TOP_PX)
+	return stand_global()
 
 
 func wisp_orbit_draws_in_front() -> bool:
