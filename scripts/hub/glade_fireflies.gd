@@ -7,11 +7,20 @@ const CYAN_STRIP: String = "res://assets/art/fx/fireflies/firefly_cyan_strip_8x8
 
 const WARM_AMOUNT_MAX: int = 13
 const CYAN_AMOUNT_MAX: int = 3
+const TWINKLE_COOLDOWN_MSEC: int = 4000
+const TWINKLE_CUE_IDS: PackedStringArray = [
+	"sfx_firefly_twinkle_1",
+	"sfx_firefly_twinkle_2",
+	"sfx_firefly_twinkle_3",
+]
+
+static var _last_twinkle_msec: int = -100000000
 
 var _motes_warm: CPUParticles2D
 var _motes_cyan: CPUParticles2D
 var _glade: Rect2 = Rect2()
 var _strength: float = 0.0
+var _twinkle_attempt_sec: float = 0.0
 
 
 func setup(glade_rect: Rect2) -> void:
@@ -86,8 +95,52 @@ func _apply_glade_bounds() -> void:
 		_motes_cyan.emission_rect_extents = half
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_refresh_strength(false)
+	_tick_twinkle_sfx(delta)
+
+
+static func reset_twinkle_state() -> void:
+	_last_twinkle_msec = -100000000
+
+
+static func twinkle_cooldown_msec() -> int:
+	return TWINKLE_COOLDOWN_MSEC
+
+
+## Returns a twinkle cue id when allowed; empty when blocked. Updates the global cooldown on fire.
+static func try_twinkle_sfx(phase01: float, strength: float, now_msec: int, variant_index: int) -> String:
+	if strength <= 0.04:
+		return ""
+	if not HubTimePhase.firefly_twinkle_night(phase01):
+		return ""
+	if now_msec - _last_twinkle_msec < TWINKLE_COOLDOWN_MSEC:
+		return ""
+	var idx: int = clampi(variant_index, 1, TWINKLE_CUE_IDS.size())
+	_last_twinkle_msec = now_msec
+	return TWINKLE_CUE_IDS[idx - 1]
+
+
+func _tick_twinkle_sfx(delta: float) -> void:
+	if _strength <= 0.04:
+		return
+	var phase01: float = HubTimePhase.sample_phase01()
+	if not HubTimePhase.firefly_twinkle_night(phase01):
+		return
+	_twinkle_attempt_sec -= delta
+	if _twinkle_attempt_sec > 0.0:
+		return
+	_schedule_twinkle_attempt()
+	var cue_id: String = try_twinkle_sfx(phase01, _strength, Time.get_ticks_msec(), randi_range(1, TWINKLE_CUE_IDS.size()))
+	if cue_id.is_empty():
+		return
+	var audio: Node = get_node_or_null("/root/GameAudio")
+	if audio != null:
+		audio.call("play", StringName(cue_id), 0.0, 1.0)
+
+
+func _schedule_twinkle_attempt() -> void:
+	_twinkle_attempt_sec = randf_range(0.35, 1.25)
 
 
 func _apply_emitter_strength(motes: CPUParticles2D, cap: int) -> void:

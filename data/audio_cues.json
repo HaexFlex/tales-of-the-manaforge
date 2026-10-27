@@ -305,6 +305,24 @@
       "loop": false,
       "path": "res://assets/audio/sfx_battle_confirm.ogg",
       "volume_db": 0.0
+    },
+    "sfx_firefly_twinkle_1": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_twinkle_1.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_firefly_twinkle_2": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_twinkle_2.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_firefly_twinkle_3": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_twinkle_3.ogg",
+      "volume_db": -6.0
     }
   },
   "battle_playback": {

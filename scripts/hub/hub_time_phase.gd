@@ -25,3 +25,11 @@ static func firefly_strength(phase01: float) -> float:
 	if p < 0.82:
 		return 1.0
 	return 1.0 - smoothstep(0.82, 0.98, p)
+
+
+## Full-night plateau for firefly twinkle SFX (not dusk ramp or pre-dawn fade).
+static func firefly_twinkle_night(phase01: float) -> bool:
+	var p: float = fmod(phase01, 1.0)
+	if p < 0.0:
+		p += 1.0
+	return p >= 0.48 and p < 0.82
