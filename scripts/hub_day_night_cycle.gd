@@ -27,11 +27,13 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not GameAudio.day_night_enabled:
-		color = Color.WHITE
-		return
 	var elapsed_sec: float = float(Time.get_ticks_msec() - _start_msec) * 0.001
 	var phase: float = fmod(elapsed_sec / CYCLE_SEC, 1.0)
+	if not GameAudio.day_night_enabled:
+		color = Color.WHITE
+		HubTimePhase.set_driven_phase01(0.0)
+		return
+	HubTimePhase.set_driven_phase01(phase)
 	color = _sample_phase(phase)
 
 

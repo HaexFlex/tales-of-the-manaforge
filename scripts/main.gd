@@ -130,12 +130,23 @@ func _ready() -> void:
 	if hud.has_method("maybe_show_elaia_join"):
 		hud.call("maybe_show_elaia_join")
 	_attach_hub_day_night()
+	_ensure_glade_fireflies()
 
 
 func _attach_hub_day_night() -> void:
 	var cycle := HubDayNightCycle.new()
 	add_child(cycle)
 	move_child(cycle, 0)
+
+
+func _ensure_glade_fireflies() -> void:
+	if get_node_or_null("GladeFireflies") != null:
+		return
+	var fx := GladeFireflies.new()
+	fx.name = "GladeFireflies"
+	fx.z_index = 2
+	add_child(fx)
+	fx.setup(glade)
 
 
 func _load_hub_map() -> void:
