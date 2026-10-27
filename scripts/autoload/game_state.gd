@@ -17,6 +17,7 @@ signal wisp_pulsed(resource_id: StringName)
 signal echo_flags_changed
 signal ancient_expired
 signal keeper_harvested(resource_id: StringName, amount: int)
+signal lucky_harvest(resource_id: StringName, bonus: int)
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -1149,6 +1150,7 @@ func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: floa
 	var grant: int = accumulate_harvest(resource_id, units)
 	if grant > 0:
 		keeper_harvested.emit(resource_id, grant)
+		_apply_lucky_harvest_bonus(resource_id, grant)
 	return grant
 
 
@@ -1184,7 +1186,28 @@ func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
 func apply_harvest_pulse(resource_id: StringName) -> int:
 	if not resource_id in HARVEST_IDS:
 		return 0
-	return accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+	var grant: int = accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+	if grant > 0:
+		_apply_lucky_harvest_bonus(resource_id, grant)
+	return grant
+
+
+func _apply_lucky_harvest_bonus(resource_id: StringName, grant: int) -> void:
+	if grant <= 0:
+		return
+	var chance: float = param_float("LUCKY_HARVEST_CHANCE", 0.0)
+	if chance <= 0.0:
+		return
+	if randf() >= chance:
+		return
+	var mult: int = param_int("LUCKY_HARVEST_MULT", 2)
+	var bonus: int = grant * (mult - 1)
+	if bonus <= 0:
+		return
+	add_resource(resource_id, bonus)
+	var key: String = String(resource_id)
+	lifetime_harvested[key] = int(lifetime_harvested.get(key, 0)) + bonus
+	lucky_harvest.emit(resource_id, bonus)
 
 
 func get_harvest_grant(resource_id: StringName) -> int:

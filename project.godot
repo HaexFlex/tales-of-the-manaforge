@@ -36,6 +36,7 @@ AnimPreviewHotkey="*res://scripts/autoload/anim_preview_hotkey.gd"
 GameTheme="*res://scripts/autoload/game_theme.gd"
 GameInput="*res://scripts/autoload/game_input.gd"
 PhotoMode="*res://scripts/autoload/photo_mode.gd"
+LuckySparkFx="*res://scripts/fx/lucky_spark_fx.gd"
 MinigameHost="*res://scripts/minigames/minigame_host.gd"
 
 [input_devices]

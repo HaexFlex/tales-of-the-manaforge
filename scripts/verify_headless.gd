@@ -7,6 +7,7 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+const LuckySparkFxScript := preload("res://scripts/fx/lucky_spark_fx.gd")
 ## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
 const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
@@ -244,10 +245,14 @@ func _run() -> void:
 
 	if _wants_check_only():
 		failed += _check_only_load()
+		failed += _lucky_harvest_ok(game_state)
+		failed += _lucky_spark_ok(tree_root, game_state, game_audio)
 		if failed > 0:
 			print("CHECK_ONLY_FAIL: %d" % failed)
 			quit(1)
 		else:
+			print("LUCKY_HARVEST_OK")
+			print("LUCKY_SPARK_OK")
 			print("CHECK_ONLY_OK")
 			quit(0)
 		return
@@ -5827,6 +5832,138 @@ func _wants_check_only() -> bool:
 	return args.has("--check-only")
 
 
+func _lucky_harvest_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return failed + 1
+	var lucky_bucket: Array[int] = [0, 0]
+	var on_lucky := func(_rid: StringName, bonus: int) -> void:
+		lucky_bucket[0] += 1
+		lucky_bucket[1] += bonus
+	if not game_state.lucky_harvest.is_connected(on_lucky):
+		game_state.lucky_harvest.connect(on_lucky)
+	game_state.call("reset_for_new_game")
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	game_state.set("harvest_accum", {})
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	var grant_always: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_always: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(
+		grant_always == 1 and wood_always == 2 and lucky_bucket[0] == 1 and lucky_bucket[1] == 1,
+		"chance 1.0 doubles keeper harvest",
+	)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	var grant_never: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_never: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(grant_never == 1 and wood_never == 1 and lucky_bucket[0] == 0, "chance 0.0 never lucky-drops")
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.call("accumulate_wisp_harvest", &"wood", 20.0)
+	failed += _assert(lucky_bucket[0] == 0, "wisp harvest never emits lucky_harvest")
+	game_state.call("apply_offline_keeper_harvest", 60.0, &"wood", 1.0)
+	failed += _assert(lucky_bucket[0] == 0, "offline keeper harvest never emits lucky_harvest")
+	params["LUCKY_HARVEST_CHANCE"] = 0.04
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	for _i: int in range(10000):
+		game_state.call("set_resource", &"wood", 0)
+		game_state.set("harvest_accum", {})
+		game_state.call("apply_harvest_pulse", &"wood")
+	print("LUCKY_HARVEST_ROLLS_10K: %d" % lucky_bucket[0])
+	failed += _assert(lucky_bucket[0] > 0, "0.04 chance produces some drops in 10k rolls")
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
+	game_state.lucky_harvest.disconnect(on_lucky)
+	return failed
+
+
+func _lucky_spark_ok(tree_root: Window, game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	if tree_root == null or game_state == null or game_audio == null:
+		return failed + 1
+	var fx: Node = tree_root.get_node_or_null("LuckySparkFx")
+	failed += _assert(fx != null, "LuckySparkFx autoload missing")
+	LuckySparkFxScript.reset_test_state()
+	game_audio.call("clear_played_log")
+	var host := Node2D.new()
+	host.name = "LuckySparkVerifyHost"
+	tree_root.add_child(host)
+	var anchor := Vector2(120.0, 80.0)
+	LuckySparkFxScript.spawn_at_parent(host, anchor)
+	failed += _assert(LuckySparkFxScript.burst_spawn_count() == 1, "lucky burst spawns once")
+	failed += _assert(LuckySparkFxScript.spark_emit_count() == 1, "lucky spark particles spawn once")
+	var burst_child: Node = host.get_child(0) if host.get_child_count() > 0 else null
+	var burst_sprite: Sprite2D = null
+	if burst_child != null:
+		burst_sprite = burst_child.get_node_or_null("Burst") as Sprite2D
+	failed += _assert(burst_sprite != null, "burst sprite child")
+	if burst_sprite != null:
+		failed += _assert(burst_sprite.hframes == 4, "burst strip h_frames 4")
+		failed += _assert(
+			burst_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			"burst nearest filter",
+		)
+		failed += _assert(is_equal_approx(burst_sprite.scale.x, 1.0), "burst scale 1")
+	var motes: CPUParticles2D = null
+	for child: Node in host.get_children():
+		if child is CPUParticles2D:
+			motes = child as CPUParticles2D
+			break
+	failed += _assert(motes != null, "spark CPUParticles2D")
+	if motes != null:
+		failed += _assert(motes.amount == 5, "spark amount 5")
+		failed += _assert(is_equal_approx(motes.lifetime, 0.3), "spark lifetime 0.3")
+		failed += _assert(
+			motes.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			"spark nearest filter",
+		)
+	var base_msec: int = 1_000_000
+	var cue1: StringName = LuckySparkFxScript.try_play_chime(base_msec)
+	failed += _assert(cue1 == &"sfx_mana_chime_1", "lucky chime cue stage 1")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "lucky chime plays")
+	var expected_db: float = float(game_audio.call("gather_offset_db")) - 6.0
+	failed += _assert(
+		is_equal_approx(float(game_audio.get("last_cue_volume_db")), expected_db),
+		"lucky chime -6 dB vs gather offset",
+	)
+	var cue2: StringName = LuckySparkFxScript.try_play_chime(base_msec + 500)
+	failed += _assert(cue2 == &"", "chime throttled inside 1.5 s")
+	game_audio.call("clear_played_log")
+	var cue3: StringName = LuckySparkFxScript.try_play_chime(base_msec + 1600)
+	failed += _assert(cue3 == &"sfx_mana_chime_1", "chime after 1.5 s cooldown")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "chime replays after cooldown")
+	game_state.call("reset_for_new_game")
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	LuckySparkFxScript.reset_test_state()
+	game_audio.call("clear_played_log")
+	var on_lucky_harvest := Callable(fx, "_on_lucky_harvest")
+	if not game_state.lucky_harvest.is_connected(on_lucky_harvest):
+		game_state.lucky_harvest.connect(on_lucky_harvest)
+	game_state.lucky_harvest.emit(&"wood", 1)
+	failed += _assert(LuckySparkFxScript.burst_spawn_count() == 0, "lucky_harvest without gatherable skips burst")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "lucky_harvest still plays chime")
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
+	host.queue_free()
+	return failed
+
+
 func _check_only_load() -> int:
 	## Compile and load the companion scripts. Does not run the suite.
 	var failed: int = 0
@@ -5841,6 +5978,8 @@ func _check_only_load() -> int:
 		"res://scripts/hub/hub_time_phase.gd",
 		"res://scripts/forge_room.gd",
 		"res://scripts/gatherable.gd",
+		"res://scripts/fx/lucky_spark_burst.gd",
+		"res://scripts/fx/lucky_spark_fx.gd",
 		"res://scripts/manatree.gd",
 		"res://scripts/tree_whispers.gd",
 		"res://scripts/forge_station.gd",
