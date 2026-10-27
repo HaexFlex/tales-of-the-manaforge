@@ -179,6 +179,10 @@ func duck_hold() -> String:
 	return _duck_hold
 
 
+func gather_offset_db() -> float:
+	return _gather_offset_db
+
+
 func music_bed_volume_db() -> float:
 	if _music_player == null:
 		return 0.0

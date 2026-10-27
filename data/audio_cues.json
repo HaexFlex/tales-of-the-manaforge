@@ -101,6 +101,30 @@
       "loop": false,
       "path": "res://assets/audio/sfx_gather_cooldown.ogg"
     },
+    "sfx_mana_chime_1": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_1.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_mana_chime_2": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_2.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_mana_chime_3": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_3.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_mana_chime_4": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_4.ogg",
+      "volume_db": 0.0
+    },
     "sfx_tree_water": {
       "bus": "SFX_World",
       "loop": false,
