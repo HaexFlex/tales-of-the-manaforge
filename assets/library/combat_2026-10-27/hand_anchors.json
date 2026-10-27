@@ -3,7 +3,25 @@
     "actor": "keeper",
     "clip": "attack",
     "frame": 0,
-    "hand_x": 108,
+    "hand_x": 106,
+    "hand_y": 66,
+    "rot_index": 6,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 1,
+    "hand_x": 107,
+    "hand_y": 65,
+    "rot_index": 7,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 2,
+    "hand_x": 109,
     "hand_y": 64,
     "rot_index": 0,
     "z": "front"
@@ -11,7 +29,7 @@
   {
     "actor": "keeper",
     "clip": "attack",
-    "frame": 1,
+    "frame": 3,
     "hand_x": 110,
     "hand_y": 64,
     "rot_index": 0,
@@ -20,19 +38,37 @@
   {
     "actor": "keeper",
     "clip": "attack",
-    "frame": 2,
+    "frame": 4,
     "hand_x": 112,
     "hand_y": 63,
+    "rot_index": 1,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 5,
+    "hand_x": 113,
+    "hand_y": 62,
+    "rot_index": 1,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 6,
+    "hand_x": 110,
+    "hand_y": 64,
     "rot_index": 0,
     "z": "front"
   },
   {
     "actor": "keeper",
     "clip": "attack",
-    "frame": 3,
-    "hand_x": 109,
+    "frame": 7,
+    "hand_x": 108,
     "hand_y": 64,
-    "rot_index": 0,
+    "rot_index": 7,
     "z": "front"
   },
   {
