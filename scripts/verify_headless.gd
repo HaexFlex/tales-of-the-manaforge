@@ -26855,4 +26855,15 @@ func _combat_anims_r6_ok() -> int:
 	failed += _assert(str(anchor2.get("z", "")) == "front", "keeper attack frame 2 z front")
 	var anchor3: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 3)
 	failed += _assert(int(anchor3.get("rot_index", -1)) == 1, "keeper attack impact frame rot_index")
+	var grip_weapons: Array[String] = ["wpn_sword_t1", "wpn_sword_t2", "wpn_bow_t1", "wpn_wand_t2"]
+	for frame_i: int in range(8):
+		var anchor_f: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", frame_i)
+		var hx: int = int(anchor_f.get("hand_x", -1))
+		var hy: int = int(anchor_f.get("hand_y", -1))
+		var rot_i: int = int(anchor_f.get("rot_index", -1))
+		for sprite_id: String in grip_weapons:
+			failed += _assert(
+				CombatAnimsConfigScript.weapon_grip_matches_hand_exact(hx, hy, sprite_id, rot_i),
+				"grip on hand frame %d %s rot %d" % [frame_i, sprite_id, rot_i],
+			)
 	return failed

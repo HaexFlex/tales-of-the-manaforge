@@ -7,6 +7,9 @@ const GRIP_OFFSETS_PATH: String = "res://assets/art/battle/weapons/rot/grip_offs
 const MODULAR_BODY_PATH: String = "res://assets/art/battle/modular/%s/%s/frame_%04d.png"
 const WEAPON_ROT_PATH: String = "res://assets/art/battle/weapons/rot/%s_r%d.png"
 const KEEPER_ATTACK_ROT_SEQUENCE: Array[int] = [5, 6, 7, 1, 1, 1, 0, 0]
+const FIGHTER_SOLE: Vector2 = Vector2(64.0, 123.0)
+const BODY_FRAME: Vector2 = Vector2(128.0, 128.0)
+const CONTACT_CELL_MARGIN: int = 36
 
 const WEAPON_FAMILY_GRIP: Dictionary = {
 	"sword": Vector2(0.0, 4.0),
@@ -162,6 +165,64 @@ static func weapon_texture_for_rot(sprite_id: String, rot_index: int) -> String:
 ## Pre-rotated sprites: node rotation stays 0 (CODE_NOTES.md).
 static func weapon_rotation_rad(_rot_index: int) -> float:
 	return 0.0
+
+
+static func body_sprite_offset_in_root() -> Vector2:
+	return -FIGHTER_SOLE
+
+
+static func hand_point_in_root(hand_x: int, hand_y: int) -> Vector2:
+	return Vector2(-FIGHTER_SOLE.x + float(hand_x), -FIGHTER_SOLE.y + float(hand_y))
+
+
+static func weapon_top_left_in_root(
+	hand_x: int,
+	hand_y: int,
+	sprite_id: String,
+	rot_index: int,
+) -> Vector2:
+	return hand_point_in_root(hand_x, hand_y) - weapon_pivot_for_rot(sprite_id, rot_index)
+
+
+static func weapon_top_left_in_body_texture(
+	hand_x: int,
+	hand_y: int,
+	sprite_id: String,
+	rot_index: int,
+) -> Vector2:
+	return Vector2(float(hand_x), float(hand_y)) - weapon_pivot_for_rot(sprite_id, rot_index)
+
+
+static func weapon_grip_matches_hand_exact(
+	hand_x: int,
+	hand_y: int,
+	sprite_id: String,
+	rot_index: int,
+) -> bool:
+	var pivot: Vector2 = weapon_pivot_for_rot(sprite_id, rot_index)
+	var grip: Vector2 = weapon_top_left_in_root(hand_x, hand_y, sprite_id, rot_index) + pivot
+	var hand: Vector2 = hand_point_in_root(hand_x, hand_y)
+	return grip.is_equal_approx(hand)
+
+
+static func contact_cell_size() -> Vector2i:
+	var side: int = int(BODY_FRAME.x) + CONTACT_CELL_MARGIN * 2
+	return Vector2i(side, side)
+
+
+static func craft_weapon_rows_for_contact() -> Array[Dictionary]:
+	_ensure_loaded()
+	return [
+		_row_for_item("stone_sword", "Flintblade"),
+		_row_for_item("rootsteel_edge", "Rootsteel"),
+		_row_for_item("thornbow", "Thornbow"),
+		_row_for_item("heartwand", "Heartwand"),
+	]
+
+
+static func _row_for_item(item_id: String, label: String) -> Dictionary:
+	var sprite_id: String = weapon_sprite_id_for_item(item_id)
+	return {"label": label, "item_id": item_id, "sprite_id": sprite_id}
 
 
 static func modular_body_path(actor: String, clip: String, art_frame: int) -> String:
