@@ -1,9 +1,20 @@
 extends Keeper
 class_name MossTortoise
-## Moss tortoise companion — walk8 at Keeper WALK_MS; 9×100 walk folder is not wired.
+## Moss tortoise companion — walk8 (~0.92 s loop); 9×100 walk folder is not wired.
 
 const ART: String = "res://assets/art/moss_tortoise/anim"
 const COMPANION_IDLE_MS: float = 160.0
+## Imagine walk period 22 @ 24 fps → 920 ms (Keeper WALK_MS × 0.92); see moss_tortoise CODE_NOTES.
+const TORTOISE_WALK8_MS: Array[float] = [
+	110.4, 115.0, 119.6, 115.0, 110.4, 115.0, 119.6, 115.0,
+]
+
+
+static func walk_loop_ms() -> float:
+	var total: float = 0.0
+	for ms: float in TORTOISE_WALK8_MS:
+		total += ms
+	return total
 
 @export var home_area: String = "clearing"
 
@@ -55,9 +66,9 @@ func _build_frames() -> SpriteFrames:
 	frames.remove_animation(&"default")
 	for dir: String in ["south", "north", "east", "west"]:
 		_add_idle_dir(frames, dir)
-		_add_timed_root(frames, StringName("walk_%s" % dir), "walk8/%s" % dir, WALK_MS)
+		_add_timed_root(frames, StringName("walk_%s" % dir), "walk8/%s" % dir, TORTOISE_WALK8_MS)
 	_add_anim(frames, &"idle_front", _idle_paths("south"), COMPANION_IDLE_MS)
-	_add_timed_root(frames, &"walk_front", "walk8/south", WALK_MS)
+	_add_timed_root(frames, &"walk_front", "walk8/south", TORTOISE_WALK8_MS)
 	return frames
 
 

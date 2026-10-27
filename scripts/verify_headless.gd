@@ -26771,6 +26771,10 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 			walk_tortoise_failed += _assert(FileAccess.file_exists(wp), "tortoise walk8 %s" % wp)
 	walk_tortoise_failed += _assert(load("res://scripts/moss_tortoise.gd") != null, "moss tortoise script")
 	walk_tortoise_failed += _assert(not FileAccess.file_exists("res://assets/art/moss_tortoise/anim/walk8/east/frame_0008.png"), "walk9 unwired")
+	walk_tortoise_failed += _assert(
+		is_equal_approx(MossTortoise.walk_loop_ms(), 920.0),
+		"tortoise walk loop 920 ms got %s" % str(MossTortoise.walk_loop_ms()),
+	)
 	failed += walk_tortoise_failed
 	if walk_tortoise_failed == 0:
 		print("MOSS_TORTOISE_WALK_OK")
@@ -26793,6 +26797,10 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 	puff_walk_failed += _assert(FileAccess.file_exists("res://assets/art/puff/battle_puff_idle.png"), "puff battle")
 	puff_walk_failed += _assert(FileAccess.file_exists("res://assets/art/puff/puff_portrait.png"), "puff portrait")
 	puff_walk_failed += _assert(load("res://scripts/puff.gd") != null, "puff script")
+	puff_walk_failed += _assert(
+		is_equal_approx(Puff.walk_loop_ms(), 1000.0),
+		"puff walk loop 1000 ms got %s" % str(Puff.walk_loop_ms()),
+	)
 	failed += puff_walk_failed
 	if puff_walk_failed == 0:
 		print("PUFF_WALK_OK")

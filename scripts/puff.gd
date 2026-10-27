@@ -1,9 +1,18 @@
 extends Keeper
 class_name Puff
-## Puff companion — 8-frame walk (Keeper WALK_MS) and 12-frame idle per direction.
+## Puff companion — 8-frame walk (~1.0 s loop) and 12-frame idle per direction.
 
 const ART: String = "res://assets/art/puff/anim"
 const COMPANION_IDLE_MS: float = 160.0
+## Imagine walk extract period 24 @ 24 fps → 1000 ms (see puff CODE_NOTES).
+const PUFF_WALK_MS: Array[float] = [120.0, 125.0, 130.0, 125.0, 120.0, 125.0, 130.0, 125.0]
+
+
+static func walk_loop_ms() -> float:
+	var total: float = 0.0
+	for ms: float in PUFF_WALK_MS:
+		total += ms
+	return total
 
 @export var home_area: String = "clearing"
 
@@ -55,16 +64,16 @@ func _build_frames() -> SpriteFrames:
 	frames.remove_animation(&"default")
 	for dir: String in ["south", "north", "east", "west"]:
 		_add_idle_dir(frames, dir)
-		_add_timed_root(frames, StringName("walk_%s" % dir), "walk/%s" % dir, WALK_MS)
+		_add_timed_root(frames, StringName("walk_%s" % dir), "walk/%s" % dir, PUFF_WALK_MS)
 	_add_anim(frames, &"idle_front", _idle_paths("south"), COMPANION_IDLE_MS)
 	frames.add_animation(&"walk_front")
 	frames.set_animation_loop(&"walk_front", true)
 	frames.set_animation_speed(&"walk_front", 1000.0)
-	for i: int in range(WALK_MS.size()):
+	for i: int in range(PUFF_WALK_MS.size()):
 		var path := "%s/walk/south/frame_%04d.png" % [ART, i]
 		var tex: Texture2D = load(path) as Texture2D
 		if tex:
-			frames.add_frame(&"walk_front", tex, WALK_MS[i])
+			frames.add_frame(&"walk_front", tex, PUFF_WALK_MS[i])
 	return frames
 
 
