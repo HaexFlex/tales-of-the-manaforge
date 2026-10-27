@@ -9,6 +9,11 @@ signal volumes_changed(music_linear: float, sfx_linear: float)
 const MANIFEST_PATH: String = "res://data/audio_cues.json"
 const SETTINGS_PATH: String = "user://manaforge_settings.cfg"
 const SETTINGS_SECTION: String = "audio"
+const HUB_BED_BUS: String = "Music_HubBed"
+## Placeholder dusk-bed tuning — see sprint PR for Audio review.
+const HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ: float = 22000.0
+const HUB_AMBIENCE_FILTER_NIGHT_CUTOFF_HZ: float = 1200.0
+const HUB_AMBIENCE_FILTER_RESONANCE: float = 0.5
 const MUSIC_BUS_DEFAULT_DB: float = -9.0
 const SFX_BUS_DEFAULT_DB: float = 0.0
 const SFX_BUS_NAMES: PackedStringArray = ["SFX_UI", "SFX_World", "SFX_Progress"]
@@ -60,6 +65,7 @@ var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
 var _forge_lowpass: AudioEffectLowPassFilter
 var _forge_reverb: AudioEffectReverb
+var _hub_bed_lowpass: AudioEffectLowPassFilter
 var last_cue_volume_db: float = 0.0
 var _duck_amount_db: float = -5.0
 var _duck_attack_sec: float = 0.05
@@ -80,7 +86,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_buses()
 	_load_manifest()
-	_music_player = _make_player("MusicPlayer", "Music")
+	_music_player = _make_player("MusicPlayer", HUB_BED_BUS)
+	set_process(true)
 	_sting_player = _make_player("StingPlayer", "Music")
 	for i: int in SFX_POOL_SIZE:
 		var sfx: AudioStreamPlayer = _make_player("SfxVoice%d" % i, "SFX_World")
@@ -114,9 +121,18 @@ func _make_player(node_name: String, bus_name: String) -> AudioStreamPlayer:
 
 func _ensure_buses() -> void:
 	_add_bus_if_missing("Music")
+	_add_bus_if_missing(HUB_BED_BUS)
 	_add_bus_if_missing("SFX_UI")
 	_add_bus_if_missing("SFX_World")
 	_add_bus_if_missing("SFX_Progress")
+	var hub_bed_idx: int = AudioServer.get_bus_index(HUB_BED_BUS)
+	if hub_bed_idx >= 0:
+		AudioServer.set_bus_send(hub_bed_idx, "Music")
+		if _hub_bed_lowpass == null:
+			_hub_bed_lowpass = AudioEffectLowPassFilter.new()
+			_hub_bed_lowpass.cutoff_hz = HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+			_hub_bed_lowpass.resonance = HUB_AMBIENCE_FILTER_RESONANCE
+			AudioServer.add_bus_effect(hub_bed_idx, _hub_bed_lowpass)
 	## Duck is a bed-player envelope. A sidechain compressor would also duck the stings.
 	var music_idx: int = AudioServer.get_bus_index("Music")
 	if music_idx < 0:
@@ -381,15 +397,17 @@ func play(cue_id: StringName, offset_db: float = 0.0, pitch: float = 1.0) -> voi
 	if bus == "Music":
 		if looping or key == "mus_hub_forest":
 			var hub_stream: AudioStream = null
+			var bed_bus: String = bus
 			if key == "mus_hub_forest":
 				hub_stream = _resolve_hub_stream(path)
+				bed_bus = HUB_BED_BUS
 			elif path != "" and ResourceLoader.exists(path):
 				hub_stream = load(path) as AudioStream
 			if hub_stream == null:
 				cue_missing.emit(cue_id)
 				cue_played.emit(cue_id)
 				return
-			_play_hub_stream(hub_stream, bus)
+			_play_hub_stream(hub_stream, bed_bus)
 			cue_played.emit(cue_id)
 			return
 		if path == "" or not ResourceLoader.exists(path):
@@ -536,6 +554,7 @@ func _play_hub_stream(stream: AudioStream, bus: String) -> void:
 		_hub_playing = true
 		_ensure_music_bus_audible()
 		player.volume_db = _duck_db
+		player.bus = bus
 		return
 	_force_stream_loop(stream)
 	_ensure_music_bus_audible()
@@ -545,6 +564,31 @@ func _play_hub_stream(stream: AudioStream, bus: String) -> void:
 	player.pitch_scale = 1.0
 	player.play()
 	_hub_playing = true
+
+
+func hub_ambience_filter_cutoff_hz() -> float:
+	if _hub_bed_lowpass == null:
+		return HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+	return _hub_bed_lowpass.cutoff_hz
+
+
+func _process(_delta: float) -> void:
+	_refresh_hub_ambience_lowpass()
+
+
+func _refresh_hub_ambience_lowpass() -> void:
+	if _hub_bed_lowpass == null:
+		return
+	var strength: float = 0.0
+	if day_night_enabled:
+		strength = HubTimePhase.hub_ambience_filter_strength(HubTimePhase.sample_phase01())
+	var cutoff: float = lerpf(
+		HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ,
+		HUB_AMBIENCE_FILTER_NIGHT_CUTOFF_HZ,
+		strength
+	)
+	if not is_equal_approx(_hub_bed_lowpass.cutoff_hz, cutoff):
+		_hub_bed_lowpass.cutoff_hz = cutoff
 
 
 func _play_sting_stream(stream: AudioStream, bus: String) -> void:
@@ -944,6 +988,7 @@ func set_use_speedup_button(enabled: bool) -> void:
 
 func set_day_night_enabled(enabled: bool) -> void:
 	day_night_enabled = enabled
+	_refresh_hub_ambience_lowpass()
 	save_settings()
 
 

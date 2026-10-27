@@ -25,3 +25,8 @@ static func firefly_strength(phase01: float) -> float:
 	if p < 0.82:
 		return 1.0
 	return 1.0 - smoothstep(0.82, 0.98, p)
+
+
+## 0 = filter open (day), 1 = darkest (night). Same phase bands as fireflies.
+static func hub_ambience_filter_strength(phase01: float) -> float:
+	return firefly_strength(phase01)
