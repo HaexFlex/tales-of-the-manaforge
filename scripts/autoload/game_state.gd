@@ -1269,7 +1269,6 @@ func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: floa
 	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor() * rate
 	var grant: int = accumulate_harvest(resource_id, units)
 	if grant > 0:
-		try_morning_gift(resource_id)
 		keeper_harvested.emit(resource_id, grant)
 		_apply_lucky_harvest_bonus(resource_id, grant)
 	return grant
@@ -1309,7 +1308,6 @@ func apply_harvest_pulse(resource_id: StringName, rate: float = 1.0) -> int:
 		return 0
 	var grant: int = accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor() * rate)
 	if grant > 0:
-		try_morning_gift(resource_id)
 		_apply_lucky_harvest_bonus(resource_id, grant)
 	return grant
 
@@ -2447,6 +2445,7 @@ func reset_for_new_game() -> void:
 	first_minigame_played = false
 	wisp_count = 0
 	wisp_assignments.clear()
+	wisp_favourites.clear()
 	wisp_pulse_accum.clear()
 	harvest_accum.clear()
 	ancient_remaining_sec = 0.0
