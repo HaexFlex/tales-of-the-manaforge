@@ -31,6 +31,19 @@ var _frames_per_tile: int = 1
 var _shown_tile: int = -1
 
 const META_PATH: String = "res://assets/art/manatree/native/manatree_meta.json"
+const BREATH_SHADER: Shader = preload("res://assets/art/manatree/manatree_breath.gdshader")
+const BREATH_SWAY_AMP: Dictionary = {
+	"sapling": 1.0, "young": 1.0, "mature": 1.0, "elder": 2.0, "ancient": 2.0,
+}
+const BREATH_SWAY_HZ: Dictionary = {
+	"sapling": 0.30, "young": 0.26, "mature": 0.22, "elder": 0.19, "ancient": 0.16,
+}
+const BREATH_LEAF_AMOUNT: Dictionary = {
+	"sapling": 1, "young": 2, "mature": 3, "elder": 5, "ancient": 7,
+}
+const LEAF_DRIFT_ATLAS: String = "res://assets/art/manatree/leaf_drift/leaf_drift_atlas_4x3.png"
+const BREATH_LEAF_LIFETIME: float = 5.0
+var _leaf_tex: Texture2D
 const STAGE_TEXTURES: Dictionary = {
 	&"sapling": "res://assets/art/manatree/native/manatree_sapling.png",
 	&"young": "res://assets/art/manatree/native/manatree_young.png",
@@ -66,6 +79,7 @@ func _ready() -> void:
 	_ensure_trunk()
 	_ensure_door_trigger()
 	_ensure_veins()
+	_ensure_leaf_drift()
 	_refresh_visual()
 	_on_fruit_changed(GameState.fruit_ready)
 
@@ -411,6 +425,7 @@ func _refresh_visual() -> void:
 	fruit_hint.position = Vector2(-140, 12)
 	_apply_trunk(String(stage))
 	_apply_veins(String(stage))
+	_apply_breath(String(stage))
 
 
 const TRUNK_SIZE: Dictionary = {
@@ -653,3 +668,69 @@ func _apply_veins(stage: String) -> void:
 	motes.position = VEIN_POS.get(stage, Vector2(0, -45))
 	motes.emission_rect_extents = VEIN_EXTENT.get(stage, Vector2(10, 30))
 	motes.emitting = true
+
+
+func _leaf_placeholder_tex() -> Texture2D:
+	if _leaf_tex != null:
+		return _leaf_tex
+	_leaf_tex = load(LEAF_DRIFT_ATLAS) as Texture2D
+	return _leaf_tex
+
+
+func _ensure_leaf_drift() -> void:
+	if get_node_or_null("LeafDrift") != null:
+		return
+	var leaves := CPUParticles2D.new()
+	leaves.name = "LeafDrift"
+	leaves.texture = _leaf_placeholder_tex()
+	leaves.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	leaves.local_coords = true
+	leaves.explosiveness = 0.0
+	leaves.randomness = 0.45
+	leaves.lifetime = BREATH_LEAF_LIFETIME
+	leaves.direction = Vector2(0, 1)
+	leaves.spread = 28.0
+	leaves.gravity = Vector2(0, 18)
+	leaves.initial_velocity_min = 4.0
+	leaves.initial_velocity_max = 14.0
+	leaves.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	leaves.z_index = 1
+	var leaf_mat := CanvasItemMaterial.new()
+	leaf_mat.particles_animation = true
+	leaf_mat.particles_anim_h_frames = 4
+	leaf_mat.particles_anim_v_frames = 3
+	leaves.material = leaf_mat
+	add_child(leaves)
+
+
+func _apply_breath(stage: String) -> void:
+	if Engine.is_editor_hint():
+		if sprite != null:
+			sprite.material = null
+		return
+	if sprite == null:
+		return
+	var mat: ShaderMaterial
+	if sprite.material is ShaderMaterial and (sprite.material as ShaderMaterial).shader == BREATH_SHADER:
+		mat = sprite.material as ShaderMaterial
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = BREATH_SHADER
+		sprite.material = mat
+	var door: Vector2 = door_floor_px(StringName(stage))
+	var sc: float = _display_scale(StringName(stage))
+	var sz: Vector2 = TRUNK_SIZE.get(stage, Vector2(28, 40))
+	var box: Vector2 = FeetBox.size_for(sz)
+	var canopy_base_y: float = -maxf(box.y, 56.0)
+	var crown_h: float = maxf(canopy_base_y + door.y * sc, 8.0)
+	mat.set_shader_parameter("sway_amp_px", float(BREATH_SWAY_AMP.get(stage, 1.0)))
+	mat.set_shader_parameter("sway_hz", float(BREATH_SWAY_HZ.get(stage, 0.25)))
+	mat.set_shader_parameter("canopy_base_y", canopy_base_y)
+	mat.set_shader_parameter("crown_h_px", crown_h)
+	var leaves: CPUParticles2D = get_node_or_null("LeafDrift") as CPUParticles2D
+	if leaves == null:
+		return
+	leaves.amount = int(BREATH_LEAF_AMOUNT.get(stage, 2))
+	leaves.position = Vector2(0, -crown_h * 0.55)
+	leaves.emission_rect_extents = Vector2(door.x * sc * 0.42, crown_h * 0.14)
+	leaves.emitting = true
