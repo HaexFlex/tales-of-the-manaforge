@@ -7,7 +7,7 @@ const WEATHER_STATES: Array[StringName] = [
 	&"clear", &"soft_rain", &"mist", &"light_snow", &"blossom_fall",
 ]
 const VIEW_NAMES: Array[String] = ["center", "ne", "nw", "se", "sw"]
-const PARTICLE_PREPROCESS_SEC: float = 4.5
+const PARTICLE_PREPROCESS_SEC: float = 9.0
 const CAPTURE_WARMUP_FRAMES: int = 30
 const SNOW_REALTIME_WARMUP_SEC: float = 5.0
 
@@ -55,8 +55,14 @@ func _run() -> void:
 	var cam_lines: PackedStringArray = PackedStringArray()
 	var snow_debug_lines: PackedStringArray = PackedStringArray()
 	var only_weather: String = OS.get_environment("MANAFORGE_CAPTURE_ONLY_WEATHER")
+	var only_list: PackedStringArray = PackedStringArray()
+	if only_weather != "":
+		for part: String in only_weather.split(",", false):
+			var trimmed: String = part.strip_edges()
+			if trimmed != "":
+				only_list.append(trimmed)
 	for weather: StringName in WEATHER_STATES:
-		if only_weather != "" and String(weather) != only_weather:
+		if only_list.size() > 0 and not only_list.has(String(weather)):
 			continue
 		hub_weather.call("force_state_for_debug", weather)
 		await process_frame
@@ -90,7 +96,7 @@ func _run() -> void:
 					)
 			print("CAPTURE_OK %s" % fname)
 	_write_snow_debug(snow_debug_lines)
-	if only_weather != "":
+	if only_list.size() > 0:
 		print("CAPTURE_ALL_OK")
 		quit(0)
 		return
@@ -191,7 +197,7 @@ func _log_particles_under(node: Node, hub: Node, lines: PackedStringArray) -> vo
 
 
 func _log_one_particle(motes: CPUParticles2D, hub: Node, lines: PackedStringArray) -> void:
-	if motes.name != "Snow":
+	if not str(motes.name).begins_with("Snow"):
 		return
 	var path: NodePath = hub.get_path_to(motes)
 	var parent_mod: Color = Color.WHITE
@@ -223,10 +229,11 @@ func _preprocess_weather_particles(hub: Node, weather: StringName) -> void:
 	if fx == null:
 		return
 	if weather == &"light_snow":
-		var snow: CPUParticles2D = fx.get_node_or_null("Snow") as CPUParticles2D
-		if snow != null:
-			snow.preprocess = PARTICLE_PREPROCESS_SEC
-			snow.restart()
+		for child_name: String in ["SnowSmall", "SnowLarge"]:
+			var snow: CPUParticles2D = fx.get_node_or_null(child_name) as CPUParticles2D
+			if snow != null:
+				snow.preprocess = PARTICLE_PREPROCESS_SEC
+				snow.restart()
 		return
 	_preprocess_particles_under(fx)
 
