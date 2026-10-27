@@ -1,9 +1,9 @@
 {
   "owner": "Audio",
-  "version": "v0.3.1-battle-music+water-soft",
-  "date": "2026-10-16",
+  "version": "v0.3.1-battle-music+water-soft+firefly-twinkle-sprint",
+  "date": "2026-10-27",
   "source_spec": "CUE_NOTES_FIXPASS.md (box audio_restart/); supersedes AUDIO_RESTART_V01.md and CUE_NOTES_FORGE_V2.md where they differ; battle cues: CUE_NOTES_BATTLE_V1.md",
-  "mirrors": "data/audio_cues.json: same cue ids, files (path) and buses. 54 cues: 38 from the fix pass/adventure + mus_battle_forest (reach manual fights) + 15 sfx_battle_* (in audio_cues.json, wired by battle playback job 21; rules in audio_cues.json battle_playback). This file is documentation; code reads audio_cues.json only.",
+  "mirrors": "data/audio_cues.json: same cue ids, files (path) and buses. 57 cues: 38 from the fix pass/adventure + mus_battle_forest (reach manual fights) + 15 sfx_battle_* (in audio_cues.json, wired by battle playback job 21; rules in audio_cues.json battle_playback). This file is documentation; code reads audio_cues.json only.",
   "sample_rate": 44100,
   "format": "ogg (SFX/stings: Vorbis 44.1 kHz mono); hub bed mp3 48 kHz stereo",
   "layout": "flat",
@@ -635,6 +635,39 @@
       "base_db": 0.0,
       "play_offset_db": 0.0,
       "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Target confirm). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+    },
+    "sfx_firefly_twinkle_1": {
+      "file": "sfx_firefly_twinkle_1.ogg",
+      "path": "res://assets/audio/sfx_firefly_twinkle_1.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 0.42,
+      "file_peak_dbfs": -18.3,
+      "base_db": 0.0,
+      "play_offset_db": -6.0,
+      "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 1 (G5). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
+    },
+    "sfx_firefly_twinkle_2": {
+      "file": "sfx_firefly_twinkle_2.ogg",
+      "path": "res://assets/audio/sfx_firefly_twinkle_2.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 0.42,
+      "file_peak_dbfs": -18.2,
+      "base_db": 0.0,
+      "play_offset_db": -6.0,
+      "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 2 (C6). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
+    },
+    "sfx_firefly_twinkle_3": {
+      "file": "sfx_firefly_twinkle_3.ogg",
+      "path": "res://assets/audio/sfx_firefly_twinkle_3.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 0.42,
+      "file_peak_dbfs": -18.2,
+      "base_db": 0.0,
+      "play_offset_db": -6.0,
+      "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 3 (Eb6). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
     }
   },
   "legacy": [
