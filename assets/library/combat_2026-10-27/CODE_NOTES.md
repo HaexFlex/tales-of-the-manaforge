@@ -116,14 +116,14 @@ Body is empty-fist (no weapon erase). Overlay `wpn_*` v2 at hand anchors. Neares
 
 ### Attack anchors
 frame,phase,hand_x,hand_y,rot_index,z,src_frame
-0,windup1,86,66,6,behind,24
-1,windup2,85,55,6,behind,42
-2,swing,97,36,7,front,60
-3,impact,102,82,1,front,66
-4,follow1,97,102,1,front,78
-5,follow2,97,102,1,front,96
-6,recover1,95,85,0,front,117
-7,recover2,84,52,0,front,132
+0,windup1,43,24,5,behind,24
+1,windup2,48,21,6,behind,42
+2,swing,96,35,7,front,60
+3,impact,101,82,1,front,66
+4,follow1,95,103,1,front,78
+5,follow2,95,103,1,front,96
+6,recover1,94,84,0,front,117
+7,recover2,83,50,0,front,132
 
 Pre-rotated grips: `weapons/rot/grip_offsets.json` (swords 28×10 tip↔grip 26, grip family (0,4); wand 5×24 (2,7); bow 14×24 (1,11)).
 Review: `assets/library/combat_2026-10-27/keeper_attack_v3_contact_1x.png` + `/workspace/sprint_art/previews/keeper_attack_v3_contact_{1x,4x}.png` + flintblade GIF.

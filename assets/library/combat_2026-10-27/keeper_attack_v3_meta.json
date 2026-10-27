@@ -9,17 +9,17 @@
       "art": 0,
       "src": 24,
       "phase": "windup1",
-      "hand_x": 86,
-      "hand_y": 66,
-      "rot_index": 6,
+      "hand_x": 43,
+      "hand_y": 24,
+      "rot_index": 5,
       "z": "behind"
     },
     {
       "art": 1,
       "src": 42,
       "phase": "windup2",
-      "hand_x": 85,
-      "hand_y": 55,
+      "hand_x": 48,
+      "hand_y": 21,
       "rot_index": 6,
       "z": "behind"
     },
@@ -27,8 +27,8 @@
       "art": 2,
       "src": 60,
       "phase": "swing",
-      "hand_x": 97,
-      "hand_y": 36,
+      "hand_x": 96,
+      "hand_y": 35,
       "rot_index": 7,
       "z": "front"
     },
@@ -36,7 +36,7 @@
       "art": 3,
       "src": 66,
       "phase": "impact",
-      "hand_x": 102,
+      "hand_x": 101,
       "hand_y": 82,
       "rot_index": 1,
       "z": "front"
@@ -45,8 +45,8 @@
       "art": 4,
       "src": 78,
       "phase": "follow1",
-      "hand_x": 97,
-      "hand_y": 102,
+      "hand_x": 95,
+      "hand_y": 103,
       "rot_index": 1,
       "z": "front"
     },
@@ -54,8 +54,8 @@
       "art": 5,
       "src": 96,
       "phase": "follow2",
-      "hand_x": 97,
-      "hand_y": 102,
+      "hand_x": 95,
+      "hand_y": 103,
       "rot_index": 1,
       "z": "front"
     },
@@ -63,8 +63,8 @@
       "art": 6,
       "src": 117,
       "phase": "recover1",
-      "hand_x": 95,
-      "hand_y": 85,
+      "hand_x": 94,
+      "hand_y": 84,
       "rot_index": 0,
       "z": "front"
     },
@@ -72,10 +72,101 @@
       "art": 7,
       "src": 132,
       "phase": "recover2",
-      "hand_x": 84,
-      "hand_y": 52,
+      "hand_x": 83,
+      "hand_y": 50,
       "rot_index": 0,
       "z": "front"
     }
-  ]
+  ],
+  "grip_verify": [
+    {
+      "frame": 0,
+      "phase": "windup1",
+      "hand_x": 43,
+      "hand_y": 24,
+      "rot": 5,
+      "z": "behind",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    },
+    {
+      "frame": 1,
+      "phase": "windup2",
+      "hand_x": 48,
+      "hand_y": 21,
+      "rot": 6,
+      "z": "behind",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    },
+    {
+      "frame": 2,
+      "phase": "swing",
+      "hand_x": 96,
+      "hand_y": 35,
+      "rot": 7,
+      "z": "front",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    },
+    {
+      "frame": 3,
+      "phase": "impact",
+      "hand_x": 101,
+      "hand_y": 82,
+      "rot": 1,
+      "z": "front",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    },
+    {
+      "frame": 4,
+      "phase": "follow1",
+      "hand_x": 95,
+      "hand_y": 103,
+      "rot": 1,
+      "z": "front",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    },
+    {
+      "frame": 5,
+      "phase": "follow2",
+      "hand_x": 95,
+      "hand_y": 103,
+      "rot": 1,
+      "z": "front",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    },
+    {
+      "frame": 6,
+      "phase": "recover1",
+      "hand_x": 94,
+      "hand_y": 84,
+      "rot": 0,
+      "z": "front",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    },
+    {
+      "frame": 7,
+      "phase": "recover2",
+      "hand_x": 83,
+      "hand_y": 50,
+      "rot": 0,
+      "z": "front",
+      "dist": 0.0,
+      "hand_opaque": true,
+      "wpn_grip_opaque": true
+    }
+  ],
+  "fix_note": "fists remapped from source skin blobs through place(); windup tip up/back (rot 5/6) z=behind"
 }
