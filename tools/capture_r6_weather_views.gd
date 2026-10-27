@@ -10,6 +10,10 @@ const VIEW_NAMES: Array[String] = ["center", "ne", "nw", "se", "sw"]
 const PARTICLE_PREPROCESS_SEC: float = 9.0
 const CAPTURE_WARMUP_FRAMES: int = 30
 const VIEW_FALL_REALTIME_WARMUP_SEC: float = 9.0
+const CAPTURE_WIDTH: int = 1280
+const CAPTURE_HEIGHT: int = 720
+const MID_CROP_W: int = 320
+const MID_CROP_H: int = 180
 
 
 func _initialize() -> void:
@@ -46,7 +50,11 @@ func _run() -> void:
 		quit(1)
 		return
 	cam.zoom = Vector2(1.0, 1.0)
-	DisplayServer.window_set_size(Vector2i(960, 540))
+	root.size = Vector2i(CAPTURE_WIDTH, CAPTURE_HEIGHT)
+	DisplayServer.window_set_size(Vector2i(CAPTURE_WIDTH, CAPTURE_HEIGHT))
+	Ui540.apply_integer_viewport(root)
+	await process_frame
+	await process_frame
 	var hub_weather: Node = root.get_node_or_null("HubWeather")
 	if hub_weather == null:
 		print("CAPTURE_FAIL HubWeather")
@@ -101,10 +109,9 @@ func _run() -> void:
 					)
 			print("CAPTURE_OK %s" % fname)
 			if weather == &"light_snow" and view_name == "center":
-				_write_snow_flake_crop_4x_from_diff(
-					"%s/light_snow_center.png" % OUT_DIRS[0],
-					"%s/clear_center.png" % OUT_DIRS[0]
-				)
+				var center_path: String = "%s/light_snow_center.png" % OUT_DIRS[0]
+				_write_snow_flake_crop_4x_from_diff(center_path, "%s/clear_center.png" % OUT_DIRS[0])
+				_write_light_snow_center_mid_2x(center_path)
 	_write_snow_debug(snow_debug_lines)
 	if only_list.size() > 0:
 		print("CAPTURE_ALL_OK")
@@ -145,7 +152,13 @@ func _save_viewport_png(hub: Node, path: String) -> bool:
 	var image: Image = tex.get_image()
 	if image == null:
 		return false
-	image.resize(960, 540, Image.INTERPOLATE_NEAREST)
+	if image.get_width() != CAPTURE_WIDTH or image.get_height() != CAPTURE_HEIGHT:
+		print(
+			"CAPTURE_FAIL dimension %s got %dx%d expected %dx%d"
+			% [path, image.get_width(), image.get_height(), CAPTURE_WIDTH, CAPTURE_HEIGHT]
+		)
+		return false
+	print("CAPTURE_DIM %s %dx%d" % [path, image.get_width(), image.get_height()])
 	return image.save_png(path) == OK
 
 
@@ -441,6 +454,23 @@ func _write_snow_flake_crop_4x_from_diff(snow_path: String, clear_path: String) 
 				"CAPTURE_OK %s flake_diff_px=%d origin=%s cluster_center=%s"
 				% [out_path, flake_pts.size(), origin, cluster_center]
 			)
+
+
+func _write_light_snow_center_mid_2x(center_path: String) -> void:
+	var image: Image = Image.load_from_file(center_path)
+	if image == null:
+		print("CAPTURE_FAIL light_snow_center_mid_2x source %s" % center_path)
+		return
+	var ox: int = (image.get_width() - MID_CROP_W) / 2
+	var oy: int = (image.get_height() - MID_CROP_H) / 2
+	var region: Image = image.get_region(Rect2i(ox, oy, MID_CROP_W, MID_CROP_H))
+	region.resize(MID_CROP_W * 2, MID_CROP_H * 2, Image.INTERPOLATE_NEAREST)
+	for dir: String in OUT_DIRS:
+		var out_path: String = "%s/light_snow_center_mid_2x.png" % dir
+		if region.save_png(out_path) != OK:
+			print("CAPTURE_FAIL %s" % out_path)
+		else:
+			print("CAPTURE_DIM %s %dx%d" % [out_path, region.get_width(), region.get_height()])
 
 
 func _best_flake_cluster_center(pts: PackedVector2Array, radius: float) -> Vector2:
