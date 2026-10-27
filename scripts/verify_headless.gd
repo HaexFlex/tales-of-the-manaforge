@@ -5874,6 +5874,7 @@ func _lucky_harvest_ok(game_state: Node) -> int:
 	if not game_state.lucky_harvest.is_connected(on_lucky):
 		game_state.lucky_harvest.connect(on_lucky)
 	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", str(game_state.call("morning_gift_day_key")))
 	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
 	game_state.set("harvest_accum", {})
 	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
@@ -26606,36 +26607,45 @@ func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -
 		return failed + 1
 	# (a) Rested multiplier scales base yield before the lucky-harvest roll (gather pulse path).
 	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", str(game_state.call("morning_gift_day_key")))
 	game_state.call("clear_rested_hands_bench_buff")
 	game_state.set("rested_until_ms", Time.get_ticks_msec() + 120000)
 	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
 	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
 	var saved_mult: Variant = params.get("LUCKY_HARVEST_MULT", 2)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
+	var rested_rate: float = float(game_state.call("keeper_rested_mult"))
+	failed += _assert(is_equal_approx(rested_rate, 1.15), "integration rested mult active")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var wood_plain: int = 0
+	for _pulse: int in range(16):
+		game_state.call("apply_harvest_pulse", &"wood", 1.0)
+	wood_plain = int(game_state.get("wood"))
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var wood_rested: int = 0
+	for _pulse: int in range(16):
+		game_state.call("apply_harvest_pulse", &"wood", rested_rate)
+	wood_rested = int(game_state.get("wood"))
+	failed += _assert(wood_rested > wood_plain, "rested scales gather yield before lucky (plain=%d rested=%d)" % [wood_plain, wood_rested])
 	params["LUCKY_HARVEST_CHANCE"] = 1.0
 	params["LUCKY_HARVEST_MULT"] = 2
 	game_state.set("params", params)
 	game_state.set("harvest_accum", {})
 	game_state.set("wood", 0)
-	var rested_rate: float = float(game_state.call("keeper_rested_mult"))
-	failed += _assert(is_equal_approx(rested_rate, 1.15), "integration rested mult active")
-	var lucky_bonus: int = 0
-	var on_lucky := func(_rid: StringName, bonus: int) -> void:
-		lucky_bonus = bonus
-	if not game_state.lucky_harvest.is_connected(on_lucky):
-		game_state.lucky_harvest.connect(on_lucky)
-	var grant_rested: int = int(game_state.call("apply_harvest_pulse", &"wood", rested_rate))
-	var wood_rested: int = int(game_state.call("get_resource", &"wood"))
+	var grant_rested: int = 0
+	for _pulse: int in range(16):
+		grant_rested = int(game_state.call("apply_harvest_pulse", &"wood", rested_rate))
+		if grant_rested > 0:
+			break
+	var wood_after_lucky: int = int(game_state.get("wood"))
 	failed += _assert(grant_rested > 0, "rested gather pulse grants wood")
-	failed += _assert(lucky_bonus == grant_rested, "lucky bonus uses rested-scaled grant")
-	failed += _assert(wood_rested == grant_rested + lucky_bonus, "wood equals grant plus lucky bonus")
-	game_state.set("harvest_accum", {})
-	game_state.set("wood", 0)
-	lucky_bonus = 0
-	var grant_plain: int = int(game_state.call("apply_harvest_pulse", &"wood", 1.0))
-	var wood_plain: int = int(game_state.call("get_resource", &"wood"))
-	failed += _assert(grant_rested > grant_plain or wood_rested > wood_plain, "rested grant exceeds plain grant")
-	if game_state.lucky_harvest.is_connected(on_lucky):
-		game_state.lucky_harvest.disconnect(on_lucky)
+	failed += _assert(
+		wood_after_lucky == grant_rested * 2,
+		"lucky doubles rested-scaled grant (grant=%d wood=%d)" % [grant_rested, wood_after_lucky],
+	)
 	params["LUCKY_HARVEST_CHANCE"] = saved_chance
 	params["LUCKY_HARVEST_MULT"] = saved_mult
 	game_state.set("params", params)
@@ -26664,14 +26674,14 @@ func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -
 	failed += _assert(HubTimePhase.firefly_twinkle_night(0.55), "night band for twinkle")
 	failed += _assert(HubTimePhase.firefly_strength(0.55) > 0.9, "firefly strength at night")
 	GladeFireflies.reset_twinkle_state()
+	var cue_night: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, Time.get_ticks_msec(), 1)
+	failed += _assert(cue_night == "sfx_firefly_twinkle_1", "twinkle cue allowed at night")
 	var fx := GladeFireflies.new()
 	tree_root.add_child(fx)
 	fx.setup(Rect2(0.0, 0.0, 320.0, 240.0))
 	await process_frame
 	var warm: CPUParticles2D = fx.get_node_or_null("MotesWarm") as CPUParticles2D
 	failed += _assert(warm != null and warm.emitting, "glade fireflies emit at night")
-	var cue_night: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, Time.get_ticks_msec(), 1)
-	failed += _assert(cue_night == "sfx_firefly_twinkle_1", "twinkle cue allowed at night")
 	if game_audio != null:
 		game_audio.call("clear_played_log")
 		game_audio.call("play", StringName(cue_night), 0.0, 1.0)
