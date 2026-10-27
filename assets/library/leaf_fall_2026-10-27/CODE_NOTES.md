@@ -7,8 +7,7 @@ No cyan; shapes differ from the Manatree leaf_drift 6x5 diagonal leaf.
 CPUParticles2D (one emitter per strip, or one with v_frames if Code packs them; slow and sparse):
 - amount: total 6-10 across the visible ring (e.g. moss 4, amber 3, bark 2). lifetime 6-9 s (7.5, randomness 0.2). preprocess 8 s so the hub opens mid-fall.
 - gravity (0, 6); initial_velocity 1-4 px/s, direction (0,1), spread 40; damping 0.
-- sway: hue/scale curves off; use orbit_velocity 0 and a small tangential... simplest: angular_velocity 0, rotation off (angle 0),
-  and x wobble via `linear_accel` min -3 / max 3 with randomness 1, or a script that adds sin(t*0.5*TAU)*2 px to x.
+- sway: no rotation (angle 0, angular_velocity 0); x wobble via `linear_accel` min -3 / max 3 with randomness 1, or a script that adds sin(t*0.5*TAU)*2 px to x.
 - animation: CanvasItemMaterial particles_animation, h_frames = strip frame count, v_frames 1, loop on,
   anim_speed 0.25-0.5 (flutter about every 0.5-1 s), anim_offset_max 1.
 - emission: EMISSION_SHAPE_POINTS, points sampled only along the ring band (the canopy edge of ring trees/bushes,
