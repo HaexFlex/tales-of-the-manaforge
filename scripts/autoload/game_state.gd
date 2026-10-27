@@ -116,6 +116,12 @@ var first_minigame_played: bool = false
 var wisp_count: int = 0
 var wisp_assignments: Dictionary = {}
 var wisp_pulse_accum: Dictionary = {}
+## Real-calendar morning gift (YYYY-MM-DD at MORNING_GIFT_RESET_HOUR local). Not cleared on Ascend.
+var last_gift_day: String = ""
+## Wisp id string → first-assigned harvest node id. Cleared on Ascend.
+var wisp_favourites: Dictionary = {}
+## Headless/tests only. When non-empty, morning_gift_day_key() returns this value.
+var _morning_gift_day_override: String = ""
 ## Runtime selection (RTS: LMB select unit; mutually exclusive Keeper XOR one Wisp).
 ## Wisp select does not require Keeper selected.
 var keeper_selected: bool = false
@@ -534,6 +540,7 @@ func _ensure_wisp_slots() -> void:
 		if int(ks) >= wisp_count:
 			wisp_assignments.erase(ks)
 			wisp_pulse_accum.erase(ks)
+			wisp_favourites.erase(ks)
 
 
 func grant_wisp_from_stage() -> void:
@@ -597,8 +604,16 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 			status_message.emit(ContentStrings.get_text("wisp_cross_scene_away"))
 			return "cross_scene"
 	var joining: bool = count_wisps_on_node(node_id) > 0
+	var first_assign: bool = prev == ""
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
+	if first_assign and resource_for_node_id(node_id) != &"":
+		if not wisp_favourites.has(key):
+			wisp_favourites[key] = node_id
+			var toast_key: String = "wisp_favourite_toast_%d" % randi_range(1, 3)
+			status_message.emit(
+				ContentStrings.get_text(toast_key, {"node": assignment_target_display(node_id)})
+			)
 	_forget_selected_wisp(wisp_id)
 	wisps_changed.emit()
 	selection_changed.emit()
@@ -659,7 +674,10 @@ func apply_wisp_pulses(delta: float) -> void:
 		var rid: StringName = resource_for_node_id(nid)
 		if rid == &"":
 			continue
-		if accumulate_wisp_harvest(rid, delta) > 0:
+		var fav_mult: float = 1.0
+		if str(wisp_favourites.get(key, "")) == nid:
+			fav_mult = param_float("WISP_FAVOURITE_RATE_MULT", 1.2)
+		if accumulate_wisp_harvest(rid, delta * fav_mult) > 0:
 			pulsed_nodes[nid] = rid
 	for nid2: Variant in pulsed_nodes.keys():
 		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
@@ -1106,6 +1124,43 @@ func accumulate_harvest(resource_id: StringName, units: float) -> int:
 	return grant
 
 
+func morning_gift_day_key() -> String:
+	if _morning_gift_day_override != "":
+		return _morning_gift_day_override
+	var reset_hour: int = param_int("MORNING_GIFT_RESET_HOUR", 4)
+	var tz: Dictionary = Time.get_time_zone_from_system()
+	var bias_sec: int = int(tz.get("bias", 0)) * 60
+	var shifted: int = int(Time.get_unix_time_from_system()) + bias_sec - reset_hour * 3600
+	return Time.get_date_string_from_unix_time(shifted)
+
+
+func try_morning_gift(resource_id: StringName) -> int:
+	if fruit_committed or ancient_frozen:
+		return 0
+	if not resource_id in HARVEST_IDS:
+		return 0
+	var day: String = morning_gift_day_key()
+	if last_gift_day != "":
+		if day == last_gift_day or day < last_gift_day:
+			return 0
+	var units_base: int = param_int("MORNING_GIFT_UNITS", 10)
+	var scale_by_stage: bool = bool(params.get("MORNING_GIFT_SCALE_BY_STAGE", true))
+	var stage_mult: int = get_stage_index() + 1 if scale_by_stage else 1
+	if stage_mult < 1:
+		stage_mult = 1
+	var gift: int = units_base * stage_mult
+	add_resource(resource_id, gift)
+	last_gift_day = day
+	var item_key: String = "hud_%s" % String(resource_id)
+	status_message.emit(
+		ContentStrings.get_text("harvest_pulse_hud", {
+			"amount": str(gift),
+			"item": ContentStrings.get_text(item_key),
+		})
+	)
+	return gift
+
+
 func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0) -> int:
 	if fruit_committed or ancient_frozen or delta <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
@@ -1113,6 +1168,7 @@ func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: floa
 	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor() * rate
 	var grant: int = accumulate_harvest(resource_id, units)
 	if grant > 0:
+		try_morning_gift(resource_id)
 		keeper_harvested.emit(resource_id, grant)
 	return grant
 
@@ -1149,7 +1205,10 @@ func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
 func apply_harvest_pulse(resource_id: StringName) -> int:
 	if not resource_id in HARVEST_IDS:
 		return 0
-	return accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+	var grant: int = accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+	if grant > 0:
+		try_morning_gift(resource_id)
+	return grant
 
 
 func get_harvest_grant(resource_id: StringName) -> int:
@@ -1826,6 +1885,9 @@ func ascend() -> void:
 	wisp_count = get_upgrade_rank("bonus_wisp")
 	wisp_assignments.clear()
 	wisp_pulse_accum.clear()
+	wisp_favourites.clear()
+	var farewell_idx: int = (ascensions - 1) % 8 + 1
+	status_message.emit(ContentStrings.get_text("fruit_farewell_%02d" % farewell_idx))
 	harvest_accum.clear()
 	_ensure_wisp_slots()
 	clear_selection()
@@ -1958,6 +2020,8 @@ func to_save_dict() -> Dictionary:
 		"first_minigame_played": first_minigame_played,
 		"wisp_count": wisp_count,
 		"wisp_assignments": wisp_assignments.duplicate(true),
+		"last_gift_day": last_gift_day,
+		"wisp_favourites": wisp_favourites.duplicate(true),
 		"backpack": Backpack.to_save_dict(),
 		"owns_stone_axe": Backpack.owns_item("stone_axe"),
 		"owns_stone_pickaxe": Backpack.owns_item("stone_pickaxe"),
@@ -2120,6 +2184,12 @@ func apply_save_dict(data: Dictionary) -> void:
 		wisp_assignments = (assigns as Dictionary).duplicate(true)
 	else:
 		wisp_assignments = {}
+	last_gift_day = str(data.get("last_gift_day", ""))
+	var fav_v: Variant = data.get("wisp_favourites", {})
+	if typeof(fav_v) == TYPE_DICTIONARY:
+		wisp_favourites = (fav_v as Dictionary).duplicate(true)
+	else:
+		wisp_favourites = {}
 	wisp_pulse_accum.clear()
 	_ensure_wisp_slots()
 	Backpack.apply_save_dict(data.get("backpack", {}))

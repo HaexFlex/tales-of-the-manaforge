@@ -66,6 +66,7 @@ func _ready() -> void:
 	_ensure_trunk()
 	_ensure_door_trigger()
 	_ensure_veins()
+	_ensure_stage_bloom()
 	_refresh_visual()
 	_on_fruit_changed(GameState.fruit_ready)
 
@@ -614,6 +615,17 @@ func _ensure_door_trigger() -> void:
 func _check_door_feet() -> void:
 	## Standing on the sill does not enter. The Enter Forge button is the only way in.
 	return
+
+
+func _ensure_stage_bloom() -> void:
+	if get_node_or_null("StageBloom") != null:
+		return
+	var bloom := Node2D.new()
+	bloom.name = "StageBloom"
+	var script_res: Script = load("res://scripts/manatree_stage_bloom.gd") as Script
+	if script_res != null:
+		bloom.set_script(script_res)
+	add_child(bloom)
 
 
 func _ensure_veins() -> void:
