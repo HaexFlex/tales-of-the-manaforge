@@ -41,6 +41,7 @@ var _placed: bool = false
 var _orbit_anchor: Vector2 = Vector2.ZERO
 var _hovered: bool = false
 var _outline_mat: ShaderMaterial
+var _hum_player: AudioStreamPlayer2D
 
 
 func _ready() -> void:
@@ -59,6 +60,7 @@ func _ready() -> void:
 	add_to_group("interactable")
 	z_index = 1
 	_orbit_angle = _even_slot_angle()
+	_ensure_hum_player()
 	_refresh_label()
 
 
@@ -239,6 +241,7 @@ func _process(delta: float) -> void:
 		z_index = 2
 		_play_anim(&"fly")
 		_refresh_label()
+		_sync_wisp_hum()
 		return
 
 	var is_sel: bool = GameState.is_wisp_selected(wisp_id)
@@ -252,6 +255,61 @@ func _process(delta: float) -> void:
 	_at_assigned_orbit = false
 	_tick_keeper_orbit(delta)
 	_refresh_label()
+	_sync_wisp_hum()
+
+
+func _ensure_hum_player() -> void:
+	if _hum_player != null:
+		return
+	_hum_player = AudioStreamPlayer2D.new()
+	_hum_player.name = "WispHum"
+	_hum_player.bus = "SFX_World"
+	_hum_player.volume_db = -8.0
+	_hum_player.max_distance = 96.0
+	_hum_player.attenuation = 1.0
+	var stream: AudioStream = load("res://assets/audio/sfx_wisp_hum.ogg") as AudioStream
+	if stream != null:
+		_hum_player.stream = stream
+	add_child(_hum_player)
+
+
+func _hum_reference_pos() -> Vector2:
+	var cam: Camera2D = get_viewport().get_camera_2d()
+	if cam != null:
+		return cam.global_position
+	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+	if not keepers.is_empty():
+		var k: Node2D = keepers[0] as Node2D
+		if k != null:
+			return k.global_position
+	return global_position
+
+
+func _is_nearest_wisp_for_hum() -> bool:
+	var ref: Vector2 = _hum_reference_pos()
+	var best_id: int = -1
+	var best_d: float = INF
+	for node: Node in get_tree().get_nodes_in_group("wisp"):
+		if not node is WispOrb:
+			continue
+		var orb: WispOrb = node as WispOrb
+		var d: float = orb.global_position.distance_squared_to(ref)
+		if d < best_d:
+			best_d = d
+			best_id = orb.wisp_id
+	return wisp_id == best_id
+
+
+func _sync_wisp_hum() -> void:
+	if _hum_player == null or _hum_player.stream == null:
+		return
+	if DisplayServer.get_name() == "headless":
+		return
+	var should_play: bool = _is_nearest_wisp_for_hum()
+	if should_play and not _hum_player.playing:
+		_hum_player.play()
+	elif not should_play and _hum_player.playing:
+		_hum_player.stop()
 
 
 func _tick_keeper_orbit(_delta: float) -> void:
