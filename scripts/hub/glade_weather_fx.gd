@@ -70,7 +70,10 @@ var _rain: CPUParticles2D
 var _mist: CPUParticles2D
 var _snow_small: CPUParticles2D
 var _snow_large: CPUParticles2D
+var _snow_small_base_amount: int = 0
+var _snow_large_base_amount: int = 0
 var _blossom: CPUParticles2D
+var _blossom_base_amount: int = 0
 var _sparkle: CPUParticles2D
 var _wet_overlay: Sprite2D
 var _state: StringName = &"clear"
@@ -239,12 +242,14 @@ func _configure_view_fall_emitter(
 	motes.gravity = Vector2.ZERO
 	motes.initial_velocity_min = fall_min_px_s
 	motes.initial_velocity_max = fall_max_px_s
-	motes.orbit_velocity_min = -sway_px
-	motes.orbit_velocity_max = sway_px
+	# Orbit velocity is radians/s (see glade_fireflies.gd); px sway is emitter + spread, not ±sway_px here.
+	motes.orbit_velocity_min = 0.02
+	motes.orbit_velocity_max = 0.08
 	motes.scale_amount_min = 1.0
 	motes.scale_amount_max = 1.0
 	motes.anim_speed_min = 0.8
 	motes.anim_speed_max = 1.2
+	motes.anim_offset_max = 1.0
 	motes.color = tint
 	motes.color_ramp = _life_fade_ramp(fade_in_frac, fade_out_frac)
 	motes.emitting = false
@@ -304,6 +309,7 @@ func _ensure_nodes() -> void:
 		SNOW_FADE_OUT_LIFE_FRAC,
 		Color(1.0, 1.0, 1.0, 1.0)
 	)
+	_snow_small_base_amount = snow_amt.x
 	add_child(_snow_small)
 	_snow_large = CPUParticles2D.new()
 	_snow_large.name = "SnowLarge"
@@ -322,6 +328,7 @@ func _ensure_nodes() -> void:
 		SNOW_FADE_OUT_LIFE_FRAC,
 		Color(1.0, 1.0, 1.0, 1.0)
 	)
+	_snow_large_base_amount = snow_amt.y
 	add_child(_snow_large)
 	_blossom = CPUParticles2D.new()
 	_blossom.name = "Blossom"
@@ -340,6 +347,7 @@ func _ensure_nodes() -> void:
 		BLOSSOM_FADE_OUT_LIFE_FRAC,
 		Color(1.0, 0.75, 0.82, 1.0)
 	)
+	_blossom_base_amount = BLOSSOM_VIEW_AMOUNT
 	add_child(_blossom)
 	_sparkle = CPUParticles2D.new()
 	_sparkle.name = "PuddleSparkle"
@@ -359,7 +367,12 @@ func _build_emit_points() -> void:
 
 
 func _on_weather_state(state_id: StringName) -> void:
+	var prev: StringName = _state
 	_state = state_id
+	if state_id == &"light_snow" and prev != &"light_snow":
+		_snow_amount_ratio = 0.0
+	if state_id == &"blossom_fall" and prev != &"blossom_fall":
+		_blossom_amount_ratio = 0.0
 	_apply_visuals()
 
 
@@ -398,10 +411,13 @@ func _view_emitter_world_center(cam: Camera2D) -> Vector2:
 	return Vector2(cam.global_position.x, y_center)
 
 
-func _sync_view_emitter_node(motes: CPUParticles2D, world_center: Vector2, amount_ratio: float) -> void:
+func _sync_view_emitter_node(motes: CPUParticles2D, world_center: Vector2, amount_ratio: float, base_amount: int) -> void:
 	motes.global_position = world_center
-	if "amount_ratio" in motes:
-		motes.set("amount_ratio", amount_ratio)
+	if base_amount <= 0:
+		return
+	var scaled: int = clampi(int(round(float(base_amount) * amount_ratio)), 1, base_amount)
+	if motes.amount != scaled:
+		motes.amount = scaled
 
 
 func _ramp_ratio(current: float, target: float, delta: float, ramp_sec: float) -> float:
@@ -428,9 +444,10 @@ func _process(delta: float) -> void:
 	_blossom_amount_ratio = _ramp_ratio(_blossom_amount_ratio, blossom_target, delta, BLOSSOM_TRANSITION_RAMP_SEC)
 	_sway_phase += delta
 	var sway_period: float = (SNOW_SWAY_PERIOD_MIN_SEC + SNOW_SWAY_PERIOD_MAX_SEC) * 0.5
-	var sway_x: float = sin(TAU * _sway_phase / sway_period) * SNOW_SWAY_PX * 0.1
+	var sway_amp: float = SNOW_SWAY_PX if _state == &"light_snow" else BLOSSOM_SWAY_PX
+	var sway_x: float = sin(TAU * _sway_phase / sway_period) * sway_amp
 	var center: Vector2 = _view_emitter_world_center(cam)
 	center.x += sway_x
-	_sync_view_emitter_node(_snow_small, center, _snow_amount_ratio)
-	_sync_view_emitter_node(_snow_large, center, _snow_amount_ratio)
-	_sync_view_emitter_node(_blossom, center, _blossom_amount_ratio)
+	_sync_view_emitter_node(_snow_small, center, _snow_amount_ratio, _snow_small_base_amount)
+	_sync_view_emitter_node(_snow_large, center, _snow_amount_ratio, _snow_large_base_amount)
+	_sync_view_emitter_node(_blossom, center, _blossom_amount_ratio, _blossom_base_amount)
