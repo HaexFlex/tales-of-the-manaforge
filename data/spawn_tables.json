@@ -10,7 +10,8 @@
  },
  "fill": {
   "max_beasts": 6,
-  "beast_floor_ratio": 0.9,
+  "beast_floor_ratio": 0.75,
+  "variety_slack": 1,
   "note": "Beasts: enumerate multisets from every species on any spawn table with depth <= the room depth (earlier beasts never drop out). Weight = entry on the latest table at or below the room if listed there, else the weight from the latest earlier table that listed it. Keep every set at or above beast_floor_ratio x budget when any set can; otherwise max-threat sets. Prefer the most distinct species (A and dark/B count once). Pick among ties by the product of those weights with the room seed. Swarms spend leftover threat after place_rows (grow one swarm to 10 bugs before opening the next). Mossmites are not in these tables."
  },
  "table_rule": "Odds come from the latest table at or below the room depth; the roller pool keeps every beast from earlier tables with carry-forward weights.",
@@ -24,6 +25,35 @@
     },
     {
      "beast": "spore_moth",
+     "weight": 1
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 1
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 2,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 4
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 4
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 1
+    },
+    {
+     "beast": "root_snapper",
      "weight": 1
     }
    ]

@@ -96,6 +96,7 @@ static func roll(depth: int, party_size: int, boss: bool, rng: BattleRng) -> Dic
 
 
 static func _size_key(party_size: int) -> String:
+	## Design v2: loot tier is solo (1) or duo (2+). Parties of 3–6 use the duo sheet.
 	return "solo" if party_size <= 1 else "duo"
 
 

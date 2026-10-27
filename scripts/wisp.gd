@@ -23,6 +23,10 @@ const TARGET_CHEST_OFFSET: Vector2 = Vector2(0, -48)
 const KEEPER_SHOULDER_OFFSET: Vector2 = Vector2(0, -56)
 ## Was five sprite heights (-160). The ring now matches the shoulder line above.
 const HOVER_LIFT: float = -56.0
+const TRAIL_STRIP_TEX: String = "res://assets/art/fx/wisp_trail/wisp_trail_strip_5x5x3.png"
+const TRAIL_SPARK_TEX: String = "res://assets/art/fx/wisp_trail/wisp_spark_3x3.png"
+const TRAIL_LIFETIME: float = 0.45
+const TRAIL_EMIT_SPEED: float = 8.0
 
 enum MotionKind { KEEPER_ORBIT, FLY, NODE_ORBIT }
 
@@ -41,6 +45,10 @@ var _placed: bool = false
 var _orbit_anchor: Vector2 = Vector2.ZERO
 var _hovered: bool = false
 var _outline_mat: ShaderMaterial
+var _trail: CPUParticles2D
+var _trail_spark: CPUParticles2D
+var _prev_trail_pos: Vector2 = Vector2.ZERO
+var _hum_player: AudioStreamPlayer2D
 
 
 func _ready() -> void:
@@ -59,7 +67,75 @@ func _ready() -> void:
 	add_to_group("interactable")
 	z_index = 1
 	_orbit_angle = _even_slot_angle()
+	_prev_trail_pos = global_position
+	_ensure_trail()
+	_ensure_hum_player()
 	_refresh_label()
+
+
+func _ensure_trail() -> void:
+	if _trail != null:
+		return
+	_trail = CPUParticles2D.new()
+	_trail.name = &"Trail"
+	_trail.texture = load(TRAIL_STRIP_TEX) as Texture2D
+	_trail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_trail.local_coords = false
+	_trail.amount = 6
+	_trail.lifetime = TRAIL_LIFETIME
+	_trail.explosiveness = 0.0
+	_trail.randomness = 0.0
+	_trail.direction = Vector2(0, -1)
+	_trail.spread = 180.0
+	_trail.gravity = Vector2.ZERO
+	_trail.initial_velocity_min = 0.0
+	_trail.initial_velocity_max = 4.0
+	_trail.emitting = false
+	var strip_mat := CanvasItemMaterial.new()
+	strip_mat.particles_animation = true
+	strip_mat.particles_anim_h_frames = 3
+	strip_mat.particles_anim_v_frames = 1
+	strip_mat.particles_anim_loop = false
+	_trail.material = strip_mat
+	_trail.anim_speed_min = 1.0
+	_trail.anim_speed_max = 1.0
+	add_child(_trail)
+	_trail_spark = CPUParticles2D.new()
+	_trail_spark.name = &"Spark"
+	_trail_spark.texture = load(TRAIL_SPARK_TEX) as Texture2D
+	_trail_spark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_trail_spark.local_coords = false
+	_trail_spark.amount = 1
+	_trail_spark.lifetime = 0.3
+	_trail_spark.explosiveness = 0.0
+	_trail_spark.randomness = 1.0
+	_trail_spark.direction = Vector2(0, -1)
+	_trail_spark.spread = 180.0
+	_trail_spark.gravity = Vector2.ZERO
+	_trail_spark.initial_velocity_min = 0.0
+	_trail_spark.initial_velocity_max = 4.0
+	_trail_spark.emitting = false
+	add_child(_trail_spark)
+	_sync_trail_depth()
+
+
+func _sync_trail_depth() -> void:
+	if _trail != null and sprite != null:
+		_trail.z_index = sprite.z_index - 1
+	if _trail_spark != null and sprite != null:
+		_trail_spark.z_index = sprite.z_index - 1
+
+
+func _tick_trail_emit(delta: float) -> void:
+	if _trail == null or delta <= 0.0:
+		return
+	var speed: float = global_position.distance_to(_prev_trail_pos) / delta
+	_prev_trail_pos = global_position
+	var moving: bool = speed > TRAIL_EMIT_SPEED
+	_trail.emitting = moving
+	if _trail_spark != null:
+		_trail_spark.emitting = moving
+	_sync_trail_depth()
 
 
 func _build_frames() -> SpriteFrames:
@@ -219,6 +295,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 func _process(delta: float) -> void:
 	_bob_t += delta
+	_tick_trail_emit(delta)
 	var assigned_now: String = GameState.get_wisp_assignment(wisp_id)
 	if has_node("/root/ForgeJobs"):
 		var in_forge: bool = get_tree().get_first_node_in_group("forge_room") != null
@@ -239,6 +316,7 @@ func _process(delta: float) -> void:
 		z_index = 2
 		_play_anim(&"fly")
 		_refresh_label()
+		_sync_wisp_hum()
 		return
 
 	var is_sel: bool = GameState.is_wisp_selected(wisp_id)
@@ -250,8 +328,79 @@ func _process(delta: float) -> void:
 		return
 
 	_at_assigned_orbit = false
-	_tick_keeper_orbit(delta)
+	if GameState.wisp_is_napping(wisp_id):
+		_tick_nap_at_roots(delta)
+	else:
+		_tick_keeper_orbit(delta)
 	_refresh_label()
+	_sync_wisp_hum()
+
+
+func _ensure_hum_player() -> void:
+	if _hum_player != null:
+		return
+	_hum_player = AudioStreamPlayer2D.new()
+	_hum_player.name = "WispHum"
+	_hum_player.bus = "SFX_World"
+	_hum_player.volume_db = -8.0
+	_hum_player.max_distance = 96.0
+	_hum_player.attenuation = 1.0
+	var stream: AudioStream = load("res://assets/audio/sfx_wisp_hum.ogg") as AudioStream
+	if stream != null:
+		_hum_player.stream = stream
+	add_child(_hum_player)
+
+
+func _hum_reference_pos() -> Vector2:
+	var cam: Camera2D = get_viewport().get_camera_2d()
+	if cam != null:
+		return cam.global_position
+	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+	if not keepers.is_empty():
+		var k: Node2D = keepers[0] as Node2D
+		if k != null:
+			return k.global_position
+	return global_position
+
+
+func _is_nearest_wisp_for_hum() -> bool:
+	var ref: Vector2 = _hum_reference_pos()
+	var best_id: int = -1
+	var best_d: float = INF
+	for node: Node in get_tree().get_nodes_in_group("wisp"):
+		if not node is WispOrb:
+			continue
+		var orb: WispOrb = node as WispOrb
+		var d: float = orb.global_position.distance_squared_to(ref)
+		if d < best_d:
+			best_d = d
+			best_id = orb.wisp_id
+	return wisp_id == best_id
+
+
+func _sync_wisp_hum() -> void:
+	if _hum_player == null or _hum_player.stream == null:
+		return
+	if DisplayServer.get_name() == "headless":
+		return
+	var should_play: bool = _is_nearest_wisp_for_hum()
+	if should_play and not _hum_player.playing:
+		_hum_player.play()
+	elif not should_play and _hum_player.playing:
+		_hum_player.stop()
+
+
+func _tick_nap_at_roots(_delta: float) -> void:
+	var roots: Vector2 = global_position
+	if has_node("/root/ForgeJobs"):
+		roots = ForgeJobs.manatree_origin() + Vector2(0, 10)
+	var slot: float = TAU * float(wisp_id) / float(maxi(1, GameState.wisp_count))
+	roots += Vector2(cos(slot) * 22.0, sin(slot) * 8.0)
+	global_position = roots
+	sprite.flip_h = false
+	_play_anim(&"orbit")
+	var bob: float = sin(_bob_t * 1.4 + float(wisp_id)) * 2.0
+	global_position.y += bob * 0.15
 
 
 func _tick_keeper_orbit(_delta: float) -> void:

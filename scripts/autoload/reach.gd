@@ -250,15 +250,25 @@ func _party_cfg_error(cfg: Dictionary) -> String:
 	var raw_party: Variant = cfg.get("party", [])
 	if typeof(raw_party) != TYPE_ARRAY or (raw_party as Array).is_empty():
 		return "bad_party"
+	if (raw_party as Array).size() > GameState.party_cap():
+		return "bad_party"
 	var occupied: Dictionary = {}
+	var members_seen: Dictionary = {}
 	for entry_v: Variant in raw_party as Array:
 		if typeof(entry_v) != TYPE_DICTIONARY:
 			return "bad_party"
 		var entry: Dictionary = entry_v as Dictionary
 		var member: String = str(entry.get("member", ""))
-		if member != "keeper" and member != "elaia" and member != "bramble":
+		if members_seen.has(member):
+			return "bad_party"
+		members_seen[member] = true
+		if member != "keeper" and member != "elaia" and member != "bramble" and member != "puff" and member != "moss_tortoise":
 			return "bad_party"
 		if member == "bramble" and (not has_node("/root/GameState") or not GameState.bramble_joined()):
+			return "bad_party"
+		if member == "puff" and (not has_node("/root/GameState") or not GameState.puff_in_party_active()):
+			return "bad_party"
+		if member == "moss_tortoise" and (not has_node("/root/GameState") or not GameState.moss_tortoise_joined()):
 			return "bad_party"
 		if SlotEngine.member_stats(member).is_empty():
 			return "bad_party"
@@ -880,7 +890,7 @@ func _begin_room() -> void:
 
 
 func _start_fight() -> bool:
-	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, is_boss_room())
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, is_boss_room(), party.size())
 	if room.is_empty():
 		push_error("Reach: refusing to start a fight with no enemies")
 		return false

@@ -146,8 +146,10 @@ func _run() -> void:
 	failed += _hover_rest()
 	failed += _trait_speed_rows()
 	failed += _water_splash()
+	failed += _watered_ground()
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
+	failed += _wisp_trails()
 	failed += _manual_save_guard()
 	failed += _load_confirm()
 	failed += await _bench_cancel()
@@ -167,7 +169,7 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 15") >= 0, "SAVE_VERSION 15")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 16") >= 0, "SAVE_VERSION 16")
 	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
@@ -472,7 +474,7 @@ func _trait_speed_rows() -> int:
 	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "", false)
 	sheet.set("_actor_id", "puff")
 	sheet.call("open_trait_popup")
-	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.0×", true)
+	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.5×", true)
 	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
 	sheet.queue_free()
 	if failed == 0:
@@ -506,6 +508,44 @@ func _water_splash() -> int:
 		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -18.0), "watering plays at -18 dB")
 	if failed == 0:
 		print("WATER_SPLASH_OK")
+	return failed
+
+
+func _watered_ground() -> int:
+	var failed: int = 0
+	for size_key: String in ["sapling", "young", "mature", "ancient"]:
+		for step_key: String in ["0_full", "1_66", "2_33", "3_faint"]:
+			var path: String = "res://assets/art/hub/ground/damp/damp_soil_%s_%s.png" % [size_key, step_key]
+			failed += _check(ResourceLoader.exists(path), "damp decal exists: %s" % path)
+	var tree_src: String = FileAccess.get_file_as_string("res://scripts/manatree.gd")
+	failed += _check(tree_src.find("DAMP_HIDE_SEC: float = 30.0") >= 0, "damp hide at 30 s")
+	failed += _check(tree_src.find("DAMP_FADE_AT: Array[float] = [8.0, 16.0, 24.0]") >= 0, "damp steps at 8/16/24 s")
+	failed += _check(tree_src.find("\"elder\", \"ancient\"") >= 0, "elder uses ancient damp size")
+	var packed: PackedScene = load("res://scenes/manatree.tscn") as PackedScene
+	failed += _check(packed != null, "manatree scene for damp wiring")
+	if packed == null:
+		return failed
+	var tree: Node = packed.instantiate()
+	var world := Node2D.new()
+	world.name = &"World"
+	world.y_sort_enabled = true
+	root.add_child(world)
+	world.add_child(tree)
+	tree.call("set_watering", true)
+	var decal: Sprite2D = world.get_node_or_null("WateredGroundDecal") as Sprite2D
+	failed += _check(decal != null, "damp decal is a World sibling under the tree")
+	if decal != null:
+		failed += _check(decal.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "damp decal nearest filter")
+		failed += _check(decal.z_index < int(tree.z_index), "damp decal draws below the tree")
+		var tex_path: String = decal.texture.resource_path if decal.texture != null else ""
+		failed += _check(tex_path.ends_with("damp_soil_sapling_0_full.png"), "watering starts on step 0_full")
+	tree.set("_damp_elapsed", 12.0)
+	tree.call("set_watering", false)
+	tree.call("set_watering", true)
+	failed += _check(is_equal_approx(float(tree.get("_damp_elapsed")), 0.0), "re-watering restarts the fade clock")
+	world.queue_free()
+	if failed == 0:
+		print("WATERED_GROUND_OK")
 	return failed
 
 
@@ -581,6 +621,41 @@ func _forge_wisp_ring() -> int:
 	wisp.queue_free()
 	if failed == 0:
 		print("FORGE_WISP_RING_OK")
+	return failed
+
+
+func _wisp_trails() -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/wisp.tscn") as PackedScene
+	failed += _check(packed != null, "wisp scene for trail wiring")
+	if packed == null:
+		return failed
+	var wisp: Node = packed.instantiate()
+	root.add_child(wisp)
+	var trail: CPUParticles2D = wisp.get_node_or_null("Trail") as CPUParticles2D
+	var spark: CPUParticles2D = wisp.get_node_or_null("Spark") as CPUParticles2D
+	failed += _check(trail != null, "wisp has Trail CPUParticles2D")
+	failed += _check(spark != null, "wisp has Spark CPUParticles2D")
+	if trail != null:
+		failed += _check(not trail.local_coords, "trail uses world coords")
+		failed += _check(trail.amount == 6, "trail amount is 6")
+		failed += _check(is_equal_approx(trail.lifetime, 0.45), "trail lifetime is 0.45 s")
+		failed += _check(trail.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "trail nearest filter")
+		var strip_path: String = trail.texture.resource_path if trail.texture != null else ""
+		failed += _check(strip_path.ends_with("wisp_trail_strip_5x5x3.png"), "trail uses the 3-frame strip")
+		var mat: CanvasItemMaterial = trail.material as CanvasItemMaterial
+		failed += _check(mat != null and mat.particles_animation and mat.particles_anim_h_frames == 3, "trail animates 3 h-frames")
+	if spark != null:
+		failed += _check(spark.amount == 1, "spark amount is 1")
+		failed += _check(is_equal_approx(spark.lifetime, 0.3), "spark lifetime is 0.3 s")
+		failed += _check(is_equal_approx(spark.randomness, 1.0), "spark randomness is 1")
+		var spark_path: String = spark.texture.resource_path if spark.texture != null else ""
+		failed += _check(spark_path.ends_with("wisp_spark_3x3.png"), "spark uses the 3x3 texture")
+	var wisp_src: String = FileAccess.get_file_as_string("res://scripts/wisp.gd")
+	failed += _check(wisp_src.find("TRAIL_EMIT_SPEED: float = 8.0") >= 0, "trail speed gate is ~8 px/s")
+	wisp.queue_free()
+	if failed == 0:
+		print("WISP_TRAILS_OK")
 	return failed
 
 
@@ -1520,8 +1595,20 @@ func _battle_view() -> int:
 			if child is Button and child.has_meta("echo_slot"):
 				slot_names.append(str(child.name))
 	failed += _check(",".join(slot_names) == "StrikeButton,AbilityButton,SalveButton,BraceButton,FleeButton,SpareButton", "Strike / Ability / Items / Brace / Flee / Spare")
+	var gear: Node = root.get_node_or_null("Equipment")
+	var had_weapon: String = ""
+	if gear != null:
+		had_weapon = str(gear.call("equipped_id", "weapon"))
+		gear.call("grant_item", "stone_sword")
+		gear.call("try_equip", "stone_sword")
+	view.call("_refresh_actions")
 	var ability_btn: Button = view.get_node_or_null("EchoActionMenu/AbilityButton") as Button
-	failed += _check(ability_btn != null and ability_btn.disabled and not BattleView.keeper_abilities_exist(), "Ability stays disabled")
+	failed += _check(
+		ability_btn != null and not ability_btn.disabled and BattleView.keeper_abilities_exist(),
+		"Ability is enabled with Flintblade equipped",
+	)
+	if gear != null and had_weapon != "" and had_weapon != "stone_sword":
+		gear.call("try_equip", had_weapon)
 	var spare_btn: Button = view.get_node_or_null("EchoActionMenu/SpareButton") as Button
 	failed += _check(spare_btn != null and spare_btn.disabled, "Spare disabled until the falter")
 	var bar: Control = view.get_node_or_null("EchoActionMenu/EchoBottomBar") as Control
@@ -1754,7 +1841,7 @@ func _newest_autosave_salves(save: Node) -> int:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return -1
 	version = int((parsed as Dictionary).get("save_version", -1))
-	if version != 15:
+	if version != 16:
 		return -1
 	var state_v: Variant = (parsed as Dictionary).get("state", {})
 	if typeof(state_v) != TYPE_DICTIONARY:
@@ -3152,7 +3239,7 @@ func _content_keys() -> int:
 		"welcome_body_short", "wisp_node_shared_hint", "ascend_confirm", "ascend_confirm_essence_wipe",
 		"ascend_hint", "tree_water_ancient_block", "echo_01_intro", "echo_01_flee",
 		"ascend_frozen_button", "ascend_frozen_hint", "ascend_frozen_deny", "nav_to_forge",
-		"options_speedup_toggle", "options_speedup_toggle_hint", "options_debug_tools_toggle",
+		"options_day_night_toggle", "options_speedup_toggle", "options_speedup_toggle_hint", "options_debug_tools_toggle",
 		"nav_to_clearing", "load_autosave_header", "load_autosave_slot", "load_manual_header",
 		"title_continue_hint", "title_new_game_confirm", "pause_new_game_confirm",
 		"hud_sel_keeper", "hud_sel_wisp", "hud_sel_wisp_group", "hud_sel_plus_wisps",

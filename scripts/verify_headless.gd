@@ -7,6 +7,7 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+const LuckySparkFxScript := preload("res://scripts/fx/lucky_spark_fx.gd")
 ## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
 const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
@@ -28,6 +29,15 @@ func _run() -> void:
 	var save_service: Node = tree_root.get_node_or_null("SaveService")
 	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
 	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+
+	if OS.get_environment("MANAFORGE_R3_TENDING") == "1":
+		var r3_failed: int = _sprint_r3_tending_ok(game_state, game_audio)
+		if r3_failed > 0:
+			print("R3_TENDING_FAIL: %d" % r3_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
 	var backpack: Node = tree_root.get_node_or_null("Backpack")
 
 	var failed: int = 0
@@ -242,12 +252,62 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BENCH_SEAT") == "1":
+		var bench_seat_only: int = await _bench_seat_ok(tree_root)
+		if bench_seat_only > 0:
+			print("BENCH_SEAT_FAIL: %d" % bench_seat_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_INTEGRATION_R1") == "1":
+		var integration_r1_failed: int = await _integration_r1_ok(tree_root, game_state, game_audio)
+		if integration_r1_failed > 0:
+			print("INTEGRATION_R1_FAIL: %d" % integration_r1_failed)
+			quit(1)
+		else:
+			print("INTEGRATION_R1_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_R5") == "1":
+		var r5_failed: int = _sprint_r5_ok(game_state, save_service)
+		if r5_failed > 0:
+			print("R5_SYSTEMS_FAIL: %d" % r5_failed)
+			quit(1)
+		else:
+			print("PARTY_CAP_OK")
+			print("RUNESTONE_SHARED_OK")
+			print("SAVE_MIGRATION_R5_OK")
+			print("PUFF_JOIN_OK")
+			print("BREWING_OK")
+			print("MOSS_TONIC_OK")
+			print("MOSS_TORTOISE_OK")
+			print("MOSS_TORTOISE_WALK_OK")
+			print("BREWING_STAND_OK")
+			print("PUFF_WALK_OK")
+			print("FIREFLY_JAR_OK")
+			print("SEED_SWAP_OK")
+			print("WISP_NAP_OK")
+			print("PARTY_LOOT_DUO_TIER_OK")
+			print("ECHO_PORTAL_FEE_UI_OK")
+			print("ECHO3_ITEMS_KEPT_OK")
+			print("R5_SYSTEMS_OK")
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
+		failed += _lucky_harvest_ok(game_state)
+		failed += _lucky_spark_ok(tree_root, game_state, game_audio)
+		failed += await _bench_seat_ok(tree_root)
 		if failed > 0:
 			print("CHECK_ONLY_FAIL: %d" % failed)
 			quit(1)
 		else:
+			print("LUCKY_HARVEST_OK")
+			print("LUCKY_SPARK_OK")
 			print("CHECK_ONLY_OK")
 			quit(0)
 		return
@@ -1499,6 +1559,14 @@ func _run() -> void:
 			print("BATTLE_SFX_FAIL: %d" % sfx_failed)
 			quit(1)
 		print("BATTLE_SFX_OK")
+		quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_FIREFLY_TWINKLE") == "1":
+		var twinkle_failed: int = _firefly_twinkle_ok(game_audio)
+		if twinkle_failed > 0:
+			print("FIREFLY_TWINKLE_FAIL: %d" % twinkle_failed)
+			quit(1)
 		quit(0)
 		return
 
@@ -4036,7 +4104,9 @@ func _run() -> void:
 	failed += await _batch_offline(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_migration(tree_root, game_state, save_service, backpack)
+	failed += _dusk_greetings_ok()
 	failed += _no_old_keeper_idle()
+	failed += await _bench_seat_ok(tree_root)
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
@@ -4078,6 +4148,7 @@ func _run() -> void:
 	failed += await _battle_art(tree_root, game_state, save_service)
 	failed += _battle_audio_sole_caller(tree_root, game_audio)
 	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
+	failed += _firefly_twinkle_ok(game_audio)
 	failed += _resolver_turn_order()
 	failed += _resolver_rows()
 	failed += _resolver_targeting()
@@ -4158,6 +4229,7 @@ func _run() -> void:
 	failed += await _touch_nav_ok(tree_root, game_state, save_service)
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
+	failed += _sprint_r3_tending_ok(game_state, game_audio)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -5817,6 +5889,139 @@ func _wants_check_only() -> bool:
 	return args.has("--check-only")
 
 
+func _lucky_harvest_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return failed + 1
+	var lucky_bucket: Array[int] = [0, 0]
+	var on_lucky := func(_rid: StringName, bonus: int) -> void:
+		lucky_bucket[0] += 1
+		lucky_bucket[1] += bonus
+	if not game_state.lucky_harvest.is_connected(on_lucky):
+		game_state.lucky_harvest.connect(on_lucky)
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", str(game_state.call("morning_gift_day_key")))
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	game_state.set("harvest_accum", {})
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	var grant_always: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_always: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(
+		grant_always == 1 and wood_always == 2 and lucky_bucket[0] == 1 and lucky_bucket[1] == 1,
+		"chance 1.0 doubles keeper harvest",
+	)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	var grant_never: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_never: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(grant_never == 1 and wood_never == 1 and lucky_bucket[0] == 0, "chance 0.0 never lucky-drops")
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.call("accumulate_wisp_harvest", &"wood", 20.0)
+	failed += _assert(lucky_bucket[0] == 0, "wisp harvest never emits lucky_harvest")
+	game_state.call("apply_offline_keeper_harvest", 60.0, &"wood", 1.0)
+	failed += _assert(lucky_bucket[0] == 0, "offline keeper harvest never emits lucky_harvest")
+	params["LUCKY_HARVEST_CHANCE"] = 0.04
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	for _i: int in range(10000):
+		game_state.call("set_resource", &"wood", 0)
+		game_state.set("harvest_accum", {})
+		game_state.call("apply_harvest_pulse", &"wood")
+	print("LUCKY_HARVEST_ROLLS_10K: %d" % lucky_bucket[0])
+	failed += _assert(lucky_bucket[0] > 0, "0.04 chance produces some drops in 10k rolls")
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
+	game_state.lucky_harvest.disconnect(on_lucky)
+	return failed
+
+
+func _lucky_spark_ok(tree_root: Window, game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	if tree_root == null or game_state == null or game_audio == null:
+		return failed + 1
+	var fx: Node = tree_root.get_node_or_null("LuckySparkFx")
+	failed += _assert(fx != null, "LuckySparkFx autoload missing")
+	LuckySparkFxScript.reset_test_state()
+	game_audio.call("clear_played_log")
+	var host := Node2D.new()
+	host.name = "LuckySparkVerifyHost"
+	tree_root.add_child(host)
+	var anchor := Vector2(120.0, 80.0)
+	LuckySparkFxScript.spawn_at_parent(host, anchor)
+	failed += _assert(LuckySparkFxScript.burst_spawn_count() == 1, "lucky burst spawns once")
+	failed += _assert(LuckySparkFxScript.spark_emit_count() == 1, "lucky spark particles spawn once")
+	var burst_child: Node = host.get_child(0) if host.get_child_count() > 0 else null
+	var burst_sprite: Sprite2D = null
+	if burst_child != null:
+		burst_sprite = burst_child.get_node_or_null("Burst") as Sprite2D
+	failed += _assert(burst_sprite != null, "burst sprite child")
+	if burst_sprite != null:
+		failed += _assert(burst_sprite.hframes == 4, "burst strip h_frames 4")
+		failed += _assert(
+			burst_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			"burst nearest filter",
+		)
+		failed += _assert(is_equal_approx(burst_sprite.scale.x, 1.0), "burst scale 1")
+	var motes: CPUParticles2D = null
+	for child: Node in host.get_children():
+		if child is CPUParticles2D:
+			motes = child as CPUParticles2D
+			break
+	failed += _assert(motes != null, "spark CPUParticles2D")
+	if motes != null:
+		failed += _assert(motes.amount == 5, "spark amount 5")
+		failed += _assert(is_equal_approx(motes.lifetime, 0.3), "spark lifetime 0.3")
+		failed += _assert(
+			motes.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			"spark nearest filter",
+		)
+	var base_msec: int = 1_000_000
+	var cue1: StringName = LuckySparkFxScript.try_play_chime(base_msec)
+	failed += _assert(cue1 == &"sfx_mana_chime_1", "lucky chime cue stage 1")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "lucky chime plays")
+	var expected_db: float = float(game_audio.call("gather_offset_db")) - 6.0
+	failed += _assert(
+		is_equal_approx(float(game_audio.get("last_cue_volume_db")), expected_db),
+		"lucky chime -6 dB vs gather offset",
+	)
+	var cue2: StringName = LuckySparkFxScript.try_play_chime(base_msec + 500)
+	failed += _assert(cue2 == &"", "chime throttled inside 1.5 s")
+	game_audio.call("clear_played_log")
+	var cue3: StringName = LuckySparkFxScript.try_play_chime(base_msec + 1600)
+	failed += _assert(cue3 == &"sfx_mana_chime_1", "chime after 1.5 s cooldown")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "chime replays after cooldown")
+	game_state.call("reset_for_new_game")
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	LuckySparkFxScript.reset_test_state()
+	game_audio.call("clear_played_log")
+	var on_lucky_harvest := Callable(fx, "_on_lucky_harvest")
+	if not game_state.lucky_harvest.is_connected(on_lucky_harvest):
+		game_state.lucky_harvest.connect(on_lucky_harvest)
+	game_state.lucky_harvest.emit(&"wood", 1)
+	failed += _assert(LuckySparkFxScript.burst_spawn_count() == 0, "lucky_harvest without gatherable skips burst")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "lucky_harvest still plays chime")
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
+	host.queue_free()
+	return failed
+
+
 func _check_only_load() -> int:
 	## Compile and load the companion scripts. Does not run the suite.
 	var failed: int = 0
@@ -5827,9 +6032,15 @@ func _check_only_load() -> int:
 		"res://scripts/character_sheet.gd",
 		"res://scripts/hud.gd",
 		"res://scripts/main.gd",
+		"res://scripts/hub/glade_fireflies.gd",
+		"res://scripts/hub/hub_time_phase.gd",
 		"res://scripts/forge_room.gd",
 		"res://scripts/gatherable.gd",
+		"res://scripts/fx/lucky_spark_burst.gd",
+		"res://scripts/fx/lucky_spark_fx.gd",
 		"res://scripts/manatree.gd",
+		"res://scripts/tree_whispers.gd",
+		"res://scripts/manatree_stage_bloom.gd",
 		"res://scripts/forge_station.gd",
 		"res://scripts/runestone.gd",
 		"res://scripts/autoload/game_state.gd",
@@ -5871,6 +6082,9 @@ func _check_only_load() -> int:
 		"res://scripts/minigames/games/steady_press.gd",
 		"res://scripts/minigames/games/with_the_grain.gd",
 		"res://scripts/minigames/games/steeping.gd",
+		"res://scripts/hub/hub_time_phase.gd",
+		"res://scripts/hub/hub_wisp_phase_greetings.gd",
+		"res://scripts/hub_day_night_cycle.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -5880,6 +6094,45 @@ func _check_only_load() -> int:
 	var gs: Node = root.get_node_or_null("GameState")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "")), 0.8), "check-only elaia work rate")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "reliquary")), 1.5), "check-only elaia reliquary rate")
+	failed += _tree_whispers_ok(gs)
+	failed += _dusk_greetings_ok()
+	if failed == 0:
+		print("TREE_WHISPERS_OK")
+	return failed
+
+
+func _tree_whispers_ok(game_state: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	var sapling_keys: Array[String] = TreeWhispers.unlocked_keys_for_stage(&"sapling")
+	failed += _assert(sapling_keys.size() == 3, "sapling unlocks three whispers")
+	for key: String in sapling_keys:
+		failed += _assert(TreeWhispers.min_stage_for_key(key) == 1, "sapling line is stage 1: %s" % key)
+	var young_keys: Array[String] = TreeWhispers.unlocked_keys_for_stage(&"young")
+	failed += _assert(young_keys.size() == 6, "young unlocks six whispers")
+	for key: String in young_keys:
+		failed += _assert(TreeWhispers.min_stage_for_key(key) <= 2, "young line within tier: %s" % key)
+	var bag: Array = []
+	TreeWhispers.refill_bag(bag, &"sapling")
+	failed += _assert(bag.size() == 3, "sapling bag holds three keys")
+	var seen: Dictionary = {}
+	while not bag.is_empty():
+		var drawn: String = TreeWhispers.draw_key(bag, &"sapling")
+		failed += _assert(drawn != "" and not seen.has(drawn), "no repeat before exhaustion: %s" % drawn)
+		seen[drawn] = true
+	failed += _assert(seen.size() == 3, "exhausted the sapling bag")
+	var fourth: String = TreeWhispers.draw_key(bag, &"sapling")
+	failed += _assert(fourth != "" and seen.has(fourth), "refill allows a repeat after exhaustion")
+	game_state.set("stage_id", &"young")
+	TreeWhispers.prune_bag(bag, &"young")
+	TreeWhispers.refill_bag(bag, &"young")
+	failed += _assert(bag.size() == 6, "young bag holds six keys")
+	seen.clear()
+	while not bag.is_empty():
+		var drawn_y: String = TreeWhispers.draw_key(bag, &"young")
+		failed += _assert(drawn_y != "" and not seen.has(drawn_y), "young bag no repeat: %s" % drawn_y)
+		seen[drawn_y] = true
+	failed += _assert(seen.size() == 6, "exhausted the young bag")
 	return failed
 
 
@@ -6878,6 +7131,12 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
 		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 48)) < 0.5, "bench stand is just south of the tabletop")
+		var seat: Node2D = bench.get_node_or_null("KeeperSeat") as Node2D
+		failed += _assert(seat != null and seat.position.distance_to(Vector2(0, -3)) < 0.5, "bench seat top marker on the apron")
+		failed += _assert(bench.has_method("seat_global"), "bench exposes seat_global")
+		var bench_script: Script = bench.get_script()
+		var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+		failed += _assert(is_equal_approx(feet_below, 23.0), "bench seat feet offset const")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -6944,6 +7203,289 @@ func _duration_sum(sframes: SpriteFrames, anim: StringName) -> float:
 	for i: int in range(sframes.get_frame_count(anim)):
 		total += sframes.get_frame_duration(anim, i)
 	return total
+
+
+func _dusk_greetings_ok() -> int:
+	var failed: int = 0
+	HubWispPhaseGreetings.reset_for_tests()
+	HubTimePhase.set_driven_phase01(0.10)
+	HubWispPhaseGreetings.track_phase(0.10)
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.10) == "", "daylight wisp tap has no greeting")
+	failed += _assert(HubTimePhase.is_dusk_band(0.40) and not HubTimePhase.is_dawn_band(0.40), "dusk band helper")
+	failed += _assert(HubTimePhase.is_dawn_band(0.90) and not HubTimePhase.is_dusk_band(0.90), "dawn band helper")
+	HubTimePhase.set_driven_phase01(0.40)
+	HubWispPhaseGreetings.track_phase(0.40)
+	var dusk_line: String = HubWispPhaseGreetings.try_greeting(0.40)
+	failed += _assert(dusk_line != "", "first dusk wisp shows a dusk line")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.40) == "", "second dusk wisp tap stays silent")
+	HubTimePhase.set_driven_phase01(0.55)
+	HubWispPhaseGreetings.track_phase(0.55)
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.55) == "", "night wisp tap has no greeting")
+	HubTimePhase.set_driven_phase01(0.40)
+	HubWispPhaseGreetings.track_phase(0.40)
+	var dusk_again: String = HubWispPhaseGreetings.try_greeting(0.40)
+	failed += _assert(dusk_again != "", "re-entering dusk resets the dusk greeting")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.40) == "", "dusk greeting still once per visit")
+	HubTimePhase.set_driven_phase01(0.90)
+	HubWispPhaseGreetings.track_phase(0.90)
+	var dawn_line: String = HubWispPhaseGreetings.try_greeting(0.90)
+	failed += _assert(dawn_line != "", "first dawn wisp shows a dawn line")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.90) == "", "second dawn wisp tap stays silent")
+	HubTimePhase.set_driven_phase01(0.10)
+	HubWispPhaseGreetings.track_phase(0.10)
+	HubTimePhase.set_driven_phase01(0.90)
+	HubWispPhaseGreetings.track_phase(0.90)
+	var dawn_again: String = HubWispPhaseGreetings.try_greeting(0.90)
+	failed += _assert(dawn_again != "", "re-entering dawn resets the dawn greeting")
+	var cs: Node = root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null, "ContentStrings for dusk greetings")
+	if cs != null:
+		for i: int in range(1, 7):
+			var dk: String = "wisp_dusk_%02d" % i
+			var ak: String = "wisp_dawn_%02d" % i
+			failed += _assert(str(cs.call("get_text", dk)) != dk, "strings has %s" % dk)
+			failed += _assert(str(cs.call("get_text", ak)) != ak, "strings has %s" % ak)
+	if failed == 0:
+		print("DUSK_GREETINGS_OK")
+	return failed
+
+
+func _bench_seat_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	if save_service:
+		save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return _assert(false, "bench seat hub loads")
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(bench != null and keeper != null, "bench seat hub actors")
+	if bench == null or keeper == null:
+		live.free()
+		if save_service:
+			save_service.call("note_session_ended")
+			save_service.set("boot_intent", "auto")
+		return failed + 1
+	var seat_top: Marker2D = bench.get_node_or_null("KeeperSeat") as Marker2D
+	failed += _assert(seat_top != null, "bench seat top marker")
+	var bench_script: Script = bench.get_script()
+	var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+	var stand_pos: Vector2 = bench.call("stand_global")
+	var seat_pos: Vector2 = bench.call("seat_global")
+	var feet_from_top: Vector2 = seat_pos - seat_top.global_position
+	failed += _assert(
+		is_equal_approx(feet_from_top.x, 0.0) and is_equal_approx(feet_from_top.y, feet_below),
+		"seat_global places feet below the seat top"
+	)
+	failed += _assert(stand_pos.distance_to(seat_pos) > 4.0, "seat is not the stand spot")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	failed += _assert(bool(bench.call("keeper_at_stand")), "keeper at the bench stand")
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(game_audio != null, "bench rest audio autoload")
+	var sit_kind: int = 3
+	var sat_hits: Array[int] = [0]
+	var stood_hits: Array[int] = [0]
+	var rest_plays: Array[int] = [0]
+	failed += _assert(keeper.has_signal("keeper_bench_sat") and keeper.has_signal("keeper_bench_stood"), "keeper bench sit signals exist")
+	keeper.connect("keeper_bench_sat", func() -> void: sat_hits[0] += 1)
+	keeper.connect("keeper_bench_stood", func() -> void: stood_hits[0] += 1)
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.cue_played.connect(func(cue_id: StringName) -> void:
+			if cue_id == &"sfx_bench_rest":
+				rest_plays[0] += 1
+		)
+	var bed_before: float = float(game_audio.call("music_bed_volume_db")) if game_audio != null else 0.0
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(seat_pos) < 0.5, "bench sit snaps to the seat feet spot")
+	var sprite: AnimatedSprite2D = keeper.get_node_or_null("Sprite") as AnimatedSprite2D
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_down_south", "bench sit starts sit_down")
+	keeper.call("_on_idle_moment_animation_finished")
+	failed += _assert(sat_hits[0] == 1, "keeper_bench_sat after sit_down")
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_breathe_south", "bench sit breathes at the seat")
+	if game_audio != null:
+		failed += _assert(bool(game_audio.call("did_play", &"sfx_bench_rest")), "bench rest cue plays on sit_down")
+		failed += _assert(rest_plays[0] == 1, "bench rest cue_played once")
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		var bed_lift: float = float(game_audio.call("music_bed_volume_db"))
+		failed += _assert(absf(bed_lift - bed_before - 2.0) < 0.15, "bench rest lifts the hub bed +2 dB")
+		keeper.call("halt")
+		keeper.global_position = stand_pos
+		keeper.call("_start_idle_moment", sit_kind)
+		keeper.call("_on_idle_moment_animation_finished")
+		failed += _assert(rest_plays[0] == 1, "bench rest 10 s guard skips retrigger")
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db")) - 2.0) < 0.05, "bench rest keeps bed lift while seated")
+	var away: Vector2 = stand_pos + Vector2(240, 0)
+	keeper.call("halt")
+	keeper.global_position = away
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(away) < 0.5, "away from the bench sit does not move the keeper")
+	keeper.call("_on_idle_moment_animation_finished")
+	failed += _assert(sat_hits[0] == 0 and stood_hits[0] == 0, "away from the bench emits no bench sit signals")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	keeper.call("_on_idle_moment_animation_finished")
+	keeper.call("move_to", away)
+	failed += _assert(stood_hits[0] == 1, "cancel at the bench emits keeper_bench_stood")
+	failed += _assert(sprite != null and sprite.animation != &"idle_stand_up_south", "cancel skips stand_up")
+	failed += _assert(keeper.global_position.distance_to(stand_pos) < 0.5, "cancel returns the keeper to the stand before walking away")
+	if game_audio != null:
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db"))) < 0.05, "bench rest restores hub bed lift on stood")
+		failed += _assert(absf(float(game_audio.call("music_bed_volume_db")) - bed_before) < 0.15, "bench rest restores hub bed volume on stood")
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var rested_failed: int = _rested_hands_ok(game_state)
+	failed += rested_failed
+	if rested_failed == 0:
+		print("RESTED_HANDS_OK")
+	var sayings_failed: int = _bench_sayings_ok(tree_root, game_state)
+	failed += sayings_failed
+	if sayings_failed == 0:
+		print("BENCH_SAYINGS_OK")
+	var dusk_failed: int = _bench_dusk_props_ok(bench, keeper)
+	failed += dusk_failed
+	if dusk_failed == 0:
+		print("BENCH_DUSK_PROPS_OK")
+	await process_frame
+	live.free()
+	if save_service:
+		save_service.call("note_session_ended")
+		save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("BENCH_SEAT_OK")
+		print("BENCH_REST_OK")
+	return failed
+
+
+func _rested_hands_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "rested hands game state")
+	failed += _assert(game_state.has_method("debug_complete_bench_sit_sec"), "rested hands helpers on GameState")
+	failed += _assert(
+		is_equal_approx(float(game_state.call("param_float", "RESTED_SIT_SEC", -1.0)), 20.0),
+		"RESTED_SIT_SEC param"
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult idle")
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	failed += _assert(int(game_state.get("rested_until_ms")) > Time.get_ticks_msec(), "20s sit sets rested window")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.15), "20s sit grants rested mult")
+	var mult: float = float(game_state.call("keeper_rested_mult"))
+	game_state.set("harvest_accum", {})
+	var control: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper"))))
+	game_state.set("harvest_accum", {})
+	var boosted: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper")) * mult)
+	)
+	var boosted_accum: float = float((game_state.get("harvest_accum") as Dictionary).get("wood", 0.0))
+	failed += _assert(boosted > control or boosted_accum > 0.05, "rested mult banks more wood than control")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() - 1)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult expires")
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.call("debug_complete_bench_sit_sec", 19.0)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "19s sit grants nothing")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() + 60000)
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	var until_after: int = int(game_state.get("rested_until_ms"))
+	var remaining_ms: int = until_after - Time.get_ticks_msec()
+	failed += _assert(remaining_ms > 115000 and remaining_ms < 125000, "second sit resets rested timer to 120s")
+	game_state.set("harvest_accum", {})
+	var elaia_grant: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.set("harvest_accum", {})
+	var elaia_again: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	failed += _assert(elaia_grant == elaia_again, "elaia harvest ignores rested mult")
+	game_state.call("clear_rested_hands_bench_buff")
+	return failed
+
+
+func _bench_sayings_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "bench sayings game state")
+	var content: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(content != null, "bench sayings content strings")
+	if content == null:
+		return failed + 1
+	for i: int in range(1, 11):
+		var key: String = "bench_saying_%02d" % i
+		var line: String = str(content.call("get_text", key))
+		failed += _assert(line != key and line.length() > 4, "bench saying %s loaded" % key)
+	var seen: Array[String] = []
+	var grab: Callable = func(t: String) -> void:
+		seen.append(t)
+	game_state.connect("status_message", grab)
+	game_state.call("on_keeper_bench_sat")
+	game_state.disconnect("status_message", grab)
+	failed += _assert(seen.size() == 1, "bench sit toasts one line")
+	if seen.size() == 1:
+		var ok: bool = false
+		for j: int in range(1, 11):
+			if seen[0] == str(content.call("get_text", "bench_saying_%02d" % j)):
+				ok = true
+				break
+		failed += _assert(ok, "bench saying line is from lore table")
+	return failed
+
+
+func _bench_dusk_props_ok(bench: Node2D, keeper: Node2D) -> int:
+	var failed: int = 0
+	if bench == null or keeper == null:
+		return _assert(false, "bench dusk props actors")
+	HubTimePhase.set_driven_phase01(0.1)
+	keeper.call("_emit_keeper_bench_sat")
+	var cup: CanvasItem = bench.get_node_or_null("DuskCup") as CanvasItem
+	var steam: CanvasItem = bench.get_node_or_null("DuskSteam") as CanvasItem
+	var blanket: CanvasItem = bench.get_node_or_null("DuskBlanket") as CanvasItem
+	failed += _assert(cup != null and steam != null and blanket != null, "dusk prop nodes exist")
+	if cup != null:
+		failed += _assert(not cup.visible, "daylight hides dusk props on sit")
+	HubTimePhase.set_driven_phase01(0.40)
+	keeper.call("_emit_keeper_bench_sat")
+	if cup != null:
+		failed += _assert(cup.visible and cup.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "dusk cup visible nearest")
+		failed += _assert(is_equal_approx(cup.scale.x, 1.0) and is_equal_approx(cup.position.x, 46.0), "dusk cup placement")
+	if blanket != null:
+		failed += _assert(blanket.visible, "dusk blanket visible")
+		failed += _assert(is_equal_approx(blanket.position.x, -74.0), "dusk blanket placement")
+	if steam != null:
+		failed += _assert(steam.visible, "dusk steam visible")
+		failed += _assert(is_equal_approx(steam.position.x, 48.0), "dusk steam placement")
+	keeper.call("_emit_keeper_bench_stood")
+	if cup != null:
+		failed += _assert(not cup.visible and not steam.visible and not blanket.visible, "stood hides dusk props")
+	HubTimePhase.set_driven_phase01(0.0)
+	return failed
+
+
+func _wait_bench_rest_bed_tween(tree_root: Window) -> int:
+	var failed: int = 0
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if game_audio == null:
+		return _assert(false, "bench rest tween audio")
+	var deadline: int = Time.get_ticks_msec() + 1700
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+	return failed
 
 
 func _no_old_keeper_idle() -> int:
@@ -7832,6 +8374,53 @@ func _debug_panel_ok(tree_root: Window) -> int:
 			failed += _assert(tabs.current_tab == overlays and overlays_tab != null and overlays_tab.button_pressed, "setting current_tab highlights Overlays")
 			failed += _assert(tree_tab != null and not tree_tab.button_pressed, "setting current_tab clears the Tree highlight")
 	panel.queue_free()
+	return failed
+
+
+func _firefly_twinkle_ok(game_audio: Node) -> int:
+	var failed: int = 0
+	var twinkle_ids: PackedStringArray = PackedStringArray([
+		"sfx_firefly_twinkle_1",
+		"sfx_firefly_twinkle_2",
+		"sfx_firefly_twinkle_3",
+	])
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cues: Dictionary = {}
+	if parsed is Dictionary:
+		var list_v: Variant = (parsed as Dictionary).get("cues", {})
+		if list_v is Dictionary:
+			cues = list_v
+	for cue_id: String in twinkle_ids:
+		failed += _assert(game_audio.list_cue_ids().has(cue_id), "cue registered %s" % cue_id)
+		var path: String = str(game_audio.call("get_cue_path", cue_id))
+		failed += _assert(path != "" and FileAccess.file_exists(path), "cue file %s" % cue_id)
+		var meta: Dictionary = cues.get(cue_id, {}) as Dictionary
+		failed += _assert(str(meta.get("bus", "")) == "SFX_World", "%s bus" % cue_id)
+		failed += _assert(is_equal_approx(float(meta.get("volume_db", 0.0)), -6.0), "%s volume_db -6" % cue_id)
+	GladeFireflies.reset_twinkle_state()
+	var base_msec: int = 1_000_000
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.0, 1.0, base_msec, 1) == "", "day blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.40, 1.0, base_msec + 1, 1) == "", "dusk blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.55, 0.0, base_msec + 2, 1) == "", "invisible blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.90, 1.0, base_msec + 3, 1) == "", "pre-dawn blocks twinkle")
+	GladeFireflies.reset_twinkle_state()
+	var first: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec, 2)
+	failed += _assert(first == "sfx_firefly_twinkle_2", "night plays variant")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec + 100, 1) == "", "cooldown blocks immediate replay")
+	failed += _assert(
+		GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec + GladeFireflies.twinkle_cooldown_msec() - 1, 3) == "",
+		"cooldown blocks before 4s",
+	)
+	var second: String = GladeFireflies.try_twinkle_sfx(
+		0.55, 1.0, base_msec + GladeFireflies.twinkle_cooldown_msec(), 3
+	)
+	failed += _assert(second == "sfx_firefly_twinkle_3", "cooldown allows play after 4s")
+	game_audio.call("clear_played_log")
+	game_audio.call("play", &"sfx_firefly_twinkle_1", 0.0, 1.0)
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_firefly_twinkle_1")), "twinkle cue plays")
+	failed += _assert(is_equal_approx(float(game_audio.get("last_cue_volume_db")), -6.0), "twinkle at -6 dB")
+	if failed == 0:
+		print("FIREFLY_TWINKLE_OK")
 	return failed
 
 
@@ -25943,3 +26532,477 @@ func _flip_h_diff(text_node: Node, bin_node: Node) -> PackedStringArray:
 		if not text_flips.has(path):
 			out.append("%s text=absent binary=%s" % [path, str(bin_flips[path])])
 	return out
+
+
+func _sprint_r3_tending_ok(game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var content_strings: Node = get_root().get_node_or_null("ContentStrings")
+	failed += _assert(content_strings != null, "r3 tending strings autoload")
+	if game_state == null or content_strings == null:
+		return failed + 1
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", "")
+	game_state.set("wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	var w0: int = int(game_state.get("wood"))
+	var g1: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(g1 == 10, "morning gift sapling is 10 units")
+	failed += _assert(int(game_state.get("wood")) == w0 + 10, "morning gift banks wood")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "morning gift stamps day")
+	var g2: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(g2 == 0, "second gift same day blocked")
+	game_state.set("_morning_gift_day_override", "2026-10-26")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 0, "clock backwards blocks gift")
+	game_state.set("_morning_gift_day_override", "2026-10-28")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 10, "new day grants gift")
+	game_state.set("last_gift_day", "")
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	game_state.call("accumulate_wisp_harvest", &"wood", 1000.0)
+	failed += _assert(str(game_state.get("last_gift_day")) == "", "wisp harvest does not take gift")
+	game_state.set("last_gift_day", "")
+	game_state.call("apply_offline_keeper_harvest", 600.0, &"wood")
+	failed += _assert(str(game_state.get("last_gift_day")) == "", "offline keeper does not take gift")
+	game_state.set("last_gift_day", "2026-10-29")
+	var blob: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-29", "morning gift save round-trip")
+	game_state.set("_morning_gift_day_override", "")
+	if failed == 0:
+		print("MORNING_GIFT_OK")
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "favourite is first node")
+	game_state.call("try_assign_wisp", 0, "harvest_stone")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "reassign keeps favourite")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	game_state.call("apply_wisp_pulses", 1000.0)
+	var fav_wood: int = int(game_state.get("wood"))
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	game_state.set("wisp_favourites", {"0": "harvest_stone"})
+	game_state.call("apply_wisp_pulses", 1000.0)
+	var other_wood: int = int(game_state.get("wood"))
+	failed += _assert(
+		fav_wood > other_wood,
+		"favourite node yields more wood (fav=%d plain=%d assign=%s)" % [
+			fav_wood,
+			other_wood,
+			str(game_state.call("get_wisp_assignment", 0)),
+		],
+	)
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	failed += _assert((game_state.get("wisp_favourites") as Dictionary).is_empty(), "ascend clears favourites")
+	var farewell: String = str(content_strings.call("get_text", "fruit_farewell_01"))
+	failed += _assert(farewell.find("grow again") >= 0, "fruit farewell string present")
+	if failed == 0:
+		print("WISP_FAVOURITE_OK")
+	failed += _assert(FileAccess.file_exists("res://assets/art/fx/stage_bloom/bloom_petal_strip_5x5x6.png"), "stage bloom petal art")
+	failed += _assert(load("res://scripts/manatree_stage_bloom.gd") != null, "stage bloom script loads")
+	if failed == 0:
+		print("STAGE_BLOOM_OK")
+	var cues: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cue_map: Dictionary = (cues as Dictionary).get("cues", {}) if typeof(cues) == TYPE_DICTIONARY else {}
+	failed += _assert(cue_map.has("sfx_wisp_hum"), "sfx_wisp_hum cue")
+	failed += _assert(cue_map.has("sfx_ascend_breath"), "sfx_ascend_breath cue")
+	failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_wisp_hum.ogg"), "wisp hum file")
+	failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_ascend_breath.ogg"), "ascend breath file")
+	var hum_ok: bool = cue_map.has("sfx_wisp_hum") and FileAccess.file_exists("res://assets/audio/sfx_wisp_hum.ogg")
+	if hum_ok and failed == 0:
+		print("WISP_HUM_OK")
+	var breath_ok: bool = false
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.call("play_ascend")
+		breath_ok = bool(game_audio.call("did_play", &"sfx_ascend_breath"))
+		failed += _assert(breath_ok, "ascend breath plays before sting")
+	if breath_ok and failed == 0:
+		print("ASCEND_BREATH_OK")
+	return failed
+
+
+func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	if game_state == null or save_service == null:
+		return failed + 1
+	var tree_root: Window = get_root()
+	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
+	var brewing: Node = tree_root.get_node_or_null("BrewingJobs")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	if keeper_stats == null or brewing == null or backpack == null:
+		return failed + 1
+	failed += _assert(R5Constants.PARTY_CAP == 6, "party cap 6")
+	failed += _assert(is_equal_approx(R5Constants.PARTY_THREAT_K, 0.12), "party threat k")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 16, "save version 16")
+	game_state.call("reset_for_new_game")
+	var legacy: Dictionary = {
+		"might": 2,
+		"arcana": 0,
+		"resilience": 0,
+		"ward": 0,
+		"vitality": 1,
+		"swiftness": 0,
+		"fate": 0,
+	}
+	keeper_stats.call("apply_save_dict", legacy)
+	failed += _assert(int(keeper_stats.call("get_rank", "might")) == 2, "keeper might migrated")
+	failed += _assert(int(keeper_stats.call("get_rank_for_actor", "keeper", "might")) == 2, "ranks_by_actor keeper")
+	var puff_trained: int = int(keeper_stats.call("trained_value", "puff", "arcana"))
+	failed += _assert(puff_trained == 8, "puff arcana base trained got %d" % puff_trained)
+	var cost_puff: int = int(keeper_stats.call("get_next_cost_for_actor", "puff", "arcana"))
+	failed += _assert(cost_puff == 449, "puff arc 8→9 costs 449 got %d" % cost_puff)
+	keeper_stats.call("set_rank_for_actor", "bramble", "might", 1)
+	failed += _assert(int(keeper_stats.call("trained_value", "bramble", "might")) == 7, "bramble might trained 7")
+	failed += _assert(
+		int(keeper_stats.call("get_next_cost_for_actor", "keeper", "might"))
+		== int(keeper_stats.call("get_next_cost_for_actor", "bramble", "might")),
+		"shared cost by trained stat value",
+	)
+	game_state.set("echo_03_resolved", true)
+	game_state.set("brewing_unlocked", true)
+	game_state.set("puff_in_party", true)
+	game_state.set("puff_join_seen", true)
+	failed += _assert(bool(game_state.call("puff_in_party_active")), "puff join path")
+	var brew_path: String = "res://data/brewing.json"
+	failed += _assert(FileAccess.file_exists(brew_path), "brewing.json exists")
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(brew_path))
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "brewing json parses")
+	game_state.set("essence", 100)
+	backpack.call("set_count", "glowcap", 10)
+	backpack.call("set_count", "bitterroot", 10)
+	var brew_start: String = str(brewing.call("try_start", "heart_salve", "keeper", 1))
+	failed += _assert(brew_start == "ok", "brew start %s" % brew_start)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	brewing.call("advance_brew_seconds", 120.0)
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) >= 1, "salve brewed")
+	game_state.call("drink_moss_tonic")
+	var mult: float = float(game_state.call("moss_tonic_wisp_mult"))
+	failed += _assert(is_equal_approx(mult, 1.1), "moss tonic mult")
+	game_state.call("drink_moss_tonic")
+	var until2: int = int(game_state.get("moss_tonic_until_ms"))
+	game_state.set("moss_tonic_until_ms", until2 - 1000)
+	game_state.call("drink_moss_tonic")
+	failed += _assert(int(game_state.get("moss_tonic_until_ms")) > until2 - 500, "tonic refresh not stack")
+	game_state.set("echo_04_outcome", "spare")
+	game_state.set("moss_tortoise_in_party", true)
+	game_state.set("moss_tortoise_join_seen", true)
+	failed += _assert(bool(game_state.call("moss_tortoise_joined")), "tortoise joined")
+	var firefly_failed: int = 0
+	firefly_failed += _assert(R5Constants.FIREFLY_MAX_ACTIVE == 3, "firefly max 3")
+	firefly_failed += _assert(is_equal_approx(R5Constants.FIREFLY_SPAWN_SEC, 20.0), "firefly spawn 20s")
+	firefly_failed += _assert(FileAccess.file_exists(FireflyJarArt.PATH_EMPTY), "jar empty art")
+	firefly_failed += _assert(FileAccess.file_exists(FireflyJarArt.PATH_50), "jar 50 art")
+	firefly_failed += _assert(HubTimePhase.firefly_strength(0.40) > 0.0, "dusk spawns")
+	firefly_failed += _assert(HubTimePhase.firefly_strength(0.10) <= 0.0, "day no spawn")
+	firefly_failed += _assert(int(load("res://scripts/hub/firefly_ring.gd").call("catch_throttle_msec")) == 500, "catch throttle")
+	var cues_ff: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cue_ff: Dictionary = (cues_ff as Dictionary).get("cues", {}) if typeof(cues_ff) == TYPE_DICTIONARY else {}
+	firefly_failed += _assert(cue_ff.has("sfx_firefly_catch"), "firefly catch cue")
+	firefly_failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_firefly_catch.ogg"), "firefly catch ogg")
+	game_state.set("firefly_jar_count", 0)
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(0) != null, "jar tex 0")
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(1) != null, "jar tex 1")
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(9) != null, "jar tex 9")
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(49) != null, "jar tex 49")
+	game_state.set("firefly_jar_count", 12)
+	firefly_failed += _assert(int(game_state.get("firefly_jar_count")) == 12, "firefly count save field")
+	game_state.set("firefly_jar_count", 7)
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	firefly_failed += _assert(int(game_state.get("firefly_jar_count")) == 7, "firefly survives ascend")
+	failed += firefly_failed
+	if firefly_failed == 0:
+		print("FIREFLY_JAR_OK")
+	var seed_failed: int = 0
+	seed_failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/tints/canopy_tint_lut.json"), "tint lut")
+	for stage_name: String in ["sapling", "young", "mature", "elder", "ancient"]:
+		for folder: String in ["default", "blossom", "autumn"]:
+			var p: String = "res://assets/art/manatree/native/tints/%s/manatree_%s.png" % [folder, stage_name]
+			seed_failed += _assert(FileAccess.file_exists(p), "tint png %s" % p)
+	game_state.call("pick_manatree_tint", 2)
+	seed_failed += _assert(int(game_state.get("manatree_tint")) == 2, "seed tint pick")
+	var autumn_mature: String = "res://assets/art/manatree/native/tints/autumn/manatree_mature.png"
+	seed_failed += _assert(FileAccess.file_exists(autumn_mature), "tint applies autumn mature png")
+	game_state.set("manatree_tint", 1)
+	var blob_tint: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob_tint)
+	seed_failed += _assert(int(game_state.get("manatree_tint")) == 1, "tint save round-trip")
+	failed += seed_failed
+	if seed_failed == 0:
+		print("SEED_SWAP_OK")
+	var nap_failed: int = 0
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.set("wisp_assignments", {"0": ""})
+	nap_failed += _assert(not bool(game_state.call("wisp_is_napping", 0)), "not napping yet")
+	game_state.call("_tick_wisp_nap_idle", R5Constants.WISP_NAP_AFTER_SEC + 1.0)
+	nap_failed += _assert(bool(game_state.call("wisp_is_napping", 0)), "nap after 300s idle")
+	var burst_before: int = int(game_state.get("_wisp_nap_burst_until").get("0", 0))
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	nap_failed += _assert(not bool(game_state.call("wisp_is_napping", 0)), "assign ends nap")
+	nap_failed += _assert(float(game_state.call("wisp_nap_burst_mult", "0")) >= R5Constants.WISP_NAP_BURST_MULT, "burst mult")
+	var burst_until: int = int(game_state.get("_wisp_nap_burst_until").get("0", 0))
+	game_state.call("try_assign_wisp", 0, "harvest_stone")
+	var burst_until2: int = int(game_state.get("_wisp_nap_burst_until").get("0", 0))
+	nap_failed += _assert(burst_until2 <= burst_until + 50, "burst does not stack extend")
+	game_state.call("unassign_wisp", 0)
+	game_state.call("_tick_wisp_nap_idle", R5Constants.WISP_NAP_AFTER_SEC + 1.0)
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.set("fruit_committed", true)
+	var tick_while_frozen: int = int(game_state.get("_wisp_idle_accum").get("0", 0))
+	game_state.call("_tick_wisp_nap_idle", 400.0)
+	nap_failed += _assert(int(game_state.get("_wisp_idle_accum").get("0", tick_while_frozen)) == tick_while_frozen, "nap idle no tick while fruit committed")
+	failed += nap_failed
+	if nap_failed == 0:
+		print("WISP_NAP_OK")
+	var walk_tortoise_failed: int = 0
+	for dir: String in ["east", "north", "south", "west"]:
+		for i: int in range(8):
+			var wp: String = "res://assets/art/moss_tortoise/anim/walk8/%s/frame_%04d.png" % [dir, i]
+			walk_tortoise_failed += _assert(FileAccess.file_exists(wp), "tortoise walk8 %s" % wp)
+	walk_tortoise_failed += _assert(load("res://scripts/moss_tortoise.gd") != null, "moss tortoise script")
+	walk_tortoise_failed += _assert(not FileAccess.file_exists("res://assets/art/moss_tortoise/anim/walk8/east/frame_0008.png"), "walk9 unwired")
+	walk_tortoise_failed += _assert(
+		is_equal_approx(MossTortoise.walk_loop_ms(), 920.0),
+		"tortoise walk loop 920 ms got %s" % str(MossTortoise.walk_loop_ms()),
+	)
+	failed += walk_tortoise_failed
+	if walk_tortoise_failed == 0:
+		print("MOSS_TORTOISE_WALK_OK")
+	var brew_vis_failed: int = 0
+	brew_vis_failed += _assert(FileAccess.file_exists("res://assets/art/props/brewing_stand.png"), "brew stand png")
+	brew_vis_failed += _assert(FileAccess.file_exists("res://assets/art/fx/brewing/brew_bubbles_strip_24x32x6.png"), "brew bubbles")
+	brew_vis_failed += _assert(load("res://scenes/brewing_stand.tscn") != null, "brew scene")
+	var brew_stand: Node = (load("res://scripts/hub/brewing_stand.gd") as Script).new()
+	brew_vis_failed += _assert(brew_stand != null, "brew stand script")
+	if brew_stand != null:
+		brew_stand.free()
+	failed += brew_vis_failed
+	if brew_vis_failed == 0:
+		print("BREWING_STAND_OK")
+	var puff_walk_failed: int = 0
+	for dir: String in ["east", "north", "south", "west"]:
+		for i: int in range(8):
+			var pp: String = "res://assets/art/puff/anim/walk/%s/frame_%04d.png" % [dir, i]
+			puff_walk_failed += _assert(FileAccess.file_exists(pp), "puff walk %s" % pp)
+	puff_walk_failed += _assert(FileAccess.file_exists("res://assets/art/puff/battle_puff_idle.png"), "puff battle")
+	puff_walk_failed += _assert(FileAccess.file_exists("res://assets/art/puff/puff_portrait.png"), "puff portrait")
+	puff_walk_failed += _assert(load("res://scripts/puff.gd") != null, "puff script")
+	puff_walk_failed += _assert(
+		is_equal_approx(Puff.walk_loop_ms(), 1000.0),
+		"puff walk loop 1000 ms got %s" % str(Puff.walk_loop_ms()),
+	)
+	failed += puff_walk_failed
+	if puff_walk_failed == 0:
+		print("PUFF_WALK_OK")
+	var loot_tier_failed: int = 0
+	loot_tier_failed += _assert(RoomLoot._size_key(1) == "solo", "loot solo")
+	loot_tier_failed += _assert(RoomLoot._size_key(2) == "duo", "loot duo pair")
+	loot_tier_failed += _assert(RoomLoot._size_key(3) == "duo", "loot party 3 uses duo")
+	loot_tier_failed += _assert(RoomLoot._size_key(6) == "duo", "loot party 6 uses duo")
+	failed += loot_tier_failed
+	if loot_tier_failed == 0:
+		print("PARTY_LOOT_DUO_TIER_OK")
+	var echo_chamber: Node = tree_root.get_node_or_null("EchoChamber")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var portal_fee_failed: int = 0
+	if echo_chamber == null or equipment == null or backpack == null:
+		portal_fee_failed += 1
+	else:
+		game_state.call("reset_for_new_game")
+		game_state.set("echo_01_resolved", true)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("echo_03_resolved", false)
+		game_state.set("echo_03_fee_paid", false)
+		game_state.set("lifetime_t2_tool_arch_seen", true)
+		game_state.set("essence", 70)
+		portal_fee_failed += _assert(not bool(echo_chamber.call("puff_fee_affordable")), "echo3 blocked without tools")
+		game_state.set("essence", 69)
+		portal_fee_failed += _assert(not bool(echo_chamber.call("puff_fee_affordable")), "echo3 blocked low essence")
+		game_state.set("essence", 70)
+		equipment.call("grant_item", "rootsteel_edge")
+		equipment.call("grant_item", "heartwand")
+		portal_fee_failed += _assert(bool(echo_chamber.call("puff_fee_affordable")), "echo3 affordable")
+		var ess0: int = int(game_state.get("essence"))
+		var t2_before: Dictionary = {}
+		for tool_id: String in R5Constants.T2_TOOL_IDS:
+			t2_before[tool_id] = int(equipment.call("gear_count_anywhere", tool_id))
+		portal_fee_failed += _assert(str(echo_chamber.call("try_pay_puff")) == "paid", "echo3 pay")
+		portal_fee_failed += _assert(int(game_state.get("essence")) == ess0 - R5Constants.PUFF_ECHO_FEE, "echo3 essence deducted")
+		for tool_id: String in R5Constants.T2_TOOL_IDS:
+			portal_fee_failed += _assert(
+				int(equipment.call("gear_count_anywhere", tool_id)) == int(t2_before.get(tool_id, 0)),
+				"echo3 keeps %s count" % tool_id,
+			)
+		game_state.call("reset_for_new_game")
+		game_state.set("echo_03_resolved", true)
+		game_state.set("echo_04_resolved", false)
+		game_state.set("echo_04_fee_paid", false)
+		game_state.set("brewing_unlocked", true)
+		if reach != null:
+			reach.set("reaches_cleared", R5Constants.MOSS_TORTOISE_JOIN_CLEARS)
+		game_state.set("essence", 40)
+		backpack.call("set_count", "heart_salve", 0)
+		portal_fee_failed += _assert(not bool(echo_chamber.call("tortoise_fee_affordable")), "echo4 no salve")
+		backpack.call("set_count", "heart_salve", 1)
+		portal_fee_failed += _assert(bool(echo_chamber.call("tortoise_fee_affordable")), "echo4 affordable")
+		var ess1: int = int(game_state.get("essence"))
+		portal_fee_failed += _assert(str(echo_chamber.call("try_pay_tortoise")) == "paid", "echo4 pay")
+		portal_fee_failed += _assert(int(game_state.get("essence")) == ess1 - R5Constants.MOSS_TORTOISE_ECHO_FEE, "echo4 essence deducted")
+		portal_fee_failed += _assert(int(backpack.call("get_count", "heart_salve")) == 0, "echo4 salve deducted")
+	failed += portal_fee_failed
+	if portal_fee_failed == 0:
+		print("ECHO_PORTAL_FEE_UI_OK")
+	var echo3_keep_failed: int = 0
+	if echo_chamber == null or equipment == null:
+		echo3_keep_failed += 1
+	else:
+		game_state.call("reset_for_new_game")
+		game_state.set("echo_01_resolved", true)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("echo_03_resolved", false)
+		game_state.set("echo_03_fee_paid", false)
+		game_state.set("lifetime_t2_tool_arch_seen", true)
+		game_state.set("essence", 200)
+		equipment.call("grant_item", "rootsteel_edge")
+		equipment.call("grant_item", "heartwand")
+		equipment.call("grant_item", "switchshaft")
+		var counts_before: Dictionary = {}
+		for tid: String in R5Constants.T2_TOOL_IDS:
+			counts_before[tid] = int(equipment.call("gear_count_anywhere", tid))
+		var ess_before: int = int(game_state.get("essence"))
+		echo3_keep_failed += _assert(str(echo_chamber.call("try_pay_puff")) == "paid", "echo3 pay keeps items")
+		echo3_keep_failed += _assert(
+			int(game_state.get("essence")) == ess_before - R5Constants.PUFF_ECHO_FEE,
+			"echo3 exactly 70 essence",
+		)
+		for tid: String in R5Constants.T2_TOOL_IDS:
+			echo3_keep_failed += _assert(
+				int(equipment.call("gear_count_anywhere", tid)) == int(counts_before.get(tid, 0)),
+				"ECHO3_ITEMS_KEPT %s" % tid,
+			)
+	failed += echo3_keep_failed
+	if echo3_keep_failed == 0:
+		print("ECHO3_ITEMS_KEPT_OK")
+	return failed
+
+
+func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return failed + 1
+	# (a) Rested multiplier scales base yield before the lucky-harvest roll (gather pulse path).
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", str(game_state.call("morning_gift_day_key")))
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() + 120000)
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	var saved_mult: Variant = params.get("LUCKY_HARVEST_MULT", 2)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
+	var rested_rate: float = float(game_state.call("keeper_rested_mult"))
+	failed += _assert(is_equal_approx(rested_rate, 1.15), "integration rested mult active")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var wood_plain: int = 0
+	for _pulse: int in range(16):
+		game_state.call("apply_harvest_pulse", &"wood", 1.0)
+	wood_plain = int(game_state.get("wood"))
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var wood_rested: int = 0
+	for _pulse: int in range(16):
+		game_state.call("apply_harvest_pulse", &"wood", rested_rate)
+	wood_rested = int(game_state.get("wood"))
+	failed += _assert(wood_rested > wood_plain, "rested scales gather yield before lucky (plain=%d rested=%d)" % [wood_plain, wood_rested])
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	params["LUCKY_HARVEST_MULT"] = 2
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var grant_rested: int = 0
+	for _pulse: int in range(16):
+		grant_rested = int(game_state.call("apply_harvest_pulse", &"wood", rested_rate))
+		if grant_rested > 0:
+			break
+	var wood_after_lucky: int = int(game_state.get("wood"))
+	failed += _assert(grant_rested > 0, "rested gather pulse grants wood")
+	failed += _assert(
+		wood_after_lucky == grant_rested * 2,
+		"lucky doubles rested-scaled grant (grant=%d wood=%d)" % [grant_rested, wood_after_lucky],
+	)
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	params["LUCKY_HARVEST_MULT"] = saved_mult
+	game_state.set("params", params)
+	game_state.call("clear_rested_hands_bench_buff")
+	# (b) Bench dusk props follow the real hub clock.
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	if save_service:
+		save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed != null:
+		var live: Node = packed.instantiate()
+		tree_root.add_child(live)
+		await process_frame
+		await process_frame
+		var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+		var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+		failed += _bench_dusk_props_ok(bench, keeper)
+		live.free()
+		if save_service:
+			save_service.call("note_session_ended")
+			save_service.set("boot_intent", "auto")
+	else:
+		failed += _assert(false, "integration hub scene loads")
+	# (c) Fireflies and twinkle SFX active at night via HubTimePhase.
+	HubTimePhase.set_driven_phase01(0.55)
+	failed += _assert(HubTimePhase.firefly_twinkle_night(0.55), "night band for twinkle")
+	failed += _assert(HubTimePhase.firefly_strength(0.55) > 0.9, "firefly strength at night")
+	GladeFireflies.reset_twinkle_state()
+	var cue_night: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, Time.get_ticks_msec(), 1)
+	failed += _assert(cue_night == "sfx_firefly_twinkle_1", "twinkle cue allowed at night")
+	var fx := GladeFireflies.new()
+	tree_root.add_child(fx)
+	fx.setup(Rect2(0.0, 0.0, 320.0, 240.0))
+	await process_frame
+	var warm: CPUParticles2D = fx.get_node_or_null("MotesWarm") as CPUParticles2D
+	failed += _assert(warm != null and warm.emitting, "glade fireflies emit at night")
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.call("play", StringName(cue_night), 0.0, 1.0)
+		failed += _assert(bool(game_audio.call("did_play", StringName(cue_night))), "twinkle cue plays at night")
+	fx.free()
+	HubTimePhase.set_driven_phase01(0.0)
+	# (d) Morning gift and wisp favourite in one session without cross-talk.
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", "")
+	game_state.set("wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	var gift: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(gift == 10, "morning gift grants in session")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "morning gift stamps day")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "favourite set in same session")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 0, "gift still once per day with favourite active")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", int(game_state.get("wood")))
+	var wood_before_fav: int = int(game_state.get("wood"))
+	game_state.call("apply_wisp_pulses", 400.0)
+	failed += _assert(int(game_state.get("wood")) > wood_before_fav, "favourite wisp harvest in same session")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "wisp harvest did not steal gift day")
+	game_state.set("_morning_gift_day_override", "")
+	return failed

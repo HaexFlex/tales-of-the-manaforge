@@ -23,7 +23,9 @@ static var _note: Label
 static var _warn: TextureRect
 static var _yes: Button
 static var _no: Button
+static var _fee_next_to_yes: Label
 static var _wired: bool = false
+static var _confirm_ctx: String = ""
 
 var _pulse: float = 0.0
 var _hovered: bool = false
@@ -153,6 +155,22 @@ func serves_bramble() -> bool:
 	return EchoChamber.hub_portal_context() == "echo2"
 
 
+func _portal_context() -> String:
+	return EchoChamber.hub_portal_context()
+
+
+func _can_afford_portal_fee(ctx: String) -> bool:
+	match ctx:
+		"echo2":
+			return GameState.essence >= EchoChamber.BRAMBLE_FEE
+		"echo3":
+			return EchoChamber.puff_fee_affordable()
+		"echo4":
+			return EchoChamber.tortoise_fee_affordable()
+		_:
+			return GameState.essence >= EchoChamber.FEE
+
+
 func world_hover_name() -> String:
 	if serves_bramble():
 		return ContentStrings.get_text("bramble_name")
@@ -209,23 +227,29 @@ func begin_entry() -> String:
 		return "blocked"
 	if EchoChamber.in_battle or BattleView.is_open():
 		return "blocked"
-	var ctx: String = EchoChamber.hub_portal_context()
+	var ctx: String = _portal_context()
 	if ctx == "":
 		return "closed"
 	## A paid walk-in starts the encounter. The first visit still asks for the fee,
 	## and that fee is charged only inside confirm_fee.
-	if ctx == "echo2":
-		if GameState.echo_02_fee_paid:
-			_close_confirm()
-			EchoChamber.open_bramble(true)
-			return "enter"
-	elif GameState.portal_fee_paid:
+	if ctx == "echo2" and GameState.echo_02_fee_paid:
+		_close_confirm()
+		EchoChamber.open_bramble(true)
+		return "enter"
+	if ctx == "echo3" and GameState.echo_03_fee_paid:
+		_close_confirm()
+		EchoChamber.open_puff(true)
+		return "enter"
+	if ctx == "echo4" and GameState.echo_04_fee_paid:
+		_close_confirm()
+		EchoChamber.open_tortoise(true)
+		return "enter"
+	if ctx == "echo1" and GameState.portal_fee_paid:
 		_close_confirm()
 		EchoChamber.open_battle(true)
 		return "enter"
-	var fee: int = EchoChamber.BRAMBLE_FEE if ctx == "echo2" else EchoChamber.FEE
-	var can_pay: bool = GameState.essence >= fee
-	_open_confirm(can_pay)
+	var can_pay: bool = _can_afford_portal_fee(ctx)
+	_open_confirm(can_pay, ctx)
 	if not can_pay:
 		GameAudio.play_ui_deny()
 		return "reject"
@@ -235,18 +259,41 @@ func begin_entry() -> String:
 func confirm_fee() -> String:
 	if BattleView.is_open():
 		return "blocked"
-	var bramble: bool = serves_bramble()
-	var already: bool = GameState.echo_02_fee_paid if bramble else GameState.portal_fee_paid
+	var ctx: String = _confirm_ctx if _confirm_ctx != "" else _portal_context()
+	var already: bool = false
+	match ctx:
+		"echo2":
+			already = GameState.echo_02_fee_paid
+		"echo3":
+			already = GameState.echo_03_fee_paid
+		"echo4":
+			already = GameState.echo_04_fee_paid
+		_:
+			already = GameState.portal_fee_paid
 	if not already:
-		var paid: String = EchoChamber.try_pay_bramble() if bramble else EchoChamber.try_pay_fee()
+		var paid: String = "reject"
+		match ctx:
+			"echo2":
+				paid = EchoChamber.try_pay_bramble()
+			"echo3":
+				paid = EchoChamber.try_pay_puff()
+			"echo4":
+				paid = EchoChamber.try_pay_tortoise()
+			_:
+				paid = EchoChamber.try_pay_fee()
 		if paid != "paid":
 			return paid
 		SaveService.save_game()
 	_close_confirm()
-	if bramble:
-		EchoChamber.open_bramble(already)
-	else:
-		EchoChamber.open_battle(already)
+	match ctx:
+		"echo2":
+			EchoChamber.open_bramble(already)
+		"echo3":
+			EchoChamber.open_puff(already)
+		"echo4":
+			EchoChamber.open_tortoise(already)
+		_:
+			EchoChamber.open_battle(already)
 	return "enter"
 
 
@@ -271,15 +318,22 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		get_viewport().set_input_as_handled()
 
 
-func _open_confirm(can_pay: bool) -> void:
+func _open_confirm(can_pay: bool, ctx: String) -> void:
+	_confirm_ctx = ctx
 	_ensure_confirm()
-	if serves_bramble():
-		_fill_bramble_confirm(can_pay)
-	else:
-		_fill_elaia_confirm(can_pay)
+	match ctx:
+		"echo2":
+			_fill_bramble_confirm(can_pay)
+		"echo3":
+			_fill_puff_confirm(can_pay)
+		"echo4":
+			_fill_tortoise_confirm(can_pay)
+		_:
+			_fill_elaia_confirm(can_pay)
 	_yes.text = ContentStrings.get_text("portal_confirm_yes")
 	_no.text = ContentStrings.get_text("portal_confirm_no")
 	_layout_confirm()
+	_place_fee_next_to_yes(ctx)
 	_rebind_confirm()
 	_panel.visible = true
 	_layer.visible = true
@@ -331,6 +385,56 @@ func _fill_elaia_confirm(can_pay: bool) -> void:
 	_yes.disabled = not can_pay
 
 
+func _fill_puff_confirm(can_pay: bool) -> void:
+	_title.text = ContentStrings.get_text("puff_name")
+	_body.text = ContentStrings.get_text("portal_fee_echo3_body")
+	_note.text = "" if can_pay else ContentStrings.get_text("portal_fee_echo3_cant_afford")
+	_yes.disabled = not can_pay
+
+
+func _fill_tortoise_confirm(can_pay: bool) -> void:
+	_title.text = ContentStrings.get_text("moss_tortoise_name")
+	_body.text = ContentStrings.get_text("portal_fee_echo4_body")
+	_note.text = "" if can_pay else ContentStrings.get_text("portal_fee_echo4_cant_afford")
+	_yes.disabled = not can_pay
+
+
+func _fee_line_for_confirm(ctx: String) -> String:
+	match ctx:
+		"echo3":
+			return ContentStrings.get_text(
+				"portal_fee_echo3_line",
+				{
+					"essence": R5Constants.PUFF_ECHO_FEE,
+					"tools": GameState.owned_tier2_tool_count(),
+				},
+			)
+		"echo4":
+			return ContentStrings.get_text(
+				"portal_fee_echo4_line",
+				{
+					"essence": R5Constants.MOSS_TORTOISE_ECHO_FEE,
+					"salve": Backpack.get_count("heart_salve"),
+				},
+			)
+		"echo2":
+			return ContentStrings.get_text("portal_fee_line", {"cost": EchoChamber.BRAMBLE_FEE})
+		_:
+			return ContentStrings.get_text("portal_fee_line", {"cost": EchoChamber.FEE})
+
+
+func _place_fee_next_to_yes(ctx: String) -> void:
+	if _fee_next_to_yes == null or _yes == null:
+		return
+	_fee_next_to_yes.text = _fee_line_for_confirm(ctx)
+	_fee_next_to_yes.visible = true
+	var font: Font = _fee_next_to_yes.get_theme_font("font")
+	var fsize: int = _fee_next_to_yes.get_theme_font_size("font_size")
+	var tw: float = font.get_string_size(_fee_next_to_yes.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x if font else 120.0
+	_fee_next_to_yes.size = Vector2(tw, _yes.size.y)
+	_fee_next_to_yes.position = Vector2(_yes.position.x - tw - 10.0, _yes.position.y)
+
+
 func _close_confirm() -> void:
 	if _panel:
 		_panel.visible = false
@@ -374,6 +478,13 @@ func _ensure_confirm() -> void:
 	_no = Button.new()
 	_no.name = "No"
 	_panel.add_child(_no)
+	_fee_next_to_yes = Label.new()
+	_fee_next_to_yes.name = "FeeNextToYes"
+	_fee_next_to_yes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fee_next_to_yes.add_theme_font_size_override("font_size", 17)
+	_fee_next_to_yes.add_theme_color_override("font_color", Color8(62, 42, 24))
+	_fee_next_to_yes.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_panel.add_child(_fee_next_to_yes)
 	var cap := TextureRect.new()
 	cap.name = "EscKeycap"
 	cap.texture = load(ESC_KEYCAP) as Texture2D

@@ -22,18 +22,18 @@ static func is_boss_index(room_index: int) -> bool:
 	return room_index > 0 and room_index % BOSS_EVERY == 0
 
 
-static func build_room(depth: int, room_seed: int, boss: bool) -> Array[Dictionary]:
+static func build_room(depth: int, room_seed: int, boss: bool, party_size: int = 1) -> Array[Dictionary]:
 	## Beasts roll first. Mossmites spend only the leftover threat, and boss rooms stay beast-only.
-	return SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(room_seed), boss)
+	return SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(room_seed), boss, party_size)
 
 
 static func member_stats(member: String) -> Dictionary:
-	if member == "elaia":
-		return _sheet_stats_for("elaia")
-	if member != "keeper":
-		push_error("SlotEngine: unknown member %s" % member)
-		return {}
-	return _sheet_stats_for("keeper")
+	if member == "keeper":
+		return _sheet_stats_for("keeper")
+	if member == "elaia" or member == "bramble" or member == "puff" or member == "moss_tortoise":
+		return _sheet_stats_for(member)
+	push_error("SlotEngine: unknown member %s" % member)
+	return {}
 
 
 static func _sheet_stats_for(actor: String) -> Dictionary:
@@ -56,10 +56,22 @@ static func _sheet_stats_for(actor: String) -> Dictionary:
 				gear = int(equipment.call("gear_bonus_for", actor, stat_id))
 			value = base + gear
 		stats[stat_id] = value
-	var attack: String = "magic" if actor == "elaia" else "physical"
+	var attack: String = "physical"
+	var sheets: Node = _autoload("CompanionSheets")
+	if sheets != null and bool(sheets.call("has_actor", actor)):
+		attack = str(sheets.call("attack_kind", actor))
+	elif actor == "elaia":
+		attack = "magic"
+	var weapon_abilities: Array[String] = []
 	if equipment != null:
 		var weapon_id: String = str(equipment.call("equipped_id_for", actor, "weapon"))
 		var item_def: Dictionary = equipment.call("get_item_def", weapon_id)
+		var abilities_v: Variant = item_def.get("abilities", [])
+		if abilities_v is Array:
+			for ability_v: Variant in abilities_v as Array:
+				var ability_id: String = str(ability_v).strip_edges()
+				if ability_id != "":
+					weapon_abilities.append(ability_id)
 		if str(item_def.get("damage_kind", "")) == "magical":
 			attack = "magic"
 		elif str(item_def.get("damage_kind", "")) == "physical":
@@ -69,6 +81,7 @@ static func _sheet_stats_for(actor: String) -> Dictionary:
 			var mode: String = str(mode_node.get("arrow_mode")) if mode_node != null else "physical"
 			attack = "magic" if mode == "magical" else "physical"
 	stats["attack"] = attack
+	stats["weapon_abilities"] = weapon_abilities
 	return stats
 
 

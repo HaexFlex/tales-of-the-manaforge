@@ -17,6 +17,7 @@ signal wisp_pulsed(resource_id: StringName)
 signal echo_flags_changed
 signal ancient_expired
 signal keeper_harvested(resource_id: StringName, amount: int)
+signal lucky_harvest(resource_id: StringName, bonus: int)
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -64,6 +65,34 @@ var echo_02_outcome: String = ""
 ## Lifetime reach room wins before spared Bramble appears in the clearing (companion gate).
 const BRAMBLE_JOIN_CLEARS: int = 30
 var echo_02_narrator_heard: bool = false
+## Echo 3 (Puff). R5 PLACEHOLDER gates.
+var echo_03_resolved: bool = false
+var echo_03_fee_paid: bool = false
+var puff_in_party: bool = false
+var puff_join_seen: bool = false
+var brewing_unlocked: bool = false
+var lifetime_t2_tool_arch_seen: bool = false
+## Echo 4 (moss tortoise).
+var echo_04_resolved: bool = false
+var echo_04_fee_paid: bool = false
+var echo_04_outcome: String = ""
+var moss_tortoise_in_party: bool = false
+var moss_tortoise_join_seen: bool = false
+var regrowth_defeat_mult: float = 1.0
+## Track 4 surprises (persist through Ascend where noted).
+var firefly_jar_count: int = 0
+var manatree_tint: int = 0
+var puff_has_pos: bool = false
+var puff_pos: Vector2 = Vector2.ZERO
+var puff_facing: String = "south"
+var moss_tortoise_has_pos: bool = false
+var moss_tortoise_pos: Vector2 = Vector2.ZERO
+var moss_tortoise_facing: String = "south"
+var moss_tonic_until_ms: int = 0
+## Wisp nap (session-only; not saved).
+var _wisp_idle_accum: Dictionary = {}
+var _wisp_napping: Dictionary = {}
+var _wisp_nap_burst_until: Dictionary = {}
 ## Expedition board lantern. dark | amber | cyan. Amber is a run out, cyan is done.
 var expedition_lantern: String = "dark"
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
@@ -81,6 +110,10 @@ const PLAY_SPEEDS: Array[int] = [1, 2, 4, 8]
 var play_speed: int = 1
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
+## Shuffle bag for Manatree whispers (string keys). Saved with the run.
+var tree_whisper_bag: Array = []
+## Next whisper when run_time_sec reaches this value.
+var tree_whisper_next_at: float = TreeWhispers.INTERVAL_SEC
 ## Fractional harvest remainders, one float per resource (wood/stone/food/manashards).
 var harvest_accum: Dictionary = {}
 ## Counts down only while Ancient, the game is open, and the tree is unpaused.
@@ -116,6 +149,12 @@ var first_minigame_played: bool = false
 var wisp_count: int = 0
 var wisp_assignments: Dictionary = {}
 var wisp_pulse_accum: Dictionary = {}
+## Real-calendar morning gift (YYYY-MM-DD at MORNING_GIFT_RESET_HOUR local). Not cleared on Ascend.
+var last_gift_day: String = ""
+## Wisp id string → first-assigned harvest node id. Cleared on Ascend.
+var wisp_favourites: Dictionary = {}
+## Headless/tests only. When non-empty, morning_gift_day_key() returns this value.
+var _morning_gift_day_override: String = ""
 ## Runtime selection (RTS: LMB select unit; mutually exclusive Keeper XOR one Wisp).
 ## Wisp select does not require Keeper selected.
 var keeper_selected: bool = false
@@ -149,6 +188,10 @@ var _companions: Dictionary = {}
 var stages_data: Array = []
 var upgrades_data: Array = []
 var params: Dictionary = {}
+## Bench rest buff (wall clock, not saved). Cleared on Ascend.
+var _sit_started_ms: int = -1
+var rested_until_ms: int = 0
+var _rested_sit_granted: bool = false
 
 
 func _ready() -> void:
@@ -162,6 +205,8 @@ func _ready() -> void:
 	_ensure_character_sheet_action()
 	if has_node("/root/Backpack") and not Backpack.inventory_changed.is_connected(_on_backpack_changed):
 		Backpack.inventory_changed.connect(_on_backpack_changed)
+	if not stage_changed.is_connected(_on_tree_whisper_stage_changed):
+		stage_changed.connect(_on_tree_whisper_stage_changed)
 
 
 func _ensure_character_sheet_action() -> void:
@@ -236,11 +281,101 @@ func advance_open_play(delta: float) -> void:
 	active_since_load_sec += delta
 	tick_ancient(play_delta)
 	apply_wisp_pulses(play_delta)
+	_tick_tree_whispers()
+	_tick_rested_sit_timer()
+
+
+func _tick_rested_sit_timer() -> void:
+	if _sit_started_ms < 0 or _rested_sit_granted:
+		return
+	var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+	if float(Time.get_ticks_msec() - _sit_started_ms) >= sit_sec * 1000.0:
+		_grant_rested_hands_buff()
+
+
+func on_keeper_bench_sat() -> void:
+	_sit_started_ms = Time.get_ticks_msec()
+	_rested_sit_granted = false
+	status_message.emit(ContentStrings.random_bench_saying())
+
+
+func on_keeper_bench_stood() -> void:
+	if _sit_started_ms >= 0 and not _rested_sit_granted:
+		var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+		if float(Time.get_ticks_msec() - _sit_started_ms) >= sit_sec * 1000.0:
+			_grant_rested_hands_buff()
+	_sit_started_ms = -1
+
+
+func _grant_rested_hands_buff() -> void:
+	var duration_sec: float = param_float("RESTED_DURATION_SEC", 120.0)
+	rested_until_ms = Time.get_ticks_msec() + int(duration_sec * 1000.0)
+	_rested_sit_granted = true
+
+
+func keeper_rested_mult() -> float:
+	if Time.get_ticks_msec() < rested_until_ms:
+		return param_float("RESTED_GATHER_MULT", 1.15)
+	return 1.0
+
+
+func _clear_rested_hands_buff() -> void:
+	_sit_started_ms = -1
+	rested_until_ms = 0
+	_rested_sit_granted = false
+
+
+## Headless verify: backdate an active bench sit without waiting on wall clock.
+func debug_backdate_bench_sit_sec(elapsed_sec: float) -> void:
+	if _sit_started_ms < 0:
+		return
+	_sit_started_ms = Time.get_ticks_msec() - int(elapsed_sec * 1000.0)
+
+
+func clear_rested_hands_bench_buff() -> void:
+	_clear_rested_hands_buff()
+
+
+func debug_complete_bench_sit_sec(elapsed_sec: float) -> void:
+	on_keeper_bench_sat()
+	_sit_started_ms = Time.get_ticks_msec() - int(elapsed_sec * 1000.0)
+	var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+	if elapsed_sec + 0.001 >= sit_sec and not _rested_sit_granted:
+		_grant_rested_hands_buff()
+	on_keeper_bench_stood()
 
 
 func idle_catch_up_seconds(gap_sec: float) -> float:
 	## Same 1× curve as a closed game. Play speed is not a factor.
 	return offline_effective_seconds(gap_sec)
+
+
+func _reset_tree_whispers() -> void:
+	tree_whisper_bag.clear()
+	tree_whisper_next_at = TreeWhispers.INTERVAL_SEC
+
+
+func _on_tree_whisper_stage_changed(_stage_id: StringName) -> void:
+	TreeWhispers.prune_bag(tree_whisper_bag, stage_id)
+
+
+func _tick_tree_whispers() -> void:
+	if applying_save:
+		return
+	if not _play_session_open():
+		return
+	if run_time_sec + 0.0001 < tree_whisper_next_at:
+		return
+	while tree_whisper_next_at <= run_time_sec:
+		tree_whisper_next_at += TreeWhispers.INTERVAL_SEC
+	_emit_tree_whisper()
+
+
+func _emit_tree_whisper() -> void:
+	var key: String = TreeWhispers.draw_key(tree_whisper_bag, stage_id)
+	if key == "":
+		return
+	status_message.emit(ContentStrings.get_text(key))
 
 
 func _load_tables() -> void:
@@ -518,6 +653,8 @@ func assignment_target_display(node_id: String) -> String:
 func is_valid_wisp_node_id(node_id: String) -> bool:
 	if resource_for_node_id(node_id) != &"":
 		return true
+	if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(node_id):
+		return true
 	return has_node("/root/ForgeJobs") and ForgeJobs.is_craft_spot(node_id)
 
 
@@ -534,6 +671,7 @@ func _ensure_wisp_slots() -> void:
 		if int(ks) >= wisp_count:
 			wisp_assignments.erase(ks)
 			wisp_pulse_accum.erase(ks)
+			wisp_favourites.erase(ks)
 
 
 func grant_wisp_from_stage() -> void:
@@ -568,6 +706,10 @@ func wisp_slot_index_on_node(wisp_id: int, node_id: String) -> int:
 
 func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 	## Returns "ok" | "reassign" | "invalid". Stacking allowed (no slot-full busy deny).
+	if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(node_id):
+		if count_wisps_on_node(node_id) >= BrewingJobs.wisp_cap() and str(wisp_assignments.get(str(wisp_id), "")) != node_id:
+			wisp_assign_failed.emit("full", node_id)
+			return "full"
 	if fruit_committed:
 		wisp_assign_failed.emit("invalid", node_id)
 		return "invalid"
@@ -597,8 +739,20 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 			status_message.emit(ContentStrings.get_text("wisp_cross_scene_away"))
 			return "cross_scene"
 	var joining: bool = count_wisps_on_node(node_id) > 0
+	var first_assign: bool = prev == ""
+	if bool(_wisp_napping.get(key, false)):
+		_wisp_napping[key] = false
+		_wisp_nap_burst_until[key] = Time.get_ticks_msec() + int(R5Constants.WISP_NAP_BURST_SEC * 1000.0)
+	_wisp_idle_accum[key] = 0.0
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
+	if first_assign and resource_for_node_id(node_id) != &"":
+		if not wisp_favourites.has(key):
+			wisp_favourites[key] = node_id
+			var toast_key: String = "wisp_favourite_toast_%d" % randi_range(1, 3)
+			status_message.emit(
+				ContentStrings.get_text(toast_key, {"node": assignment_target_display(node_id)})
+			)
 	_forget_selected_wisp(wisp_id)
 	wisps_changed.emit()
 	selection_changed.emit()
@@ -648,6 +802,11 @@ func apply_wisp_pulses(delta: float) -> void:
 	## Forge-station wisps do not gather. One pulse signal per node that banks a whole unit.
 	if fruit_committed or delta <= 0.0:
 		return
+	var play_delta: float = active_play_delta(delta)
+	if play_delta <= 0.0:
+		return
+	_tick_wisp_nap_idle(play_delta)
+	var tonic_mult: float = moss_tonic_wisp_mult()
 	var pulsed_nodes: Dictionary = {}
 	for i: int in range(wisp_count):
 		var key: String = str(i)
@@ -656,13 +815,112 @@ func apply_wisp_pulses(delta: float) -> void:
 			continue
 		if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(nid):
 			continue
+		if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(nid):
+			continue
 		var rid: StringName = resource_for_node_id(nid)
 		if rid == &"":
 			continue
-		if accumulate_wisp_harvest(rid, delta) > 0:
+		var fav_mult: float = 1.0
+		if str(wisp_favourites.get(key, "")) == nid:
+			fav_mult = param_float("WISP_FAVOURITE_RATE_MULT", 1.2)
+		var rate: float = play_delta * fav_mult * tonic_mult * wisp_nap_burst_mult(key)
+		if accumulate_wisp_harvest(rid, rate) > 0:
 			pulsed_nodes[nid] = rid
 	for nid2: Variant in pulsed_nodes.keys():
 		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
+
+
+func _tick_wisp_nap_idle(delta: float) -> void:
+	if fruit_committed or delta <= 0.0:
+		return
+	for i: int in range(wisp_count):
+		var key: String = str(i)
+		if str(wisp_assignments.get(key, "")) != "":
+			continue
+		if bool(_wisp_napping.get(key, false)):
+			continue
+		var acc: float = float(_wisp_idle_accum.get(key, 0.0)) + delta
+		_wisp_idle_accum[key] = acc
+		if acc >= R5Constants.WISP_NAP_AFTER_SEC:
+			_wisp_napping[key] = true
+			wisps_changed.emit()
+
+
+func wisp_is_napping(wisp_id: int) -> bool:
+	return bool(_wisp_napping.get(str(wisp_id), false))
+
+
+func wisp_nap_burst_mult(wisp_key: String) -> float:
+	var until: int = int(_wisp_nap_burst_until.get(wisp_key, 0))
+	if until > Time.get_ticks_msec():
+		return R5Constants.WISP_NAP_BURST_MULT
+	return 1.0
+
+
+func moss_tonic_wisp_mult() -> float:
+	if moss_tonic_until_ms <= Time.get_ticks_msec():
+		return 1.0
+	if has_node("/root/BrewingJobs"):
+		var buff: Dictionary = BrewingJobs.moss_tonic_buff()
+		return float(buff.get("wisp_work_mult", 1.0))
+	return 1.0
+
+
+func drink_moss_tonic() -> void:
+	var dur_ms: int = 600000
+	if has_node("/root/BrewingJobs"):
+		dur_ms = int(float(BrewingJobs.moss_tonic_buff().get("duration_sec", 600)) * 1000.0)
+	moss_tonic_until_ms = Time.get_ticks_msec() + dur_ms
+	status_message.emit(ContentStrings.get_text("moss_tonic_toast"))
+
+
+func owned_tier2_tool_count() -> int:
+	if not has_node("/root/Equipment"):
+		return 0
+	var n: int = 0
+	for tool_id: String in R5Constants.T2_TOOL_IDS:
+		if Equipment.owns_anywhere(tool_id):
+			n += 1
+	return n
+
+
+func note_tier2_tool_ownership() -> void:
+	if owned_tier2_tool_count() >= 2:
+		lifetime_t2_tool_arch_seen = true
+		echo_flags_changed.emit()
+
+
+func puff_echo_gate_open() -> bool:
+	return lifetime_t2_tool_arch_seen or owned_tier2_tool_count() >= 2
+
+
+func puff_in_party_active() -> bool:
+	return puff_in_party and puff_join_seen
+
+
+func moss_tortoise_joined() -> bool:
+	return moss_tortoise_in_party and moss_tortoise_join_seen
+
+
+func moss_tortoise_echo_gate_open() -> bool:
+	if not echo_03_resolved or echo_04_resolved:
+		return false
+	if not (puff_in_party_active() or brewing_unlocked):
+		return false
+	if not has_node("/root/Reach"):
+		return false
+	return Reach.reaches_cleared >= R5Constants.MOSS_TORTOISE_JOIN_CLEARS
+
+
+func party_cap() -> int:
+	return R5Constants.PARTY_CAP
+
+
+func regrowth_time_mult() -> float:
+	var mult: float = regrowth_defeat_mult
+	if moss_tortoise_joined() and not member_away("moss_tortoise"):
+		mult *= R5Constants.MOSS_TORTOISE_REGROW_MULT
+	return mult
 
 
 func set_keeper_selected(value: bool) -> void:
@@ -1106,6 +1364,43 @@ func accumulate_harvest(resource_id: StringName, units: float) -> int:
 	return grant
 
 
+func morning_gift_day_key() -> String:
+	if _morning_gift_day_override != "":
+		return _morning_gift_day_override
+	var reset_hour: int = param_int("MORNING_GIFT_RESET_HOUR", 4)
+	var tz: Dictionary = Time.get_time_zone_from_system()
+	var bias_sec: int = int(tz.get("bias", 0)) * 60
+	var shifted: int = int(Time.get_unix_time_from_system()) + bias_sec - reset_hour * 3600
+	return Time.get_date_string_from_unix_time(shifted)
+
+
+func try_morning_gift(resource_id: StringName) -> int:
+	if fruit_committed or ancient_frozen:
+		return 0
+	if not resource_id in HARVEST_IDS:
+		return 0
+	var day: String = morning_gift_day_key()
+	if last_gift_day != "":
+		if day == last_gift_day or day < last_gift_day:
+			return 0
+	var units_base: int = param_int("MORNING_GIFT_UNITS", 10)
+	var scale_by_stage: bool = bool(params.get("MORNING_GIFT_SCALE_BY_STAGE", true))
+	var stage_mult: int = get_stage_index() + 1 if scale_by_stage else 1
+	if stage_mult < 1:
+		stage_mult = 1
+	var gift: int = units_base * stage_mult
+	add_resource(resource_id, gift)
+	last_gift_day = day
+	var item_key: String = "hud_%s" % String(resource_id)
+	status_message.emit(
+		ContentStrings.get_text("harvest_pulse_hud", {
+			"amount": str(gift),
+			"item": ContentStrings.get_text(item_key),
+		})
+	)
+	return gift
+
+
 func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0) -> int:
 	if fruit_committed or ancient_frozen or delta <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
@@ -1113,7 +1408,9 @@ func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: floa
 	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor() * rate
 	var grant: int = accumulate_harvest(resource_id, units)
 	if grant > 0:
+		try_morning_gift(resource_id)
 		keeper_harvested.emit(resource_id, grant)
+		_apply_lucky_harvest_bonus(resource_id, grant)
 	return grant
 
 
@@ -1146,10 +1443,32 @@ func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
 
 
 ## One base yield at the active factor, remainder kept. Not a one-second pulse.
-func apply_harvest_pulse(resource_id: StringName) -> int:
+func apply_harvest_pulse(resource_id: StringName, rate: float = 1.0) -> int:
 	if not resource_id in HARVEST_IDS:
 		return 0
-	return accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+	var grant: int = accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor() * rate)
+	if grant > 0:
+		try_morning_gift(resource_id)
+		_apply_lucky_harvest_bonus(resource_id, grant)
+	return grant
+
+
+func _apply_lucky_harvest_bonus(resource_id: StringName, grant: int) -> void:
+	if grant <= 0:
+		return
+	var chance: float = param_float("LUCKY_HARVEST_CHANCE", 0.0)
+	if chance <= 0.0:
+		return
+	if randf() >= chance:
+		return
+	var mult: int = param_int("LUCKY_HARVEST_MULT", 2)
+	var bonus: int = grant * (mult - 1)
+	if bonus <= 0:
+		return
+	add_resource(resource_id, bonus)
+	var key: String = String(resource_id)
+	lifetime_harvested[key] = int(lifetime_harvested.get(key, 0)) + bonus
+	lucky_harvest.emit(resource_id, bonus)
 
 
 func get_harvest_grant(resource_id: StringName) -> int:
@@ -1204,7 +1523,10 @@ func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds
 		return {"ok": false, "reason": "resource", "units": 0.0, "granted": 0}
 	var key: String = String(resource_id)
 	var before: float = float(harvest_accum.get(key, 0.0))
-	var granted: int = accumulate_keeper_harvest(resource_id, seconds, actor_work_rate(actor))
+	var rate: float = actor_work_rate(actor)
+	if actor == "keeper":
+		rate *= keeper_rested_mult()
+	var granted: int = accumulate_keeper_harvest(resource_id, seconds, rate)
 	var after: float = float(harvest_accum.get(key, 0.0))
 	return {"ok": true, "reason": "ok", "granted": granted, "units": float(granted) + after - before}
 
@@ -1782,6 +2104,11 @@ func harvest_fruit() -> int:
 	return 1
 
 
+func pick_manatree_tint(index: int) -> void:
+	manatree_tint = clampi(index, 0, 2)
+	echo_flags_changed.emit()
+
+
 func can_ascend() -> bool:
 	## Ascend after Fruit commit; Manashard purchases optional.
 	return fruit_committed
@@ -1826,7 +2153,11 @@ func ascend() -> void:
 	wisp_count = get_upgrade_rank("bonus_wisp")
 	wisp_assignments.clear()
 	wisp_pulse_accum.clear()
+	wisp_favourites.clear()
+	var farewell_idx: int = (ascensions - 1) % 8 + 1
+	status_message.emit(ContentStrings.get_text("fruit_farewell_%02d" % farewell_idx))
 	harvest_accum.clear()
+	_clear_rested_hands_buff()
 	_ensure_wisp_slots()
 	clear_selection()
 	wisps_changed.emit()
@@ -1938,6 +2269,8 @@ func to_save_dict() -> Dictionary:
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"welcome_shown": welcome_shown,
 		"run_time_sec": run_time_sec,
+		"tree_whisper_bag": tree_whisper_bag.duplicate(true),
+		"tree_whisper_next_at": tree_whisper_next_at,
 		"harvest_accum": harvest_accum.duplicate(true),
 		"ancient_remaining_sec": ancient_remaining_sec,
 		"offline_closed_sec": offline_closed_sec,
@@ -1958,6 +2291,8 @@ func to_save_dict() -> Dictionary:
 		"first_minigame_played": first_minigame_played,
 		"wisp_count": wisp_count,
 		"wisp_assignments": wisp_assignments.duplicate(true),
+		"last_gift_day": last_gift_day,
+		"wisp_favourites": wisp_favourites.duplicate(true),
 		"backpack": Backpack.to_save_dict(),
 		"owns_stone_axe": Backpack.owns_item("stone_axe"),
 		"owns_stone_pickaxe": Backpack.owns_item("stone_pickaxe"),
@@ -1993,11 +2328,28 @@ func to_save_dict() -> Dictionary:
 		"echo_02_resolved": echo_02_resolved,
 		"echo_02_outcome": echo_02_outcome,
 		"echo_02_narrator_heard": echo_02_narrator_heard,
+		"echo_03_resolved": echo_03_resolved,
+		"echo_03_fee_paid": echo_03_fee_paid,
+		"puff_in_party": puff_in_party,
+		"puff_join_seen": puff_join_seen,
+		"brewing_unlocked": brewing_unlocked,
+		"lifetime_t2_tool_arch_seen": lifetime_t2_tool_arch_seen,
+		"echo_04_resolved": echo_04_resolved,
+		"echo_04_fee_paid": echo_04_fee_paid,
+		"echo_04_outcome": echo_04_outcome,
+		"moss_tortoise_in_party": moss_tortoise_in_party,
+		"moss_tortoise_join_seen": moss_tortoise_join_seen,
+		"regrowth_defeat_mult": regrowth_defeat_mult,
+		"firefly_jar_count": firefly_jar_count,
+		"manatree_tint": manatree_tint,
+		"moss_tonic_until_ms": moss_tonic_until_ms,
 		"expedition_lantern": expedition_lantern,
 		"arrow_mode": arrow_mode,
 		"ancient_frozen": ancient_frozen,
 		"forge_visited": forge_visited,
 	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
+		BrewingJobs.capture_save_fields() if has_node("/root/BrewingJobs") else {}
+	).merged(
 		Reach.capture_save_fields() if has_node("/root/Reach") else {}
 	)
 
@@ -2032,6 +2384,16 @@ func apply_save_dict(data: Dictionary) -> void:
 	active_since_load_sec = maxf(0.0, float(data.get("active_since_load_sec", 0.0)))
 	welcome_shown = bool(data.get("welcome_shown", false))
 	run_time_sec = float(data.get("run_time_sec", 0.0))
+	var whisper_bag_v: Variant = data.get("tree_whisper_bag", [])
+	if typeof(whisper_bag_v) == TYPE_ARRAY:
+		tree_whisper_bag = (whisper_bag_v as Array).duplicate(true)
+	else:
+		tree_whisper_bag.clear()
+	if data.has("tree_whisper_next_at"):
+		tree_whisper_next_at = maxf(TreeWhispers.INTERVAL_SEC, float(data.get("tree_whisper_next_at", TreeWhispers.INTERVAL_SEC)))
+	else:
+		tree_whisper_next_at = maxf(run_time_sec + TreeWhispers.INTERVAL_SEC, TreeWhispers.INTERVAL_SEC)
+	TreeWhispers.prune_bag(tree_whisper_bag, stage_id)
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
 	portal_unlocked = bool(data.get("portal_unlocked", false)) or ascensions >= 1
 	portal_fee_paid = bool(data.get("portal_fee_paid", false))
@@ -2081,6 +2443,21 @@ func apply_save_dict(data: Dictionary) -> void:
 	echo_02_resolved = bool(data.get("echo_02_resolved", false))
 	echo_02_outcome = str(data.get("echo_02_outcome", ""))
 	echo_02_narrator_heard = bool(data.get("echo_02_narrator_heard", false))
+	echo_03_resolved = bool(data.get("echo_03_resolved", false))
+	echo_03_fee_paid = bool(data.get("echo_03_fee_paid", false))
+	puff_in_party = bool(data.get("puff_in_party", false))
+	puff_join_seen = bool(data.get("puff_join_seen", false))
+	brewing_unlocked = bool(data.get("brewing_unlocked", false))
+	lifetime_t2_tool_arch_seen = bool(data.get("lifetime_t2_tool_arch_seen", false))
+	echo_04_resolved = bool(data.get("echo_04_resolved", false))
+	echo_04_fee_paid = bool(data.get("echo_04_fee_paid", false))
+	echo_04_outcome = str(data.get("echo_04_outcome", ""))
+	moss_tortoise_in_party = bool(data.get("moss_tortoise_in_party", false))
+	moss_tortoise_join_seen = bool(data.get("moss_tortoise_join_seen", false))
+	regrowth_defeat_mult = float(data.get("regrowth_defeat_mult", 1.0))
+	firefly_jar_count = int(data.get("firefly_jar_count", 0))
+	manatree_tint = clampi(int(data.get("manatree_tint", 0)), 0, 2)
+	moss_tonic_until_ms = int(data.get("moss_tonic_until_ms", 0))
 	var lantern: String = str(data.get("expedition_lantern", "dark"))
 	expedition_lantern = lantern if lantern == "amber" or lantern == "cyan" else "dark"
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
@@ -2120,6 +2497,12 @@ func apply_save_dict(data: Dictionary) -> void:
 		wisp_assignments = (assigns as Dictionary).duplicate(true)
 	else:
 		wisp_assignments = {}
+	last_gift_day = str(data.get("last_gift_day", ""))
+	var fav_v: Variant = data.get("wisp_favourites", {})
+	if typeof(fav_v) == TYPE_DICTIONARY:
+		wisp_favourites = (fav_v as Dictionary).duplicate(true)
+	else:
+		wisp_favourites = {}
 	wisp_pulse_accum.clear()
 	_ensure_wisp_slots()
 	Backpack.apply_save_dict(data.get("backpack", {}))
@@ -2141,6 +2524,8 @@ func apply_save_dict(data: Dictionary) -> void:
 			Equipment.ensure_forge_key_from_load()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.apply_save_fields(data)
+	if has_node("/root/BrewingJobs"):
+		BrewingJobs.apply_save_fields(data)
 	if has_node("/root/Reach"):
 		var reach_v: Variant = data.get("reach", {})
 		Reach.apply_save_fields(reach_v if typeof(reach_v) == TYPE_DICTIONARY else {})
@@ -2250,6 +2635,7 @@ func reset_for_new_game() -> void:
 	selected_wisp_ids.clear()
 	selected_companion_id = ""
 	run_time_sec = 0.0
+	_reset_tree_whispers()
 	portal_unlocked = false
 	portal_fee_paid = false
 	echo_01_resolved = false

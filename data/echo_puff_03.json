@@ -1,0 +1,21 @@
+{
+  "id": "echo_puff_03",
+  "display_name_key": "puff_name",
+  "display_name": "Puff",
+  "subtitle_key": "puff_subtitle",
+  "examine_key": "echo_puff_examine",
+  "portrait_id": "puff_portrait",
+  "battle_art_path": "res://assets/art/puff/battle_puff_idle.png",
+  "facing": "west",
+  "attack_profile": "magic",
+  "role": "R5 PLACEHOLDER — fungal echo.",
+  "stats": {
+    "might": 3,
+    "arcana": 8,
+    "resilience": 5,
+    "ward": 6,
+    "vitality": 8,
+    "swiftness": 6,
+    "fate": 5
+  }
+}

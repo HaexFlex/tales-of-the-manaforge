@@ -129,7 +129,9 @@ func _ready() -> void:
 	_audio_sliders_ready = true
 	_sync_audio_sliders_from_game()
 	_build_slot_buttons()
+	_ensure_day_night_toggle()
 	_ensure_speedup_toggle()
+	_ensure_photo_mode_button()
 	_ensure_options_chrome()
 
 
@@ -207,9 +209,14 @@ func _notify_pause_button() -> void:
 
 
 func _layout_pause_menu() -> void:
+	_ensure_photo_mode_button()
 	_ensure_quit_game_button()
 	btn_new_game.visible = false
-	var btns: Array[Button] = [btn_resume, btn_save, btn_load, btn_options, btn_exit]
+	var photo_btn: Button = panel.get_node_or_null("BtnPhotoMode") as Button
+	var btns: Array[Button] = [btn_resume, btn_save, btn_load, btn_options]
+	if photo_btn != null:
+		btns.append(photo_btn)
+	btns.append(btn_exit)
 	if btn_quit_game != null and btn_quit_game.visible:
 		btns.append(btn_quit_game)
 	var n: int = btns.size()
@@ -516,6 +523,12 @@ func _layout_audio_page(y: float, inner: float, w: float, show: bool, phone: boo
 func _layout_gameplay_page(y: float, inner: float, show: bool) -> float:
 	var body_font: Font = GameTheme.body_font()
 	var line_h: float = body_font.get_height(GameTheme.BODY_SIZE)
+	var day_night: CheckButton = options_panel.get_node_or_null("DayNightToggle") as CheckButton
+	if day_night:
+		day_night.visible = show
+		if show:
+			Ui540.anchor_rect_safe(day_night, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+			y += OPTIONS_ROW_H
 	var speed: CheckButton = options_panel.get_node_or_null("SpeedupToggle") as CheckButton
 	if speed:
 		speed.visible = show
@@ -535,6 +548,19 @@ func _layout_gameplay_page(y: float, inner: float, show: bool) -> float:
 		if show:
 			Ui540.anchor_rect_safe(debug_box, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
 			y += OPTIONS_ROW_H
+	var photo_btn: Button = options_panel.get_node_or_null("PhotoModeButton") as Button
+	if photo_btn:
+		photo_btn.visible = show
+		if show:
+			Ui540.anchor_rect_safe(photo_btn, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+			y += OPTIONS_ROW_H
+	var photo_hint: Label = options_panel.get_node_or_null("PhotoModeHint") as Label
+	if photo_hint:
+		photo_hint.visible = show
+		if show:
+			var photo_lines: int = Ui540.text_line_count(photo_hint.text, body_font, GameTheme.BODY_SIZE, inner)
+			Ui540.anchor_rect_safe(photo_hint, PAUSE_PAD_X, y, inner, line_h * float(photo_lines))
+			y += line_h * float(photo_lines) + 8.0
 	return y
 
 
@@ -726,6 +752,15 @@ func _apply_strings() -> void:
 	btn_save.text = ContentStrings.get_text("pause_save")
 	btn_load.text = ContentStrings.get_text("pause_load")
 	btn_options.text = ContentStrings.get_text("pause_options")
+	var photo_pause: Button = panel.get_node_or_null("BtnPhotoMode") as Button
+	if photo_pause:
+		photo_pause.text = ContentStrings.get_text("pause_photo_mode_button")
+	var photo_opt: Button = options_panel.get_node_or_null("PhotoModeButton") as Button if options_panel else null
+	if photo_opt:
+		photo_opt.text = ContentStrings.get_text("options_photo_mode_button")
+	var photo_hint: Label = options_panel.get_node_or_null("PhotoModeHint") as Label if options_panel else null
+	if photo_hint:
+		photo_hint.text = ContentStrings.get_text("options_photo_mode_hint")
 	btn_exit.text = ContentStrings.get_text("pause_exit")
 	if btn_quit_game:
 		btn_quit_game.text = ContentStrings.get_text("pause_quit_game")
@@ -753,6 +788,55 @@ func _apply_strings() -> void:
 
 func _build_slot_buttons() -> void:
 	_rebuild_slot_rows(false)
+
+
+func _ensure_day_night_toggle() -> void:
+	if options_panel == null or options_panel.get_node_or_null("DayNightToggle") != null:
+		return
+	var day_box := CheckButton.new()
+	day_box.name = "DayNightToggle"
+	day_box.text = ContentStrings.get_text("options_day_night_toggle")
+	day_box.button_pressed = GameAudio.day_night_enabled
+	day_box.toggled.connect(_on_day_night_toggled)
+	options_panel.add_child(day_box)
+	_ink_check(day_box)
+
+
+func _on_day_night_toggled(on: bool) -> void:
+	GameAudio.set_day_night_enabled(on)
+
+
+func _on_photo_mode_pressed() -> void:
+	if PhotoMode.try_enter():
+		resume_game()
+
+
+func _ensure_photo_mode_button() -> void:
+	if panel.get_node_or_null("BtnPhotoMode") != null:
+		return
+	var btn := Button.new()
+	btn.name = "BtnPhotoMode"
+	# Content & Lore: pause_photo_mode_button
+	btn.text = ContentStrings.get_text("pause_photo_mode_button")
+	GameTheme.style_menu_button(btn)
+	btn.pressed.connect(_on_photo_mode_pressed)
+	panel.add_child(btn)
+	var opt_btn: Button = options_panel.get_node_or_null("PhotoModeButton") as Button
+	if opt_btn == null and options_panel != null:
+		opt_btn = Button.new()
+		opt_btn.name = "PhotoModeButton"
+		# Content & Lore: options_photo_mode_button
+		opt_btn.text = ContentStrings.get_text("options_photo_mode_button")
+		GameTheme.style_ink_button(opt_btn)
+		opt_btn.pressed.connect(_on_photo_mode_pressed)
+		options_panel.add_child(opt_btn)
+		var hint := Label.new()
+		hint.name = "PhotoModeHint"
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameTheme.style_ink_label(hint, true)
+		# Content & Lore: options_photo_mode_hint
+		hint.text = ContentStrings.get_text("options_photo_mode_hint")
+		options_panel.add_child(hint)
 
 
 func _ensure_speedup_toggle() -> void:

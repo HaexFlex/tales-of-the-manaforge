@@ -101,6 +101,30 @@
       "loop": false,
       "path": "res://assets/audio/sfx_gather_cooldown.ogg"
     },
+    "sfx_mana_chime_1": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_1.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_mana_chime_2": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_2.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_mana_chime_3": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_3.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_mana_chime_4": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_mana_chime_4.ogg",
+      "volume_db": 0.0
+    },
     "sfx_tree_water": {
       "bus": "SFX_World",
       "loop": false,
@@ -130,6 +154,16 @@
       "bus": "SFX_Progress",
       "loop": false,
       "path": "res://assets/audio/sfx_ascend.ogg"
+    },
+    "sfx_ascend_breath": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ascend_breath.ogg"
+    },
+    "sfx_wisp_hum": {
+      "bus": "SFX_World",
+      "loop": true,
+      "path": "res://assets/audio/sfx_wisp_hum.ogg"
     },
     "sfx_footstep": {
       "bus": "SFX_World",
@@ -205,6 +239,12 @@
       "bus": "SFX_UI",
       "loop": false,
       "path": "res://assets/audio/sfx_bench_open.ogg"
+    },
+    "sfx_bench_rest": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_bench_rest.ogg",
+      "volume_db": 0.0
     },
     "sfx_door_bark": {
       "bus": "SFX_World",
@@ -304,6 +344,48 @@
       "bus": "SFX_UI",
       "loop": false,
       "path": "res://assets/audio/sfx_battle_confirm.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_firefly_twinkle_1": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_twinkle_1.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_firefly_twinkle_2": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_twinkle_2.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_firefly_twinkle_3": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_twinkle_3.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_firefly_catch": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_catch.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_brew_bubble": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_brew_bubble.ogg",
+      "volume_db": -8.0
+    },
+    "sfx_brew_done": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_brew_done.ogg",
+      "volume_db": -6.0
+    },
+    "mus_moss_tortoise_sting": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/mus_moss_tortoise_sting.ogg",
       "volume_db": 0.0
     }
   },
