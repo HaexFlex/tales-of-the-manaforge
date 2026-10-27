@@ -73,13 +73,19 @@ const IDLE_MOMENT_WAIT_JITTER_SEC: float = 8.0
 const IDLE_MOMENT_STRETCH_SEC: float = 2.4
 const IDLE_MOMENT_LOOK_SEC: float = 3.0
 const IDLE_MOMENT_SIT_SEC: float = 2.6
-const IDLE_MOMENT_SIT_OFFSET_Y: float = 20.0
-const IDLE_MOMENT_STRETCH_SPEED: float = 0.42
-const IDLE_MOMENT_STRETCH_WALK_SPEED: float = 0.28
+const IDLE_MOMENT_FRAME_MS: float = 100.0
+const IDLE_MOMENT_STRETCH_FRAMES: int = 11
+const IDLE_MOMENT_LOOK_FRAMES: int = 17
+const IDLE_MOMENT_SIT_DOWN_FRAMES: int = 6
+const IDLE_MOMENT_SIT_BREATHE_FRAMES: int = 16
+const IDLE_MOMENT_STAND_UP_FRAMES: int = 6
+
+enum IdleMomentSitPhase { NONE, DOWN, BREATHE, STAND_UP }
 
 var _idle_moment_kind: int = IdleMomentKind.NONE
 var _idle_moment_left: float = 0.0
 var _idle_moment_face: String = ""
+var _idle_moment_sit_phase: int = IdleMomentSitPhase.NONE
 var _idle_stand_accum: float = 0.0
 var _idle_moment_wait_sec: float = -1.0
 
@@ -237,6 +243,7 @@ func _ready() -> void:
 	_on_selection_changed()
 	_apply_body_box()
 	if actor_id() == "keeper":
+		sprite.animation_finished.connect(_on_idle_moment_animation_finished)
 		apply_keeper_presence()
 
 
@@ -292,6 +299,11 @@ func _build_frames() -> SpriteFrames:
 	_add_timed(frames, &"harvest_water_east", "water/east", WATER_MS)
 	_add_timed(frames, &"harvest_water_west", "water/west", WATER_MS)
 	_add_timed(frames, &"station_work_north", "station/north", STATION_MS)
+	_add_timed_uniform(frames, &"idle_stretch_south", "idle_moments/stretch/south", IDLE_MOMENT_STRETCH_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_look_south", "idle_moments/look/south", IDLE_MOMENT_LOOK_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_sit_down_south", "idle_moments/sit_down/south", IDLE_MOMENT_SIT_DOWN_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_sit_breathe_south", "idle_moments/sit_breathe/south", IDLE_MOMENT_SIT_BREATHE_FRAMES, IDLE_MOMENT_FRAME_MS, true)
+	_add_timed_uniform(frames, &"idle_stand_up_south", "idle_moments/stand_up/south", IDLE_MOMENT_STAND_UP_FRAMES, IDLE_MOMENT_FRAME_MS, false)
 	_add_anim(frames, &"walk_back", [
 		"res://assets/art/keeper/keeper_walk_back_0000.png",
 		"res://assets/art/keeper/keeper_walk_back_0001.png",
@@ -356,6 +368,20 @@ func _add_timed(frames: SpriteFrames, anim: StringName, folder: String, duration
 		var path := "res://assets/art/keeper/anim/%s/frame_%04d.png" % [folder, i]
 		var tex: Texture2D = load(path) as Texture2D
 		frames.add_frame(anim, tex, durations[i])
+
+
+func _add_timed_uniform(frames: SpriteFrames, anim: StringName, folder: String, frame_count: int, ms: float, loop: bool) -> void:
+	var durations: Array[float] = []
+	durations.resize(frame_count)
+	for i: int in range(frame_count):
+		durations[i] = ms
+	frames.add_animation(anim)
+	frames.set_animation_loop(anim, loop)
+	frames.set_animation_speed(anim, 1000.0)
+	for i: int in range(frame_count):
+		var path := "res://assets/art/keeper/anim/%s/frame_%04d.png" % [folder, i]
+		var tex: Texture2D = load(path) as Texture2D
+		frames.add_frame(anim, tex, ms)
 
 
 func _physics_process(delta: float) -> void:
@@ -1208,17 +1234,27 @@ func _facing_toward_manatree() -> String:
 	return facing_for_velocity(tree.global_position - global_position, _facing)
 
 
+func _idle_moment_clips_ready() -> bool:
+	return sprite != null and sprite.sprite_frames != null and sprite.sprite_frames.has_animation(&"idle_stretch_south")
+
+
 func _start_idle_moment(kind: int) -> void:
 	_idle_moment_kind = kind
 	_idle_moment_face = ""
+	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
+	if _idle_moment_clips_ready():
+		_facing = "south"
 	match kind:
 		IdleMomentKind.STRETCH:
 			_idle_moment_left = IDLE_MOMENT_STRETCH_SEC
 		IdleMomentKind.LOOK_TREE:
-			_idle_moment_face = _facing_toward_manatree()
+			if not _idle_moment_clips_ready():
+				_idle_moment_face = _facing_toward_manatree()
 			_idle_moment_left = IDLE_MOMENT_LOOK_SEC
 		IdleMomentKind.SIT:
 			_idle_moment_left = IDLE_MOMENT_SIT_SEC
+			if _idle_moment_clips_ready():
+				_idle_moment_sit_phase = IdleMomentSitPhase.DOWN
 		_:
 			_idle_moment_kind = IdleMomentKind.NONE
 			_idle_moment_left = 0.0
@@ -1237,49 +1273,98 @@ func _pick_idle_moment_kind() -> int:
 			return IdleMomentKind.SIT
 
 
+func _play_idle_moment_clip(anim: StringName) -> void:
+	sprite.flip_h = false
+	sprite.speed_scale = 1.0
+	sprite.offset = OFFSET_BODY
+	if sprite.animation != anim:
+		sprite.play(anim)
+
+
 func _apply_idle_moment_visual() -> void:
 	if sprite == null:
+		return
+	if _idle_moment_clips_ready():
+		match _idle_moment_kind:
+			IdleMomentKind.STRETCH:
+				_play_idle_moment_clip(&"idle_stretch_south")
+			IdleMomentKind.LOOK_TREE:
+				_play_idle_moment_clip(&"idle_look_south")
+			IdleMomentKind.SIT:
+				match _idle_moment_sit_phase:
+					IdleMomentSitPhase.DOWN:
+						_play_idle_moment_clip(&"idle_sit_down_south")
+					IdleMomentSitPhase.BREATHE:
+						_play_idle_moment_clip(&"idle_sit_breathe_south")
+					IdleMomentSitPhase.STAND_UP:
+						_play_idle_moment_clip(&"idle_stand_up_south")
 		return
 	var face: String = _idle_moment_face if _idle_moment_face != "" else _facing
 	match _idle_moment_kind:
 		IdleMomentKind.STRETCH:
-			sprite.flip_h = false
-			var walk_anim := StringName("walk_%s" % face)
-			if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(walk_anim):
-				_play_loop(walk_anim, IDLE_MOMENT_STRETCH_WALK_SPEED, OFFSET_BODY)
-			else:
-				_play_loop(StringName("idle_%s" % face), IDLE_MOMENT_STRETCH_SPEED, OFFSET_BODY)
+			_play_loop(StringName("idle_%s" % face), 1.0, OFFSET_BODY)
 		IdleMomentKind.LOOK_TREE:
 			sprite.flip_h = false
-			sprite.speed_scale = 0.0
+			sprite.speed_scale = 1.0
 			sprite.offset = OFFSET_BODY
 			var look_anim := StringName("idle_%s" % face)
 			if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(look_anim):
-				sprite.play(look_anim)
-				sprite.frame = 0
-				sprite.pause()
+				if sprite.animation != look_anim:
+					sprite.play(look_anim)
+					sprite.frame = 0
+					sprite.pause()
 		IdleMomentKind.SIT:
 			sprite.flip_h = false
-			sprite.speed_scale = 0.0
-			sprite.offset = OFFSET_BODY + Vector2(0.0, IDLE_MOMENT_SIT_OFFSET_Y)
+			sprite.speed_scale = 1.0
+			sprite.offset = OFFSET_BODY
 			var sit_anim := StringName("idle_%s" % face)
 			if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(sit_anim):
-				sprite.play(sit_anim)
-				sprite.frame = mini(2, sprite.sprite_frames.get_frame_count(sit_anim) - 1)
-				sprite.pause()
+				if sprite.animation != sit_anim:
+					sprite.play(sit_anim)
+					sprite.frame = mini(2, sprite.sprite_frames.get_frame_count(sit_anim) - 1)
+					sprite.pause()
 
 
-func _cancel_idle_moment() -> void:
-	if _idle_moment_kind == IdleMomentKind.NONE:
-		return
+func _clear_idle_moment_state() -> void:
 	_idle_moment_kind = IdleMomentKind.NONE
 	_idle_moment_left = 0.0
 	_idle_moment_face = ""
+	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
 	if sprite != null:
 		sprite.flip_h = false
 		sprite.speed_scale = 1.0
 		sprite.offset = OFFSET_BODY
 	_schedule_idle_moment_wait()
+
+
+func _begin_sit_stand_up() -> void:
+	if _idle_moment_kind != IdleMomentKind.SIT or not _idle_moment_clips_ready():
+		_clear_idle_moment_state()
+		return
+	_idle_moment_sit_phase = IdleMomentSitPhase.STAND_UP
+	_play_idle_moment_clip(&"idle_stand_up_south")
+
+
+func _on_idle_moment_animation_finished() -> void:
+	if actor_id() != "keeper" or _idle_moment_kind == IdleMomentKind.NONE:
+		return
+	if not _idle_moment_clips_ready():
+		return
+	if _idle_moment_kind != IdleMomentKind.SIT:
+		return
+	match _idle_moment_sit_phase:
+		IdleMomentSitPhase.DOWN:
+			_idle_moment_sit_phase = IdleMomentSitPhase.BREATHE
+			_apply_idle_moment_visual()
+		IdleMomentSitPhase.STAND_UP:
+			_clear_idle_moment_state()
+			_update_anim(Vector2.ZERO)
+
+
+func _cancel_idle_moment() -> void:
+	if _idle_moment_kind == IdleMomentKind.NONE:
+		return
+	_clear_idle_moment_state()
 
 
 func _tick_idle_moments(delta: float) -> void:
@@ -1290,9 +1375,17 @@ func _tick_idle_moments(delta: float) -> void:
 			_cancel_idle_moment()
 			_update_anim(Vector2.ZERO)
 			return
+		if _idle_moment_kind == IdleMomentKind.SIT and _idle_moment_clips_ready():
+			if _idle_moment_sit_phase == IdleMomentSitPhase.BREATHE:
+				_idle_moment_left -= delta
+				if _idle_moment_left <= 0.0:
+					_begin_sit_stand_up()
+			elif _idle_moment_sit_phase == IdleMomentSitPhase.STAND_UP:
+				pass
+			return
 		_idle_moment_left -= delta
 		if _idle_moment_left <= 0.0:
-			_cancel_idle_moment()
+			_clear_idle_moment_state()
 			_update_anim(Vector2.ZERO)
 		return
 	if not _keeper_standing_idle():
