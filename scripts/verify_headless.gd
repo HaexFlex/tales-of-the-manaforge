@@ -292,6 +292,7 @@ func _run() -> void:
 			print("WISP_NAP_OK")
 			print("PARTY_LOOT_DUO_TIER_OK")
 			print("ECHO_PORTAL_FEE_UI_OK")
+			print("ECHO3_ITEMS_KEPT_OK")
 			print("R5_SYSTEMS_OK")
 			quit(0)
 		return
@@ -26825,8 +26826,16 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 		equipment.call("grant_item", "heartwand")
 		portal_fee_failed += _assert(bool(echo_chamber.call("puff_fee_affordable")), "echo3 affordable")
 		var ess0: int = int(game_state.get("essence"))
+		var t2_before: Dictionary = {}
+		for tool_id: String in R5Constants.T2_TOOL_IDS:
+			t2_before[tool_id] = int(equipment.call("gear_count_anywhere", tool_id))
 		portal_fee_failed += _assert(str(echo_chamber.call("try_pay_puff")) == "paid", "echo3 pay")
 		portal_fee_failed += _assert(int(game_state.get("essence")) == ess0 - R5Constants.PUFF_ECHO_FEE, "echo3 essence deducted")
+		for tool_id: String in R5Constants.T2_TOOL_IDS:
+			portal_fee_failed += _assert(
+				int(equipment.call("gear_count_anywhere", tool_id)) == int(t2_before.get(tool_id, 0)),
+				"echo3 keeps %s count" % tool_id,
+			)
 		game_state.call("reset_for_new_game")
 		game_state.set("echo_03_resolved", true)
 		game_state.set("echo_04_resolved", false)
@@ -26846,6 +26855,37 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 	failed += portal_fee_failed
 	if portal_fee_failed == 0:
 		print("ECHO_PORTAL_FEE_UI_OK")
+	var echo3_keep_failed: int = 0
+	if echo_chamber == null or equipment == null:
+		echo3_keep_failed += 1
+	else:
+		game_state.call("reset_for_new_game")
+		game_state.set("echo_01_resolved", true)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("echo_03_resolved", false)
+		game_state.set("echo_03_fee_paid", false)
+		game_state.set("lifetime_t2_tool_arch_seen", true)
+		game_state.set("essence", 200)
+		equipment.call("grant_item", "rootsteel_edge")
+		equipment.call("grant_item", "heartwand")
+		equipment.call("grant_item", "switchshaft")
+		var counts_before: Dictionary = {}
+		for tid: String in R5Constants.T2_TOOL_IDS:
+			counts_before[tid] = int(equipment.call("gear_count_anywhere", tid))
+		var ess_before: int = int(game_state.get("essence"))
+		echo3_keep_failed += _assert(str(echo_chamber.call("try_pay_puff")) == "paid", "echo3 pay keeps items")
+		echo3_keep_failed += _assert(
+			int(game_state.get("essence")) == ess_before - R5Constants.PUFF_ECHO_FEE,
+			"echo3 exactly 70 essence",
+		)
+		for tid: String in R5Constants.T2_TOOL_IDS:
+			echo3_keep_failed += _assert(
+				int(equipment.call("gear_count_anywhere", tid)) == int(counts_before.get(tid, 0)),
+				"ECHO3_ITEMS_KEPT %s" % tid,
+			)
+	failed += echo3_keep_failed
+	if echo3_keep_failed == 0:
+		print("ECHO3_ITEMS_KEPT_OK")
 	return failed
 
 

@@ -155,6 +155,7 @@ func try_pay_puff() -> String:
 		return "already_paid"
 	if not puff_fee_affordable():
 		return "reject"
+	## Ownership gate only: tier-2 forge tools are never spent here (Design v2 Echo 3).
 	GameState.add_resource(&"essence", -R5Constants.PUFF_ECHO_FEE)
 	GameState.echo_03_fee_paid = true
 	GameState.echo_flags_changed.emit()
