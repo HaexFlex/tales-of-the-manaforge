@@ -5830,6 +5830,7 @@ func _check_only_load() -> int:
 		"res://scripts/forge_room.gd",
 		"res://scripts/gatherable.gd",
 		"res://scripts/manatree.gd",
+		"res://scripts/tree_whispers.gd",
 		"res://scripts/forge_station.gd",
 		"res://scripts/runestone.gd",
 		"res://scripts/autoload/game_state.gd",
@@ -5880,6 +5881,44 @@ func _check_only_load() -> int:
 	var gs: Node = root.get_node_or_null("GameState")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "")), 0.8), "check-only elaia work rate")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "reliquary")), 1.5), "check-only elaia reliquary rate")
+	failed += _tree_whispers_ok(gs)
+	if failed == 0:
+		print("TREE_WHISPERS_OK")
+	return failed
+
+
+func _tree_whispers_ok(game_state: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	var sapling_keys: Array[String] = TreeWhispers.unlocked_keys_for_stage(&"sapling")
+	failed += _assert(sapling_keys.size() == 3, "sapling unlocks three whispers")
+	for key: String in sapling_keys:
+		failed += _assert(TreeWhispers.min_stage_for_key(key) == 1, "sapling line is stage 1: %s" % key)
+	var young_keys: Array[String] = TreeWhispers.unlocked_keys_for_stage(&"young")
+	failed += _assert(young_keys.size() == 6, "young unlocks six whispers")
+	for key: String in young_keys:
+		failed += _assert(TreeWhispers.min_stage_for_key(key) <= 2, "young line within tier: %s" % key)
+	var bag: Array = []
+	TreeWhispers.refill_bag(bag, &"sapling")
+	failed += _assert(bag.size() == 3, "sapling bag holds three keys")
+	var seen: Dictionary = {}
+	while not bag.is_empty():
+		var drawn: String = TreeWhispers.draw_key(bag, &"sapling")
+		failed += _assert(drawn != "" and not seen.has(drawn), "no repeat before exhaustion: %s" % drawn)
+		seen[drawn] = true
+	failed += _assert(seen.size() == 3, "exhausted the sapling bag")
+	var fourth: String = TreeWhispers.draw_key(bag, &"sapling")
+	failed += _assert(fourth != "" and seen.has(fourth), "refill allows a repeat after exhaustion")
+	game_state.set("stage_id", &"young")
+	TreeWhispers.prune_bag(bag, &"young")
+	TreeWhispers.refill_bag(bag, &"young")
+	failed += _assert(bag.size() == 6, "young bag holds six keys")
+	seen.clear()
+	while not bag.is_empty():
+		var drawn_y: String = TreeWhispers.draw_key(bag, &"young")
+		failed += _assert(drawn_y != "" and not seen.has(drawn_y), "young bag no repeat: %s" % drawn_y)
+		seen[drawn_y] = true
+	failed += _assert(seen.size() == 6, "exhausted the young bag")
 	return failed
 
 
