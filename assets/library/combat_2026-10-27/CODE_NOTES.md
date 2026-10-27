@@ -256,3 +256,20 @@ Contacts: `/workspace/sprint_art/previews/combat_sword_wand_bow_contact_{1x,4x}.
 GIF: `/workspace/sprint_art/previews/attack_bow_composite.gif`.
 Identity: `bow_try3_identity_gate_4x.png`. Clean: `bow_try3_clean_gate_4x.png`.
 
+## Elaia + Acorn Imp Wave-1 (Imagine still-only)
+
+Source videos: `/workspace/combat_imagine/{elaia,imp}/*_try1.mp4` (still-only Imagine).
+Pipeline: magenta key → nearest to live 128² / sole 123 → palette-snap live still → hard alpha → despeck.
+
+| actor | clip | frames | ms | hit_frame | src indices | notes |
+|---|---|---:|---:|---:|---|---|
+| elaia | attack | 8 | 125 | **3** (push @375ms ≈ REACT_SEC) | 12,24,36,48,60,72,108,132 | east palm push; empty hands |
+| elaia | hit | 4 | 100 | **1** | 0,24,48,72 | rest→hunch→deep→recover |
+| acorn_imp | hit | 4 | 100 | **1** | 0,12,28,36 | early tilt only; f3 blended to idle; **not mirrored** (stem matches live west) |
+| acorn_imp | calm | 6 | 100 | 3 | 0,24,48,72,96,120 | soft bob loop; **not mirrored** |
+
+**STOP — acorn_imp/attack:** `imp_attack_try1.mp4` pokes EAST. H-mirror makes a west poke but flips the cap stem LEFT (live west idle stem is RIGHT) and breaks face lean. Unmirrored rest matches live but poke is wrong-way. Do not ship. Use a spare run with an explicit west lean-poke in the prompt.
+
+Paths: `assets/art/battle/modular/elaia/{attack,hit}/`, `assets/art/battle/modular/acorn_imp/{hit,calm}/`.
+Legacy placeholders: `assets/library/legacy/{elaia_attack,elaia_hit,acorn_imp_hit,acorn_imp_calm}_placeholder_2026-10-27/`.
+Contact: `combat_elaia_imp_wave1_contact_1x.png`. GIFs beside this note.
