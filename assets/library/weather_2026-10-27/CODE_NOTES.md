@@ -159,3 +159,33 @@ Tile placement (Sprite2D or TextureRect under a non-Y-sorted node):
 - Band **does not** participate in Y-sort.
 
 Tracked as its own ring fix — not a weather-PR blocker.
+
+## NE canopy band extension — mid-right fill (2026-10-27)
+
+After placing the north/east/corner band @ 88eb948, NE top reads solid, but
+bright grass still shows **mid-right** between broadleaf and conifer crowns,
+mostly **below y 450 and west of the east strip (x < 3948)**, plus east-feather
+holes around x 3990–4120. Upper slivers (mist/snow/blossom) remain inside the
+existing north band footprint — this extension does **not** claim to close those.
+
+### New art
+
+| file | size (W×H) |
+|---|---|
+| `assets/art/hub/canopy_band/canopy_band_ext_mid_01.png` | **384×320** |
+
+Native 1×, hard alpha only. West + south edges: ragged leaf silhouette ~16–24 px
+(dithered whole pixels). North edge opaque (tucks under north band). East edge
+opaque above the south feather (joins/overlaps the east column).
+
+### Placement (same CanopyBand node)
+
+- Parent: `CanopyBand` (`z_index = 0`, `y_sort_enabled = false`) — unchanged.
+- Sprite2D `Ext_Mid_00`: texture `canopy_band_ext_mid_01.png`, `centered = false`,
+  `texture_filter = 0`, **position = Vector2(3700, 430)**.
+- World coverage: **x 3700 .. 4084**, **y 430 .. 750**.
+- Outside clearing ellipse (sample corners all > 1.8). Stays off paths / features.
+- Does not participate in Y-sort. Draws behind ring props (World z=1).
+
+Measured mid-right gap union (cam NE ~(3720,390), vp 960×540) was roughly
+world (3680,400)–(4159,564); this panel covers that band through the east join.
