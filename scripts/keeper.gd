@@ -1386,7 +1386,7 @@ func _on_idle_moment_animation_finished() -> void:
 	match _idle_moment_sit_phase:
 		IdleMomentSitPhase.DOWN:
 			if _idle_moment_bench != null:
-				keeper_bench_sat.emit()
+				_emit_keeper_bench_sat()
 			_idle_moment_sit_phase = IdleMomentSitPhase.BREATHE
 			_apply_idle_moment_visual()
 		IdleMomentSitPhase.STAND_UP:
@@ -1395,11 +1395,23 @@ func _on_idle_moment_animation_finished() -> void:
 			_update_anim(Vector2.ZERO)
 
 
+func _emit_keeper_bench_sat() -> void:
+	keeper_bench_sat.emit()
+	if has_node("/root/GameAudio"):
+		GameAudio.on_keeper_bench_sat()
+
+
+func _emit_keeper_bench_stood() -> void:
+	keeper_bench_stood.emit()
+	if has_node("/root/GameAudio"):
+		GameAudio.on_keeper_bench_stood()
+
+
 func _finish_bench_idle_sit() -> void:
 	var bench: Node2D = _idle_moment_bench
 	if bench == null:
 		return
-	keeper_bench_stood.emit()
+	_emit_keeper_bench_stood()
 	_release_bench_idle_seat(bench)
 
 
@@ -1410,7 +1422,7 @@ func _cancel_idle_moment() -> void:
 	var bench: Node2D = _idle_moment_bench
 	_clear_idle_moment_state()
 	if bench_sit and bench != null:
-		keeper_bench_stood.emit()
+		_emit_keeper_bench_stood()
 		_release_bench_idle_seat(bench)
 
 

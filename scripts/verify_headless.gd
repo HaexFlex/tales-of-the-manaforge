@@ -7000,12 +7000,22 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	keeper.global_position = stand_pos
 	await process_frame
 	failed += _assert(bool(bench.call("keeper_at_stand")), "keeper at the bench stand")
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(game_audio != null, "bench rest audio autoload")
 	var sit_kind: int = 3
 	var sat_hits: Array[int] = [0]
 	var stood_hits: Array[int] = [0]
+	var rest_plays: Array[int] = [0]
 	failed += _assert(keeper.has_signal("keeper_bench_sat") and keeper.has_signal("keeper_bench_stood"), "keeper bench sit signals exist")
 	keeper.connect("keeper_bench_sat", func() -> void: sat_hits[0] += 1)
 	keeper.connect("keeper_bench_stood", func() -> void: stood_hits[0] += 1)
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.cue_played.connect(func(cue_id: StringName) -> void:
+			if cue_id == &"sfx_bench_rest":
+				rest_plays[0] += 1
+		)
+	var bed_before: float = float(game_audio.call("music_bed_volume_db")) if game_audio != null else 0.0
 	keeper.call("_start_idle_moment", sit_kind)
 	failed += _assert(keeper.global_position.distance_to(seat_pos) < 0.5, "bench sit snaps to the seat feet spot")
 	var sprite: AnimatedSprite2D = keeper.get_node_or_null("Sprite") as AnimatedSprite2D
@@ -7013,6 +7023,18 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	keeper.call("_on_idle_moment_animation_finished")
 	failed += _assert(sat_hits[0] == 1, "keeper_bench_sat after sit_down")
 	failed += _assert(sprite != null and sprite.animation == &"idle_sit_breathe_south", "bench sit breathes at the seat")
+	if game_audio != null:
+		failed += _assert(bool(game_audio.call("did_play", &"sfx_bench_rest")), "bench rest cue plays on sit_down")
+		failed += _assert(rest_plays[0] == 1, "bench rest cue_played once")
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		var bed_lift: float = float(game_audio.call("music_bed_volume_db"))
+		failed += _assert(absf(bed_lift - bed_before - 2.0) < 0.15, "bench rest lifts the hub bed +2 dB")
+		keeper.call("halt")
+		keeper.global_position = stand_pos
+		keeper.call("_start_idle_moment", sit_kind)
+		keeper.call("_on_idle_moment_animation_finished")
+		failed += _assert(rest_plays[0] == 1, "bench rest 10 s guard skips retrigger")
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db")) - 2.0) < 0.05, "bench rest keeps bed lift while seated")
 	var away: Vector2 = stand_pos + Vector2(240, 0)
 	keeper.call("halt")
 	keeper.global_position = away
@@ -7034,6 +7056,10 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	failed += _assert(stood_hits[0] == 1, "cancel at the bench emits keeper_bench_stood")
 	failed += _assert(sprite != null and sprite.animation != &"idle_stand_up_south", "cancel skips stand_up")
 	failed += _assert(keeper.global_position.distance_to(stand_pos) < 0.5, "cancel returns the keeper to the stand before walking away")
+	if game_audio != null:
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db"))) < 0.05, "bench rest restores hub bed lift on stood")
+		failed += _assert(absf(float(game_audio.call("music_bed_volume_db")) - bed_before) < 0.15, "bench rest restores hub bed volume on stood")
 	await process_frame
 	live.free()
 	if save_service:
@@ -7041,6 +7067,18 @@ func _bench_seat_ok(tree_root: Window) -> int:
 		save_service.set("boot_intent", "auto")
 	if failed == 0:
 		print("BENCH_SEAT_OK")
+		print("BENCH_REST_OK")
+	return failed
+
+
+func _wait_bench_rest_bed_tween(tree_root: Window) -> int:
+	var failed: int = 0
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if game_audio == null:
+		return _assert(false, "bench rest tween audio")
+	var deadline: int = Time.get_ticks_msec() + 1700
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
 	return failed
 
 
