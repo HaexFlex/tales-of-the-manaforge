@@ -88,3 +88,9 @@ static func hub_ambience_filter_cutoff_hz(phase01: float) -> float:
 		var t: float = inverse_lerp(_PHASE_DAWN_MID, _PHASE_DAWN_END, p)
 		return _log_lerp_hz(HUB_AMBIENCE_DAWN_MID_CUTOFF_HZ, HUB_AMBIENCE_DAY_CUTOFF_HZ, t)
 	return HUB_AMBIENCE_DAY_CUTOFF_HZ
+
+
+## Full-night plateau for firefly twinkle SFX (not dusk ramp or pre-dawn fade).
+static func firefly_twinkle_night(phase01: float) -> bool:
+	var p: float = wrap_phase01(phase01)
+	return p >= 0.48 and p < 0.82

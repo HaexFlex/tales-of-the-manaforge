@@ -1502,6 +1502,14 @@ func _run() -> void:
 		quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_FIREFLY_TWINKLE") == "1":
+		var twinkle_failed: int = _firefly_twinkle_ok(game_audio)
+		if twinkle_failed > 0:
+			print("FIREFLY_TWINKLE_FAIL: %d" % twinkle_failed)
+			quit(1)
+		quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_INTRO_TEXT") == "1":
 		var intro_failed: int = await _intro_text_ok(tree_root, content_strings)
 		if intro_failed > 0:
@@ -4079,6 +4087,7 @@ func _run() -> void:
 	failed += await _battle_art(tree_root, game_state, save_service)
 	failed += _battle_audio_sole_caller(tree_root, game_audio)
 	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
+	failed += _firefly_twinkle_ok(game_audio)
 	failed += _resolver_turn_order()
 	failed += _resolver_rows()
 	failed += _resolver_targeting()
@@ -5828,6 +5837,8 @@ func _check_only_load() -> int:
 		"res://scripts/character_sheet.gd",
 		"res://scripts/hud.gd",
 		"res://scripts/main.gd",
+		"res://scripts/hub/glade_fireflies.gd",
+		"res://scripts/hub/hub_time_phase.gd",
 		"res://scripts/forge_room.gd",
 		"res://scripts/gatherable.gd",
 		"res://scripts/manatree.gd",
@@ -7921,6 +7932,53 @@ func _debug_panel_ok(tree_root: Window) -> int:
 			failed += _assert(tabs.current_tab == overlays and overlays_tab != null and overlays_tab.button_pressed, "setting current_tab highlights Overlays")
 			failed += _assert(tree_tab != null and not tree_tab.button_pressed, "setting current_tab clears the Tree highlight")
 	panel.queue_free()
+	return failed
+
+
+func _firefly_twinkle_ok(game_audio: Node) -> int:
+	var failed: int = 0
+	var twinkle_ids: PackedStringArray = PackedStringArray([
+		"sfx_firefly_twinkle_1",
+		"sfx_firefly_twinkle_2",
+		"sfx_firefly_twinkle_3",
+	])
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cues: Dictionary = {}
+	if parsed is Dictionary:
+		var list_v: Variant = (parsed as Dictionary).get("cues", {})
+		if list_v is Dictionary:
+			cues = list_v
+	for cue_id: String in twinkle_ids:
+		failed += _assert(game_audio.list_cue_ids().has(cue_id), "cue registered %s" % cue_id)
+		var path: String = str(game_audio.call("get_cue_path", cue_id))
+		failed += _assert(path != "" and FileAccess.file_exists(path), "cue file %s" % cue_id)
+		var meta: Dictionary = cues.get(cue_id, {}) as Dictionary
+		failed += _assert(str(meta.get("bus", "")) == "SFX_World", "%s bus" % cue_id)
+		failed += _assert(is_equal_approx(float(meta.get("volume_db", 0.0)), -6.0), "%s volume_db -6" % cue_id)
+	GladeFireflies.reset_twinkle_state()
+	var base_msec: int = 1_000_000
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.0, 1.0, base_msec, 1) == "", "day blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.40, 1.0, base_msec + 1, 1) == "", "dusk blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.55, 0.0, base_msec + 2, 1) == "", "invisible blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.90, 1.0, base_msec + 3, 1) == "", "pre-dawn blocks twinkle")
+	GladeFireflies.reset_twinkle_state()
+	var first: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec, 2)
+	failed += _assert(first == "sfx_firefly_twinkle_2", "night plays variant")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec + 100, 1) == "", "cooldown blocks immediate replay")
+	failed += _assert(
+		GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec + GladeFireflies.twinkle_cooldown_msec() - 1, 3) == "",
+		"cooldown blocks before 4s",
+	)
+	var second: String = GladeFireflies.try_twinkle_sfx(
+		0.55, 1.0, base_msec + GladeFireflies.twinkle_cooldown_msec(), 3
+	)
+	failed += _assert(second == "sfx_firefly_twinkle_3", "cooldown allows play after 4s")
+	game_audio.call("clear_played_log")
+	game_audio.call("play", &"sfx_firefly_twinkle_1", 0.0, 1.0)
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_firefly_twinkle_1")), "twinkle cue plays")
+	failed += _assert(is_equal_approx(float(game_audio.get("last_cue_volume_db")), -6.0), "twinkle at -6 dB")
+	if failed == 0:
+		print("FIREFLY_TWINKLE_OK")
 	return failed
 
 
