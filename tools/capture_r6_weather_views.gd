@@ -49,12 +49,16 @@ func _run() -> void:
 		print("CAPTURE_FAIL HubWeather")
 		quit(1)
 		return
+	var cam_lines: PackedStringArray = PackedStringArray()
 	for weather: StringName in WEATHER_STATES:
 		hub_weather.call("force_state_for_debug", weather)
 		for view_name: String in VIEW_NAMES:
 			cam.position = _camera_pos_for(hub, view_name)
 			for _f: int in 10:
 				await process_frame
+			var cam_pos: Vector2 = cam.position
+			print("CAM %s_%s %s" % [String(weather), view_name, cam_pos])
+			cam_lines.append("%s_%s %s" % [String(weather), view_name, cam_pos])
 			var fname: String = "%s_%s.png" % [String(weather), view_name]
 			for dir: String in OUT_DIRS:
 				var path: String = "%s/%s" % [dir, fname]
@@ -63,6 +67,16 @@ func _run() -> void:
 					quit(1)
 					return
 			print("CAPTURE_OK %s" % fname)
+	for dir: String in OUT_DIRS:
+		var cams_path: String = "%s/cams.txt" % dir
+		var cams_file := FileAccess.open(cams_path, FileAccess.WRITE)
+		if cams_file == null:
+			print("CAPTURE_FAIL %s" % cams_path)
+			quit(1)
+			return
+		for line: String in cam_lines:
+			cams_file.store_line(line)
+		cams_file.close()
 	print("CAPTURE_ALL_OK")
 	quit(0)
 

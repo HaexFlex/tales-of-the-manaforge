@@ -35,6 +35,7 @@
 [ext_resource type="Texture2D" path="res://assets/art/hub/canopy_band/canopy_band_north_01.png" id="32_cb_north"]
 [ext_resource type="Texture2D" path="res://assets/art/hub/canopy_band/canopy_band_ne_corner_01.png" id="32_cb_corner"]
 [ext_resource type="Texture2D" path="res://assets/art/hub/canopy_band/canopy_band_east_01.png" id="32_cb_east"]
+[ext_resource type="Texture2D" path="res://assets/art/hub/canopy_band/canopy_band_ext_mid_01.png" id="32_cb_ext_mid"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vxglm"]
 texture = ExtResource("2_0ld40")
@@ -696,6 +697,11 @@ texture_filter = 0
 position = Vector2(3948, 962)
 centered = false
 texture = ExtResource("32_cb_east")
+[node name="Ext_Mid_00" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3620, 430)
+centered = false
+texture = ExtResource("32_cb_ext_mid")
 [node name="World" type="Node2D" parent="." unique_id=146612391]
 unique_name_in_owner = true
 z_index = 1
