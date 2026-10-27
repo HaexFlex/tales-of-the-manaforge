@@ -7,6 +7,7 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+const CombatAnimsConfigScript := preload("res://scripts/battle/combat_anims_config.gd")
 const LuckySparkFxScript := preload("res://scripts/fx/lucky_spark_fx.gd")
 ## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
 const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
@@ -268,6 +269,16 @@ func _run() -> void:
 			quit(1)
 		else:
 			print("INTEGRATION_R1_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_R6") == "1":
+		var r6_failed: int = _combat_anims_r6_ok()
+		if r6_failed > 0:
+			print("COMBAT_ANIMS_R6_FAIL: %d" % r6_failed)
+			quit(1)
+		else:
+			print("COMBAT_ANIMS_R6_OK")
 			quit(0)
 		return
 
@@ -26709,4 +26720,270 @@ func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -
 	failed += _assert(int(game_state.get("wood")) > wood_before_fav, "favourite wisp harvest in same session")
 	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "wisp harvest did not steal gift day")
 	game_state.set("_morning_gift_day_override", "")
+	return failed
+
+
+func _combat_anims_r6_ok() -> int:
+	var failed: int = 0
+	CombatAnimsConfigScript.reload()
+	failed += _assert(FileAccess.file_exists("res://data/combat_anims.json"), "combat_anims.json present")
+	failed += _assert(
+		FileAccess.file_exists("res://assets/library/combat_2026-10-27/hand_anchors.json"),
+		"hand_anchors.json present",
+	)
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("keeper", "attack"), "keeper attack modular art")
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_count("keeper", "attack") == 8,
+		"keeper attack has 8 art frames",
+	)
+	failed += _assert(CombatAnimsConfigScript.uses_one_to_one_art("keeper", "attack"), "keeper attack 1:1 art")
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_index("keeper", "attack", 5, 8) == 5,
+		"keeper attack logical frame maps 1:1 to art",
+	)
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("acorn_imp", "calm"), "acorn imp calm modular art")
+	var attack_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack")
+	failed += _assert(int(attack_timing.get("hit_ms", -1)) == 400, "attack hit_ms 400 at 1x")
+	failed += _assert(int(attack_timing.get("hit_frame", -1)) == 3, "attack hit_frame 3 (impact)")
+	var cast_timing: Dictionary = CombatAnimsConfigScript.timing("party", "cast")
+	failed += _assert(int(cast_timing.get("hit_ms", -1)) == 500, "cast hit_ms 500 at 1x")
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.ms_per_frame_at_speed(4, 100), 25.0),
+		"4x ms_per_frame 25",
+	)
+	failed += _assert(
+		is_equal_approx(
+			CombatAnimsConfigScript.wall_sec_for_frame_index(1, 100, 3),
+			0.3,
+		),
+		"1x frame 3 wall time 0.3s",
+	)
+	failed += _assert(
+		is_equal_approx(
+			CombatAnimsConfigScript.wall_sec_for_frame_index(1, 100, 4),
+			0.4,
+		),
+		"1x frame 4 wall time 0.4s (impact clock)",
+	)
+	failed += _assert(
+		is_equal_approx(
+			CombatAnimsConfigScript.wall_sec_for_frame_index(4, 100, 3),
+			0.075,
+		),
+		"4x frame 3 wall time 0.075s",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.display_logical_frame(2, 8, 3, 8) == 0,
+		"8x holds keyframe 1 before hit",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.display_logical_frame(3, 8, 3, 8) == 3,
+		"8x shows hit frame at react",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.display_logical_frame(7, 8, 4, 8) == 7,
+		"8x shows last keyframe",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.weapon_sprite_id_for_item("weapon_rod") == "wpn_wand_t0",
+		"weapon rod maps to wpn_wand_t0",
+	)
+	failed += _assert(
+		ResourceLoader.exists(CombatAnimsConfigScript.weapon_texture_path("wpn_wand_t0")),
+		"wpn_wand_t0 art",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.weapon_rotation_rad(3), 0.0),
+		"pre-rotated weapons use node rotation 0",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["sword"] == Vector2(0.0, 4.0),
+		"sword family grip 0,4",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["wand"] == Vector2(4.0, 12.0),
+		"wand family grip 4,12",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["bow"] == Vector2(4.0, 20.0),
+		"bow family grip 4,20",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_SIZE["wand"] == Vector2(9.0, 36.0),
+		"wand native size 9x36",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_SIZE["bow"] == Vector2(22.0, 42.0),
+		"bow native size 22x42",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_SIZE["sword"] == Vector2(28.0, 10.0),
+		"sword native size 28x10",
+	)
+	failed += _assert(
+		FileAccess.file_exists("res://assets/art/battle/weapons/rot/grip_offsets.json"),
+		"grip_offsets.json present",
+	)
+	var grip_entry: Dictionary = CombatAnimsConfigScript.weapon_rot_grip_entry("wpn_sword_t1", 1)
+	failed += _assert(int(grip_entry.get("gx", -1)) == 1 and int(grip_entry.get("gy", -1)) == 1, "per-rot grip from json")
+	var rot_seq: Array[int] = CombatAnimsConfigScript.keeper_attack_rot_indices_from_anchors()
+	failed += _assert(rot_seq.size() == 8, "keeper attack rot sequence length")
+	for i: int in range(8):
+		failed += _assert(
+			rot_seq[i] == CombatAnimsConfigScript.KEEPER_ATTACK_ROT_SEQUENCE[i],
+			"keeper attack rot_index frame %d" % i,
+		)
+	var rot_sprite: String = CombatAnimsConfigScript.weapon_texture_for_rot("wpn_sword_t0", 6)
+	failed += _assert(rot_sprite.ends_with("wpn_sword_t0_r6.png"), "rot sprite path for index 6")
+	failed += _assert(ResourceLoader.exists(rot_sprite), "rot sprite file exists")
+	failed += _assert(
+		CombatAnimsConfigScript.weapon_sprite_id_for_item("rootsteel_edge") == "wpn_sword_t2",
+		"rootsteel edge tier sprite",
+	)
+	var t0_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t0")
+	var t1_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t1")
+	var t2_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t2")
+	var bow_t0_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_bow_t0")
+	failed += _assert(ResourceLoader.exists(t0_path), "wpn_sword_t0 art")
+	failed += _assert(ResourceLoader.exists(t1_path), "wpn_sword_t1 art")
+	failed += _assert(ResourceLoader.exists(t2_path), "wpn_sword_t2 art")
+	failed += _assert(ResourceLoader.exists(bow_t0_path), "wpn_bow_t0 art")
+	var t0_bytes: PackedByteArray = CombatAnimsConfigScript.sprite_file_bytes(t0_path)
+	var t1_bytes: PackedByteArray = CombatAnimsConfigScript.sprite_file_bytes(t1_path)
+	var t2_bytes: PackedByteArray = CombatAnimsConfigScript.sprite_file_bytes(t2_path)
+	failed += _assert(t0_bytes != t1_bytes and t1_bytes != t2_bytes and t0_bytes != t2_bytes, "sword tiers differ")
+	failed += _assert(
+		not CombatAnimsConfigScript.has_modular_body("stump_ogre", "attack"),
+		"stump_ogre uses hit flash fallback",
+	)
+	var anchor0: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 0)
+	failed += _assert(int(anchor0.get("hand_x", -1)) == 43, "keeper attack frame 0 hand_x")
+	failed += _assert(str(anchor0.get("z", "")) == "behind", "keeper attack frame 0 z behind")
+	var anchor2: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 2)
+	failed += _assert(str(anchor2.get("z", "")) == "front", "keeper attack frame 2 z front")
+	var anchor3: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 3)
+	failed += _assert(int(anchor3.get("rot_index", -1)) == 1, "keeper attack impact frame rot_index")
+	var grip_weapons: Array[String] = ["wpn_sword_t1", "wpn_sword_t2", "wpn_bow_t1", "wpn_wand_t2"]
+	for frame_i: int in range(8):
+		var anchor_f: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", frame_i)
+		var hx: int = int(anchor_f.get("hand_x", -1))
+		var hy: int = int(anchor_f.get("hand_y", -1))
+		var rot_i: int = int(anchor_f.get("rot_index", -1))
+		for sprite_id: String in grip_weapons:
+			failed += _assert(
+				CombatAnimsConfigScript.weapon_grip_matches_hand_exact(hx, hy, sprite_id, rot_i),
+				"grip on hand frame %d %s rot %d" % [frame_i, sprite_id, rot_i],
+			)
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("keeper", "attack_wand"), "keeper attack_wand modular")
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("keeper", "attack_bow"), "keeper attack_bow modular")
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_count("keeper", "attack_wand") == 8,
+		"keeper attack_wand 8 frames",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_count("keeper", "attack_bow") == 10,
+		"keeper attack_bow 10 frames",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.strike_clip_for_sprite("wpn_wand_t2") == "attack_wand",
+		"wand uses attack_wand clip",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.strike_clip_for_sprite("wpn_bow_t1") == "attack_bow",
+		"bow uses attack_bow clip",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.strike_clip_for_sprite("wpn_sword_t1") == "attack",
+		"sword uses attack clip",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.resolve_playback_clip("keeper", "attack", "wpn_wand_t0") == "attack_wand",
+		"weapon rod playback resolves attack_wand",
+	)
+	var wand_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack_wand")
+	failed += _assert(int(wand_timing.get("hit_ms", -1)) == 500, "attack_wand hit_ms 500")
+	failed += _assert(int(wand_timing.get("hit_frame", -1)) == 4, "attack_wand hit_frame 4")
+	var bow_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack_bow")
+	failed += _assert(int(bow_timing.get("frames", -1)) == 10, "attack_bow 10 frames timing")
+	failed += _assert(
+		ResourceLoader.exists(CombatAnimsConfigScript.WAND_SPARK_PATH),
+		"wand spark strip art",
+	)
+	failed += _assert(
+		ResourceLoader.exists(CombatAnimsConfigScript.ARROW_SPRITE_PATH),
+		"wpn_arrow_t0 art",
+	)
+	for frame_i: int in range(8):
+		var anchor_w: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack_wand", frame_i)
+		var hx_w: int = int(anchor_w.get("hand_x", -1))
+		var hy_w: int = int(anchor_w.get("hand_y", -1))
+		var rot_w: int = int(anchor_w.get("rot_index", -1))
+		for sprite_id: String in ["wpn_wand_t0", "wpn_wand_t1", "wpn_wand_t2"]:
+			failed += _assert(
+				CombatAnimsConfigScript.weapon_grip_matches_hand_exact(hx_w, hy_w, sprite_id, rot_w),
+				"wand grip frame %d %s" % [frame_i, sprite_id],
+			)
+		var spark_on: bool = CombatAnimsConfigScript.wand_spark_visible("attack_wand", frame_i)
+		var expect_spark: bool = frame_i >= 2 and frame_i <= 5
+		failed += _assert(spark_on == expect_spark, "wand spark visibility frame %d" % frame_i)
+	for frame_i: int in range(10):
+		var anchor_b: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack_bow", frame_i)
+		failed += _assert(not anchor_b.is_empty(), "attack_bow anchor frame %d" % frame_i)
+		var hx_b: int = int(anchor_b.get("hand_x", -1))
+		var hy_b: int = int(anchor_b.get("hand_y", -1))
+		var rot_b: int = int(anchor_b.get("rot_index", -1))
+		for sprite_id: String in ["wpn_bow_t0", "wpn_bow_t1", "wpn_bow_t2"]:
+			failed += _assert(
+				CombatAnimsConfigScript.weapon_grip_matches_hand_exact(hx_b, hy_b, sprite_id, rot_b),
+				"bow grip frame %d %s" % [frame_i, sprite_id],
+			)
+		var arrow_on: bool = CombatAnimsConfigScript.bow_arrow_nocked_visible("attack_bow", frame_i)
+		var expect_arrow: bool = frame_i <= 5
+		failed += _assert(arrow_on == expect_arrow, "bow arrow nocked frame %d" % frame_i)
+		failed += _assert(anchor_b.has("hand2_x") and anchor_b.has("string_draw"), "bow schema frame %d" % frame_i)
+		var hand2_x: int = int(anchor_b.get("hand2_x", hx_b))
+		var hand2_y: int = int(anchor_b.get("hand2_y", hy_b))
+		var string_draw: float = float(anchor_b.get("string_draw", 0.0))
+		for bow_sprite: String in ["wpn_bow_t0", "wpn_bow_t1", "wpn_bow_t2"]:
+			var pts: PackedVector2Array = CombatAnimsConfigScript.bow_string_points_in_body(
+				hx_b, hy_b, hand2_x, hand2_y, bow_sprite, rot_b, string_draw,
+			)
+			var top_exp: Vector2 = CombatAnimsConfigScript.bow_string_tip_in_body(
+				hx_b, hy_b, bow_sprite, rot_b, "top",
+			)
+			var bot_exp: Vector2 = CombatAnimsConfigScript.bow_string_tip_in_body(
+				hx_b, hy_b, bow_sprite, rot_b, "bottom",
+			)
+			failed += _assert(pts[0].is_equal_approx(top_exp), "bow string top frame %d %s" % [frame_i, bow_sprite])
+			failed += _assert(pts[pts.size() - 1].is_equal_approx(bot_exp), "bow string bottom frame %d %s" % [frame_i, bow_sprite])
+	failed += _assert(
+		not FileAccess.file_exists("res://assets/art/battle/modular/keeper/attack_bow/hand_anchors.json"),
+		"clip-folder bow anchors removed",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_sword_t1"), 0.4),
+		"sword strike react 400ms",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_wand_t2"), 0.5),
+		"wand strike react 500ms",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_bow_t1"), 0.72),
+		"bow strike react release+flight 720ms",
+	)
+	failed += _assert(
+		not is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_bow_t1"), 0.4),
+		"bow damage not at 400ms",
+	)
+	var bow_strike: Dictionary = {"kind": "strike", "actor": "keeper"}
+	failed += _assert(
+		is_equal_approx(BattlePlaybackScript.react_sec_for_event(bow_strike, "wpn_bow_t1"), 0.72),
+		"playback bow strike react sec",
+	)
+	var sword_strike: Dictionary = {"kind": "strike", "actor": "keeper"}
+	failed += _assert(
+		is_equal_approx(BattlePlaybackScript.react_sec_for_event(sword_strike, "wpn_sword_t1"), 0.4),
+		"playback sword strike react sec",
+	)
 	return failed
