@@ -12,7 +12,10 @@ const _KEY_COLORS: Array[Color] = [
 	Color(1.0, 0.95, 0.85, 1.0),
 ]
 
+signal dusk_ground_changed(use_dusk: bool)
+
 var _start_msec: int = 0
+var _dusk_ground_active: bool = false
 
 
 func _init() -> void:
@@ -27,12 +30,22 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	var use_dusk: bool = false
 	if not GameAudio.day_night_enabled:
 		color = Color.WHITE
+	else:
+		var elapsed_sec: float = float(Time.get_ticks_msec() - _start_msec) * 0.001
+		var phase: float = fmod(elapsed_sec / CYCLE_SEC, 1.0)
+		color = _sample_phase(phase)
+		use_dusk = HubGroundDusk.wants_dusk_textures(phase)
+	_set_dusk_ground_active(use_dusk)
+
+
+func _set_dusk_ground_active(use_dusk: bool) -> void:
+	if use_dusk == _dusk_ground_active:
 		return
-	var elapsed_sec: float = float(Time.get_ticks_msec() - _start_msec) * 0.001
-	var phase: float = fmod(elapsed_sec / CYCLE_SEC, 1.0)
-	color = _sample_phase(phase)
+	_dusk_ground_active = use_dusk
+	dusk_ground_changed.emit(use_dusk)
 
 
 func _sample_phase(phase: float) -> Color:
