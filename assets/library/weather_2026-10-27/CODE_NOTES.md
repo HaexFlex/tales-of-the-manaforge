@@ -189,3 +189,47 @@ opaque above the south feather (joins/overlaps the east column).
 
 Measured mid-right gap union (cam NE ~(3720,390), vp 960×540) was roughly
 world (3680,400)–(4159,564); this panel covers that band through the east join.
+
+## NE camera + opaque-interior harden (2026-10-27)
+
+### Cause of “gaps inside north band footprint”
+
+**Primary cause: (d) camera mapping was wrong in Art measurement.**
+
+Capture parks NE at `camera_max().x, camera_min().y`. With Camera2D limits
+L180/T180/R4140/B3600 and view 960×540 (half=480,270):
+
+- `camera_min` = (660, 450)
+- `camera_max` = (3660, 3330)
+- **NE cam = (3660, 450)** — not ~(3720, 390)
+
+World from screen: `wx = 3180 + sx`, `wy = 180 + sy`.
+Prior Art reports used `wx = 3240 + sx`, `wy = 120 + sy` (offset −60x / +60y),
+which misplaced mid-right / below-band grass as “inside” y162–450.
+
+Remapped cited examples (clear_ne):
+| cited (wrong) | screen | true world | note |
+|---|---|---|---|
+| (3483,212) | (243,92) | (3423,272) | band opaque; pixel is dark canopy, not grass |
+| (3591,241) | (351,121) | (3531,301) | band opaque; bright pixel is prop leaf highlight (high local std) |
+| (3861,418) | (621,298) | (3801,478) | **below** north band (y>450); needs ext panel |
+| (3680,407) | (440,287) | (3620,467) | **outside** north band; no tile |
+
+**(b)** Placement matches CODE_NOTES (North at 3300/3556/3812×162, corner 3948×162,
+east 3948×450/706/962, centered=false). **(c)** CanopyBand z=0 after Ground in tree
+order; World z=1 — band is above ground, behind props. No Code z change.
+
+### Code-side follow-ups
+
+1. Place `Ext_Mid_00` Sprite2D under `CanopyBand`: texture
+   `canopy_band_ext_mid_01.png`, `centered=false`, `position=Vector2(3700, 430)`.
+2. No camera/z change required. When logging caps, print `cam.position` so Art
+   does not re-assume NE ~(3720,390).
+3. Optional: Art CODE_NOTES NE note is now (3660, 450).
+
+### Opaque-interior harden (secondary)
+
+Interior opaque coverage (excluding south ~24 px feather, and west ~24 px on
+east/corner/ext) was 99.55–99.85%, not 100%. Retimed same filenames with
+**100% opaque interiors**; ragged feather only on south (north tile) or
+south+west (east/corner/ext). Hard alpha preserved.
