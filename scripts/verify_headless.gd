@@ -252,10 +252,20 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BENCH_SEAT") == "1":
+		var bench_seat_only: int = await _bench_seat_ok(tree_root)
+		if bench_seat_only > 0:
+			print("BENCH_SEAT_FAIL: %d" % bench_seat_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		failed += _lucky_harvest_ok(game_state)
 		failed += _lucky_spark_ok(tree_root, game_state, game_audio)
+		failed += await _bench_seat_ok(tree_root)
 		if failed > 0:
 			print("CHECK_ONLY_FAIL: %d" % failed)
 			quit(1)
@@ -4060,6 +4070,7 @@ func _run() -> void:
 	failed += await _batch_migration(tree_root, game_state, save_service, backpack)
 	failed += _dusk_greetings_ok()
 	failed += _no_old_keeper_idle()
+	failed += await _bench_seat_ok(tree_root)
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
@@ -7083,6 +7094,12 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
 		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 48)) < 0.5, "bench stand is just south of the tabletop")
+		var seat: Node2D = bench.get_node_or_null("KeeperSeat") as Node2D
+		failed += _assert(seat != null and seat.position.distance_to(Vector2(0, -3)) < 0.5, "bench seat top marker on the apron")
+		failed += _assert(bench.has_method("seat_global"), "bench exposes seat_global")
+		var bench_script: Script = bench.get_script()
+		var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+		failed += _assert(is_equal_approx(feet_below, 23.0), "bench seat feet offset const")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -7193,6 +7210,244 @@ func _dusk_greetings_ok() -> int:
 			failed += _assert(str(cs.call("get_text", ak)) != ak, "strings has %s" % ak)
 	if failed == 0:
 		print("DUSK_GREETINGS_OK")
+	return failed
+
+
+func _bench_seat_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	if save_service:
+		save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return _assert(false, "bench seat hub loads")
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(bench != null and keeper != null, "bench seat hub actors")
+	if bench == null or keeper == null:
+		live.free()
+		if save_service:
+			save_service.call("note_session_ended")
+			save_service.set("boot_intent", "auto")
+		return failed + 1
+	var seat_top: Marker2D = bench.get_node_or_null("KeeperSeat") as Marker2D
+	failed += _assert(seat_top != null, "bench seat top marker")
+	var bench_script: Script = bench.get_script()
+	var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+	var stand_pos: Vector2 = bench.call("stand_global")
+	var seat_pos: Vector2 = bench.call("seat_global")
+	var feet_from_top: Vector2 = seat_pos - seat_top.global_position
+	failed += _assert(
+		is_equal_approx(feet_from_top.x, 0.0) and is_equal_approx(feet_from_top.y, feet_below),
+		"seat_global places feet below the seat top"
+	)
+	failed += _assert(stand_pos.distance_to(seat_pos) > 4.0, "seat is not the stand spot")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	failed += _assert(bool(bench.call("keeper_at_stand")), "keeper at the bench stand")
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(game_audio != null, "bench rest audio autoload")
+	var sit_kind: int = 3
+	var sat_hits: Array[int] = [0]
+	var stood_hits: Array[int] = [0]
+	var rest_plays: Array[int] = [0]
+	failed += _assert(keeper.has_signal("keeper_bench_sat") and keeper.has_signal("keeper_bench_stood"), "keeper bench sit signals exist")
+	keeper.connect("keeper_bench_sat", func() -> void: sat_hits[0] += 1)
+	keeper.connect("keeper_bench_stood", func() -> void: stood_hits[0] += 1)
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.cue_played.connect(func(cue_id: StringName) -> void:
+			if cue_id == &"sfx_bench_rest":
+				rest_plays[0] += 1
+		)
+	var bed_before: float = float(game_audio.call("music_bed_volume_db")) if game_audio != null else 0.0
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(seat_pos) < 0.5, "bench sit snaps to the seat feet spot")
+	var sprite: AnimatedSprite2D = keeper.get_node_or_null("Sprite") as AnimatedSprite2D
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_down_south", "bench sit starts sit_down")
+	keeper.call("_on_idle_moment_animation_finished")
+	failed += _assert(sat_hits[0] == 1, "keeper_bench_sat after sit_down")
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_breathe_south", "bench sit breathes at the seat")
+	if game_audio != null:
+		failed += _assert(bool(game_audio.call("did_play", &"sfx_bench_rest")), "bench rest cue plays on sit_down")
+		failed += _assert(rest_plays[0] == 1, "bench rest cue_played once")
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		var bed_lift: float = float(game_audio.call("music_bed_volume_db"))
+		failed += _assert(absf(bed_lift - bed_before - 2.0) < 0.15, "bench rest lifts the hub bed +2 dB")
+		keeper.call("halt")
+		keeper.global_position = stand_pos
+		keeper.call("_start_idle_moment", sit_kind)
+		keeper.call("_on_idle_moment_animation_finished")
+		failed += _assert(rest_plays[0] == 1, "bench rest 10 s guard skips retrigger")
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db")) - 2.0) < 0.05, "bench rest keeps bed lift while seated")
+	var away: Vector2 = stand_pos + Vector2(240, 0)
+	keeper.call("halt")
+	keeper.global_position = away
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(away) < 0.5, "away from the bench sit does not move the keeper")
+	keeper.call("_on_idle_moment_animation_finished")
+	failed += _assert(sat_hits[0] == 0 and stood_hits[0] == 0, "away from the bench emits no bench sit signals")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	keeper.call("_on_idle_moment_animation_finished")
+	keeper.call("move_to", away)
+	failed += _assert(stood_hits[0] == 1, "cancel at the bench emits keeper_bench_stood")
+	failed += _assert(sprite != null and sprite.animation != &"idle_stand_up_south", "cancel skips stand_up")
+	failed += _assert(keeper.global_position.distance_to(stand_pos) < 0.5, "cancel returns the keeper to the stand before walking away")
+	if game_audio != null:
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db"))) < 0.05, "bench rest restores hub bed lift on stood")
+		failed += _assert(absf(float(game_audio.call("music_bed_volume_db")) - bed_before) < 0.15, "bench rest restores hub bed volume on stood")
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var rested_failed: int = _rested_hands_ok(game_state)
+	failed += rested_failed
+	if rested_failed == 0:
+		print("RESTED_HANDS_OK")
+	var sayings_failed: int = _bench_sayings_ok(tree_root, game_state)
+	failed += sayings_failed
+	if sayings_failed == 0:
+		print("BENCH_SAYINGS_OK")
+	var dusk_failed: int = _bench_dusk_props_ok(bench, keeper)
+	failed += dusk_failed
+	if dusk_failed == 0:
+		print("BENCH_DUSK_PROPS_OK")
+	await process_frame
+	live.free()
+	if save_service:
+		save_service.call("note_session_ended")
+		save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("BENCH_SEAT_OK")
+		print("BENCH_REST_OK")
+	return failed
+
+
+func _rested_hands_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "rested hands game state")
+	failed += _assert(game_state.has_method("debug_complete_bench_sit_sec"), "rested hands helpers on GameState")
+	failed += _assert(
+		is_equal_approx(float(game_state.call("param_float", "RESTED_SIT_SEC", -1.0)), 20.0),
+		"RESTED_SIT_SEC param"
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult idle")
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	failed += _assert(int(game_state.get("rested_until_ms")) > Time.get_ticks_msec(), "20s sit sets rested window")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.15), "20s sit grants rested mult")
+	var mult: float = float(game_state.call("keeper_rested_mult"))
+	game_state.set("harvest_accum", {})
+	var control: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper"))))
+	game_state.set("harvest_accum", {})
+	var boosted: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper")) * mult)
+	)
+	var boosted_accum: float = float((game_state.get("harvest_accum") as Dictionary).get("wood", 0.0))
+	failed += _assert(boosted > control or boosted_accum > 0.05, "rested mult banks more wood than control")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() - 1)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult expires")
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.call("debug_complete_bench_sit_sec", 19.0)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "19s sit grants nothing")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() + 60000)
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	var until_after: int = int(game_state.get("rested_until_ms"))
+	var remaining_ms: int = until_after - Time.get_ticks_msec()
+	failed += _assert(remaining_ms > 115000 and remaining_ms < 125000, "second sit resets rested timer to 120s")
+	game_state.set("harvest_accum", {})
+	var elaia_grant: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.set("harvest_accum", {})
+	var elaia_again: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	failed += _assert(elaia_grant == elaia_again, "elaia harvest ignores rested mult")
+	game_state.call("clear_rested_hands_bench_buff")
+	return failed
+
+
+func _bench_sayings_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "bench sayings game state")
+	var content: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(content != null, "bench sayings content strings")
+	if content == null:
+		return failed + 1
+	for i: int in range(1, 11):
+		var key: String = "bench_saying_%02d" % i
+		var line: String = str(content.call("get_text", key))
+		failed += _assert(line != key and line.length() > 4, "bench saying %s loaded" % key)
+	var seen: Array[String] = []
+	var grab: Callable = func(t: String) -> void:
+		seen.append(t)
+	game_state.connect("status_message", grab)
+	game_state.call("on_keeper_bench_sat")
+	game_state.disconnect("status_message", grab)
+	failed += _assert(seen.size() == 1, "bench sit toasts one line")
+	if seen.size() == 1:
+		var ok: bool = false
+		for j: int in range(1, 11):
+			if seen[0] == str(content.call("get_text", "bench_saying_%02d" % j)):
+				ok = true
+				break
+		failed += _assert(ok, "bench saying line is from lore table")
+	return failed
+
+
+func _bench_dusk_props_ok(bench: Node2D, keeper: Node2D) -> int:
+	var failed: int = 0
+	if bench == null or keeper == null:
+		return _assert(false, "bench dusk props actors")
+	HubTimePhase.set_driven_phase01(0.1)
+	keeper.call("_emit_keeper_bench_sat")
+	var cup: CanvasItem = bench.get_node_or_null("DuskCup") as CanvasItem
+	var steam: CanvasItem = bench.get_node_or_null("DuskSteam") as CanvasItem
+	var blanket: CanvasItem = bench.get_node_or_null("DuskBlanket") as CanvasItem
+	failed += _assert(cup != null and steam != null and blanket != null, "dusk prop nodes exist")
+	if cup != null:
+		failed += _assert(not cup.visible, "daylight hides dusk props on sit")
+	HubTimePhase.set_driven_phase01(0.40)
+	keeper.call("_emit_keeper_bench_sat")
+	if cup != null:
+		failed += _assert(cup.visible and cup.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "dusk cup visible nearest")
+		failed += _assert(is_equal_approx(cup.scale.x, 1.0) and is_equal_approx(cup.position.x, 46.0), "dusk cup placement")
+	if blanket != null:
+		failed += _assert(blanket.visible, "dusk blanket visible")
+		failed += _assert(is_equal_approx(blanket.position.x, -74.0), "dusk blanket placement")
+	if steam != null:
+		failed += _assert(steam.visible, "dusk steam visible")
+		failed += _assert(is_equal_approx(steam.position.x, 48.0), "dusk steam placement")
+	keeper.call("_emit_keeper_bench_stood")
+	if cup != null:
+		failed += _assert(not cup.visible and not steam.visible and not blanket.visible, "stood hides dusk props")
+	HubTimePhase.set_driven_phase01(0.0)
+	return failed
+
+
+func _wait_bench_rest_bed_tween(tree_root: Window) -> int:
+	var failed: int = 0
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if game_audio == null:
+		return _assert(false, "bench rest tween audio")
+	var deadline: int = Time.get_ticks_msec() + 1700
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
 	return failed
 
 

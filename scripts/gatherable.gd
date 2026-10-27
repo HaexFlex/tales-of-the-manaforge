@@ -328,7 +328,7 @@ func on_channel_cancel() -> void:
 
 
 func on_harvest_pulse() -> int:
-	var grant: int = GameState.apply_harvest_pulse(resource_id)
+	var grant: int = GameState.apply_harvest_pulse(resource_id, GameState.keeper_rested_mult())
 	GameAudio.play_gather(resource_id)
 	var item: String = ContentStrings.get_text("hud_%s" % String(resource_id))
 	GameState.status_message.emit(

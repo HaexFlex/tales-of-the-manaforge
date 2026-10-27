@@ -726,6 +726,17 @@
       "base_db": 0.0,
       "play_offset_db": -6.0,
       "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 3 (Eb6). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
+    },
+    "sfx_bench_rest": {
+      "file": "sfx_bench_rest.ogg",
+      "path": "res://assets/audio/sfx_bench_rest.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 2.5,
+      "file_peak_dbfs": -14.3,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "SPRINT, Haex go 2026-10-27. Once after Keeper sit_down on Bench; Music_HubBed (or Music) +2 dB tween 1.5 s while seated, back over 1.5 s on stand_up; no retrigger within 10 s. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_BENCH_REST.md."
     }
   },
   "legacy": [

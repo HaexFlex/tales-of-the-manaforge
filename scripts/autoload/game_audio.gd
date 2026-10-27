@@ -18,6 +18,10 @@ const HUB_AMBIENCE_FILTER_DISCONTINUITY_SEC: float = 2.0
 const HUB_DAY_NIGHT_CYCLE_SEC: float = 1200.0
 const MUSIC_BUS_DEFAULT_DB: float = -9.0
 const SFX_BUS_DEFAULT_DB: float = 0.0
+## PLACEHOLDER — bench idle sit bed swell (see CUE_NOTES_BENCH_REST.md).
+const BENCH_REST_BED_LIFT_DB: float = 2.0
+const BENCH_REST_BED_TWEEN_SEC: float = 1.5
+const BENCH_REST_RETRIGGER_SEC: float = 10.0
 const SFX_BUS_NAMES: PackedStringArray = ["SFX_UI", "SFX_World", "SFX_Progress"]
 const SFX_POOL_SIZE: int = 4
 const PROGRESS_POOL_SIZE: int = 2
@@ -88,6 +92,9 @@ var _gather_pitch_max: float = 1.04
 var _gather_gap_sec: float = 0.9
 var _fruit_ready_delay_sec: float = 0.7
 var _last_gather_msec: int = -100000000
+var _bench_rest_last_play_msec: int = -100000000
+var _bench_rest_bed_lift_db: float = 0.0
+var _bench_rest_bed_tween: Tween
 
 
 func _ready() -> void:
@@ -215,6 +222,43 @@ func music_bed_volume_db() -> float:
 	if _music_player == null:
 		return 0.0
 	return _music_player.volume_db
+
+
+func bench_rest_bed_lift_db() -> float:
+	return _bench_rest_bed_lift_db
+
+
+func on_keeper_bench_sat() -> void:
+	var now: int = Time.get_ticks_msec()
+	if now - _bench_rest_last_play_msec >= int(BENCH_REST_RETRIGGER_SEC * 1000.0):
+		play(&"sfx_bench_rest", 0.0, 1.0)
+		_bench_rest_last_play_msec = now
+	_tween_bench_rest_bed(BENCH_REST_BED_LIFT_DB)
+
+
+func on_keeper_bench_stood() -> void:
+	_tween_bench_rest_bed(0.0)
+
+
+func _tween_bench_rest_bed(target_lift_db: float) -> void:
+	if _bench_rest_bed_tween != null and _bench_rest_bed_tween.is_valid():
+		_bench_rest_bed_tween.kill()
+	var span: float = maxf(BENCH_REST_BED_TWEEN_SEC, 0.0)
+	if span <= 0.0001 or is_equal_approx(_bench_rest_bed_lift_db, target_lift_db):
+		_apply_bench_rest_bed_lift(target_lift_db)
+		return
+	_bench_rest_bed_tween = create_tween()
+	_bench_rest_bed_tween.tween_method(_apply_bench_rest_bed_lift, _bench_rest_bed_lift_db, target_lift_db, span)
+
+
+func _apply_bench_rest_bed_lift(value: float) -> void:
+	_bench_rest_bed_lift_db = value
+	_sync_music_player_volume()
+
+
+func _sync_music_player_volume() -> void:
+	if _music_player:
+		_music_player.volume_db = _duck_db + _bench_rest_bed_lift_db
 
 
 func _connect_game_signals() -> void:
@@ -519,8 +563,7 @@ func _tween_duck(target_db: float, seconds: float) -> void:
 
 func _apply_duck_db(value: float) -> void:
 	_duck_db = value
-	if _music_player:
-		_music_player.volume_db = _duck_db
+	_sync_music_player_volume()
 
 
 func _resolve_hub_stream(primary_path: String) -> AudioStream:
@@ -567,14 +610,14 @@ func _play_hub_stream(stream: AudioStream, bus: String) -> void:
 	if player.playing and player.stream == stream:
 		_hub_playing = true
 		_ensure_music_bus_audible()
-		player.volume_db = _duck_db
 		player.bus = bus
+		_sync_music_player_volume()
 		return
 	_force_stream_loop(stream)
 	_ensure_music_bus_audible()
 	player.stream = stream
 	player.bus = bus
-	player.volume_db = _duck_db
+	_sync_music_player_volume()
 	player.pitch_scale = 1.0
 	player.play()
 	_hub_playing = true

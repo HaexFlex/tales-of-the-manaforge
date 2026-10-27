@@ -51,6 +51,23 @@ static func is_dawn_band(phase01: float) -> bool:
 	return p >= 0.82 and p < 0.98
 
 
+static func is_night_band(phase01: float) -> bool:
+	return firefly_twinkle_night(phase01)
+
+
+static func is_dusk() -> bool:
+	return is_dusk_band(sample_phase01())
+
+
+static func is_night() -> bool:
+	return is_night_band(sample_phase01())
+
+
+static func is_dusk_or_night() -> bool:
+	var p: float = wrap_phase01(sample_phase01())
+	return p >= 0.32 and p < 0.82
+
+
 ## 0 in daylight, ramps through dusk, full at night, fades before dawn.
 static func firefly_strength(phase01: float) -> float:
 	var p: float = wrap_phase01(phase01)

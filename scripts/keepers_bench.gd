@@ -1,6 +1,8 @@
 extends Area2D
 class_name KeepersBench
 const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
+## KeeperSeat marks the seat top edge; feet for the idle sit land SEAT_FEET_BELOW_TOP_PX lower.
+const SEAT_FEET_BELOW_TOP_PX: float = 23.0
 ## Hub handcraft station. The Keeper walks to KeeperStand, then the bench opens.
 ## Idle and busy frames are the 192px bench art, feet on the node origin.
 
@@ -12,6 +14,7 @@ const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
 @onready var sprite: Sprite2D = get_node_or_null("Sprite") as Sprite2D
 @onready var placeholder: Polygon2D = get_node_or_null("Placeholder") as Polygon2D
 @onready var keeper_stand: Marker2D = get_node_or_null("KeeperStand") as Marker2D
+@onready var keeper_seat: Marker2D = get_node_or_null("KeeperSeat") as Marker2D
 @onready var badge_art: Sprite2D = get_node_or_null("BadgeArt") as Sprite2D
 
 var _awaiting_arrival: bool = false
@@ -19,6 +22,9 @@ var _awaiting_actor: String = ""
 var _busy: bool = false
 var _title_hover: bool = false
 var _bars: BatchWorldBars
+var _dusk_cup: Sprite2D
+var _dusk_steam: AnimatedSprite2D
+var _dusk_blanket: Sprite2D
 
 
 func _ready() -> void:
@@ -40,6 +46,7 @@ func _ready() -> void:
 	mouse_entered.connect(_on_title_hover.bind(true))
 	mouse_exited.connect(_on_title_hover.bind(false))
 	call_deferred("_bind_keeper")
+	_setup_dusk_props()
 	_apply_walk_box()
 
 
@@ -79,6 +86,12 @@ func stand_global() -> Vector2:
 	if keeper_stand:
 		return keeper_stand.global_position
 	return global_position + Vector2(0, 40)
+
+
+func seat_global() -> Vector2:
+	if keeper_seat:
+		return keeper_seat.global_position + Vector2(0.0, SEAT_FEET_BELOW_TOP_PX)
+	return stand_global()
 
 
 func wisp_orbit_draws_in_front() -> bool:
@@ -130,8 +143,52 @@ func set_busy(busy: bool) -> void:
 	_apply_frame(busy)
 
 
+func _setup_dusk_props() -> void:
+	_dusk_cup = Sprite2D.new()
+	_dusk_cup.name = "DuskCup"
+	_dusk_cup.position = Vector2(46.0, -100.0)
+	_dusk_cup.texture = load("res://assets/art/hub/bench_props/teacup_8x8.png") as Texture2D
+	_dusk_cup.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_dusk_cup.scale = Vector2.ONE
+	_dusk_cup.visible = false
+	add_child(_dusk_cup)
+	_dusk_blanket = Sprite2D.new()
+	_dusk_blanket.name = "DuskBlanket"
+	_dusk_blanket.position = Vector2(-74.0, -96.0)
+	_dusk_blanket.texture = load("res://assets/art/hub/bench_props/blanket_draped_30x20.png") as Texture2D
+	_dusk_blanket.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_dusk_blanket.scale = Vector2.ONE
+	_dusk_blanket.visible = false
+	add_child(_dusk_blanket)
+	_dusk_steam = AnimatedSprite2D.new()
+	_dusk_steam.name = "DuskSteam"
+	_dusk_steam.position = Vector2(48.0, -107.0)
+	_dusk_steam.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_dusk_steam.scale = Vector2.ONE
+	_dusk_steam.visible = false
+	var frames := SpriteFrames.new()
+	var steam_tex: Texture2D = load("res://assets/art/hub/bench_props/teacup_steam_strip_5x7x4.png") as Texture2D
+	if steam_tex != null:
+		frames.add_animation(&"steam")
+		frames.set_animation_speed(&"steam", 1.0 / 0.15)
+		frames.set_animation_loop(&"steam", true)
+		for i: int in range(4):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = steam_tex
+			atlas.region = Rect2(float(i * 5), 0.0, 5.0, 7.0)
+			frames.add_frame(&"steam", atlas)
+		_dusk_steam.sprite_frames = frames
+		_dusk_steam.animation = &"steam"
+		_dusk_steam.play(&"steam")
+	add_child(_dusk_steam)
+
+
 func _bind_keeper() -> void:
 	var keeper: Node = get_tree().get_first_node_in_group("keeper")
+	if keeper and keeper.has_signal("keeper_bench_sat") and not keeper.is_connected("keeper_bench_sat", _on_keeper_bench_sat_props):
+		keeper.connect("keeper_bench_sat", _on_keeper_bench_sat_props)
+	if keeper and keeper.has_signal("keeper_bench_stood") and not keeper.is_connected("keeper_bench_stood", _on_keeper_bench_stood_props):
+		keeper.connect("keeper_bench_stood", _on_keeper_bench_stood_props)
 	if keeper and keeper.has_signal("arrived") and not keeper.arrived.is_connected(_on_keeper_arrived):
 		keeper.arrived.connect(_on_keeper_arrived)
 	var elaia: Node = get_tree().get_first_node_in_group("elaia")
@@ -259,6 +316,29 @@ func try_open() -> bool:
 	if not keeper_at_stand():
 		return false
 	return _open_panel()
+
+
+func _on_keeper_bench_sat_props() -> void:
+	if not HubTimePhase.is_dusk_or_night():
+		return
+	_set_dusk_props_visible(true)
+
+
+func _on_keeper_bench_stood_props() -> void:
+	_set_dusk_props_visible(false)
+
+
+func _set_dusk_props_visible(show_props: bool) -> void:
+	if _dusk_cup:
+		_dusk_cup.visible = show_props
+	if _dusk_blanket:
+		_dusk_blanket.visible = show_props
+	if _dusk_steam:
+		_dusk_steam.visible = show_props
+		if show_props:
+			_dusk_steam.play(&"steam")
+		else:
+			_dusk_steam.stop()
 
 
 func _open_panel() -> bool:
