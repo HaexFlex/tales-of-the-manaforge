@@ -162,6 +162,15 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			get_viewport().set_input_as_handled()
 
 
+func lucky_spark_local_pos() -> Vector2:
+	## Art top minus 8 px (world Y up).
+	if sprite == null or sprite.texture == null:
+		return Vector2(0.0, -8.0)
+	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	var vis_y: float = frame.y * sprite.scale.y
+	return Vector2(0.0, -vis_y - 8.0)
+
+
 func work_footprint() -> Rect2:
 	## Wood uses the trunk collider. Stone and berries use the sprite rect.
 	var trunk: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
