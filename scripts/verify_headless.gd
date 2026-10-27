@@ -261,6 +261,16 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_INTEGRATION_R1") == "1":
+		var integration_r1_failed: int = await _integration_r1_ok(tree_root, game_state, game_audio)
+		if integration_r1_failed > 0:
+			print("INTEGRATION_R1_FAIL: %d" % integration_r1_failed)
+			quit(1)
+		else:
+			print("INTEGRATION_R1_OK")
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		failed += _lucky_harvest_ok(game_state)
@@ -26587,4 +26597,106 @@ func _sprint_r3_tending_ok(game_state: Node, game_audio: Node) -> int:
 		failed += _assert(breath_ok, "ascend breath plays before sting")
 	if breath_ok and failed == 0:
 		print("ASCEND_BREATH_OK")
+	return failed
+
+
+func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return failed + 1
+	# (a) Rested multiplier scales base yield before the lucky-harvest roll (gather pulse path).
+	game_state.call("reset_for_new_game")
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() + 120000)
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	var saved_mult: Variant = params.get("LUCKY_HARVEST_MULT", 2)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	params["LUCKY_HARVEST_MULT"] = 2
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var rested_rate: float = float(game_state.call("keeper_rested_mult"))
+	failed += _assert(is_equal_approx(rested_rate, 1.15), "integration rested mult active")
+	var lucky_bonus: int = 0
+	var on_lucky := func(_rid: StringName, bonus: int) -> void:
+		lucky_bonus = bonus
+	if not game_state.lucky_harvest.is_connected(on_lucky):
+		game_state.lucky_harvest.connect(on_lucky)
+	var grant_rested: int = int(game_state.call("apply_harvest_pulse", &"wood", rested_rate))
+	var wood_rested: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(grant_rested > 0, "rested gather pulse grants wood")
+	failed += _assert(lucky_bonus == grant_rested, "lucky bonus uses rested-scaled grant")
+	failed += _assert(wood_rested == grant_rested + lucky_bonus, "wood equals grant plus lucky bonus")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	lucky_bonus = 0
+	var grant_plain: int = int(game_state.call("apply_harvest_pulse", &"wood", 1.0))
+	var wood_plain: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(grant_rested > grant_plain or wood_rested > wood_plain, "rested grant exceeds plain grant")
+	if game_state.lucky_harvest.is_connected(on_lucky):
+		game_state.lucky_harvest.disconnect(on_lucky)
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	params["LUCKY_HARVEST_MULT"] = saved_mult
+	game_state.set("params", params)
+	game_state.call("clear_rested_hands_bench_buff")
+	# (b) Bench dusk props follow the real hub clock.
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	if save_service:
+		save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed != null:
+		var live: Node = packed.instantiate()
+		tree_root.add_child(live)
+		await process_frame
+		await process_frame
+		var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+		var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+		failed += _bench_dusk_props_ok(bench, keeper)
+		live.free()
+		if save_service:
+			save_service.call("note_session_ended")
+			save_service.set("boot_intent", "auto")
+	else:
+		failed += _assert(false, "integration hub scene loads")
+	# (c) Fireflies and twinkle SFX active at night via HubTimePhase.
+	HubTimePhase.set_driven_phase01(0.55)
+	failed += _assert(HubTimePhase.firefly_twinkle_night(0.55), "night band for twinkle")
+	failed += _assert(HubTimePhase.firefly_strength(0.55) > 0.9, "firefly strength at night")
+	GladeFireflies.reset_twinkle_state()
+	var fx := GladeFireflies.new()
+	tree_root.add_child(fx)
+	fx.setup(Rect2(0.0, 0.0, 320.0, 240.0))
+	await process_frame
+	var warm: CPUParticles2D = fx.get_node_or_null("MotesWarm") as CPUParticles2D
+	failed += _assert(warm != null and warm.emitting, "glade fireflies emit at night")
+	var cue_night: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, Time.get_ticks_msec(), 1)
+	failed += _assert(cue_night == "sfx_firefly_twinkle_1", "twinkle cue allowed at night")
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.call("play", StringName(cue_night), 0.0, 1.0)
+		failed += _assert(bool(game_audio.call("did_play", StringName(cue_night))), "twinkle cue plays at night")
+	fx.free()
+	HubTimePhase.set_driven_phase01(0.0)
+	# (d) Morning gift and wisp favourite in one session without cross-talk.
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", "")
+	game_state.set("wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	var gift: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(gift == 10, "morning gift grants in session")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "morning gift stamps day")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "favourite set in same session")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 0, "gift still once per day with favourite active")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", int(game_state.get("wood")))
+	var wood_before_fav: int = int(game_state.get("wood"))
+	game_state.call("apply_wisp_pulses", 400.0)
+	failed += _assert(int(game_state.get("wood")) > wood_before_fav, "favourite wisp harvest in same session")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "wisp harvest did not steal gift day")
+	game_state.set("_morning_gift_day_override", "")
 	return failed
