@@ -7,6 +7,7 @@ const WEATHER_STATES: Array[StringName] = [
 	&"clear", &"soft_rain", &"mist", &"light_snow", &"blossom_fall",
 ]
 const VIEW_NAMES: Array[String] = ["center", "ne", "nw", "se", "sw"]
+const PARTICLE_PREPROCESS_SEC: float = 4.5
 
 
 func _initialize() -> void:
@@ -50,10 +51,14 @@ func _run() -> void:
 		quit(1)
 		return
 	var cam_lines: PackedStringArray = PackedStringArray()
+	var only_weather: String = OS.get_environment("MANAFORGE_CAPTURE_ONLY_WEATHER")
 	for weather: StringName in WEATHER_STATES:
+		if only_weather != "" and String(weather) != only_weather:
+			continue
 		hub_weather.call("force_state_for_debug", weather)
 		for view_name: String in VIEW_NAMES:
 			cam.position = _camera_pos_for(hub, view_name)
+			_preprocess_weather_particles(hub)
 			for _f: int in 10:
 				await process_frame
 			var cam_pos: Vector2 = cam.position
@@ -67,6 +72,10 @@ func _run() -> void:
 					quit(1)
 					return
 			print("CAPTURE_OK %s" % fname)
+	if only_weather != "":
+		print("CAPTURE_ALL_OK")
+		quit(0)
+		return
 	for dir: String in OUT_DIRS:
 		var cams_path: String = "%s/cams.txt" % dir
 		var cams_file := FileAccess.open(cams_path, FileAccess.WRITE)
@@ -79,6 +88,22 @@ func _run() -> void:
 		cams_file.close()
 	print("CAPTURE_ALL_OK")
 	quit(0)
+
+
+func _preprocess_weather_particles(hub: Node) -> void:
+	var fx: Node = hub.get_node_or_null("World/GladeWeatherFx")
+	if fx == null:
+		return
+	_preprocess_particles_under(fx)
+
+
+func _preprocess_particles_under(node: Node) -> void:
+	if node is CPUParticles2D:
+		var motes: CPUParticles2D = node as CPUParticles2D
+		motes.preprocess = PARTICLE_PREPROCESS_SEC
+		motes.restart()
+	for child: Node in node.get_children():
+		_preprocess_particles_under(child)
 
 
 func _camera_pos_for(hub: Node, view_name: String) -> Vector2:
