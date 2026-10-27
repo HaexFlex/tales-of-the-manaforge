@@ -67,6 +67,28 @@ var _pose_finish_left: float = 0.0
 ## Runestone pluck pauses on this berry frame (hand extended). Data-free: the long mid hold.
 const BERRY_REACH_FRAME: int = 4
 
+enum IdleMomentKind { NONE, STRETCH, LOOK_TREE, SIT }
+const IDLE_MOMENT_WAIT_BASE_SEC: float = 20.0
+const IDLE_MOMENT_WAIT_JITTER_SEC: float = 8.0
+const IDLE_MOMENT_STRETCH_SEC: float = 2.4
+const IDLE_MOMENT_LOOK_SEC: float = 3.0
+const IDLE_MOMENT_SIT_SEC: float = 2.6
+const IDLE_MOMENT_FRAME_MS: float = 100.0
+const IDLE_MOMENT_STRETCH_FRAMES: int = 11
+const IDLE_MOMENT_LOOK_FRAMES: int = 17
+const IDLE_MOMENT_SIT_DOWN_FRAMES: int = 6
+const IDLE_MOMENT_SIT_BREATHE_FRAMES: int = 16
+const IDLE_MOMENT_STAND_UP_FRAMES: int = 6
+
+enum IdleMomentSitPhase { NONE, DOWN, BREATHE, STAND_UP }
+
+var _idle_moment_kind: int = IdleMomentKind.NONE
+var _idle_moment_left: float = 0.0
+var _idle_moment_face: String = ""
+var _idle_moment_sit_phase: int = IdleMomentSitPhase.NONE
+var _idle_stand_accum: float = 0.0
+var _idle_moment_wait_sec: float = -1.0
+
 static var _spots_cache: Dictionary = {}
 
 ## Empty on the Keeper. Elaia sets "elaia" so focus can find her without the keeper group.
@@ -221,6 +243,7 @@ func _ready() -> void:
 	_on_selection_changed()
 	_apply_body_box()
 	if actor_id() == "keeper":
+		sprite.animation_finished.connect(_on_idle_moment_animation_finished)
 		apply_keeper_presence()
 
 
@@ -276,6 +299,11 @@ func _build_frames() -> SpriteFrames:
 	_add_timed(frames, &"harvest_water_east", "water/east", WATER_MS)
 	_add_timed(frames, &"harvest_water_west", "water/west", WATER_MS)
 	_add_timed(frames, &"station_work_north", "station/north", STATION_MS)
+	_add_timed_uniform(frames, &"idle_stretch_south", "idle_moments/stretch/south", IDLE_MOMENT_STRETCH_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_look_south", "idle_moments/look/south", IDLE_MOMENT_LOOK_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_sit_down_south", "idle_moments/sit_down/south", IDLE_MOMENT_SIT_DOWN_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_sit_breathe_south", "idle_moments/sit_breathe/south", IDLE_MOMENT_SIT_BREATHE_FRAMES, IDLE_MOMENT_FRAME_MS, true)
+	_add_timed_uniform(frames, &"idle_stand_up_south", "idle_moments/stand_up/south", IDLE_MOMENT_STAND_UP_FRAMES, IDLE_MOMENT_FRAME_MS, false)
 	_add_anim(frames, &"walk_back", [
 		"res://assets/art/keeper/keeper_walk_back_0000.png",
 		"res://assets/art/keeper/keeper_walk_back_0001.png",
@@ -342,6 +370,20 @@ func _add_timed(frames: SpriteFrames, anim: StringName, folder: String, duration
 		frames.add_frame(anim, tex, durations[i])
 
 
+func _add_timed_uniform(frames: SpriteFrames, anim: StringName, folder: String, frame_count: int, ms: float, loop: bool) -> void:
+	var durations: Array[float] = []
+	durations.resize(frame_count)
+	for i: int in range(frame_count):
+		durations[i] = ms
+	frames.add_animation(anim)
+	frames.set_animation_loop(anim, loop)
+	frames.set_animation_speed(anim, 1000.0)
+	for i: int in range(frame_count):
+		var path := "res://assets/art/keeper/anim/%s/frame_%04d.png" % [folder, i]
+		var tex: Texture2D = load(path) as Texture2D
+		frames.add_frame(anim, tex, ms)
+
+
 func _physics_process(delta: float) -> void:
 	if GameState.is_world_frozen():
 		if _moving or _channel_kind != ChannelKind.NONE:
@@ -392,6 +434,7 @@ func _physics_process(delta: float) -> void:
 	velocity = Vector2.ZERO
 	move_and_slide()
 	_tick_pose_finish(delta)
+	_tick_idle_moments(delta)
 	_update_anim(Vector2.ZERO)
 	_tick_channel(delta)
 	_remember_keeper_pose()
@@ -399,6 +442,9 @@ func _physics_process(delta: float) -> void:
 
 func _update_anim(intended: Vector2) -> void:
 	if sprite == null:
+		return
+	if _idle_moment_kind != IdleMomentKind.NONE:
+		_apply_idle_moment_visual()
 		return
 	sprite.flip_h = false
 	if _moving and intended.length_squared() > 0.01:
@@ -509,6 +555,8 @@ func _actor_in_this_scene() -> bool:
 
 func _remember_keeper_pose() -> void:
 	if actor_id() != "keeper" or not visible:
+		return
+	if _idle_moment_kind != IdleMomentKind.NONE:
 		return
 	if not has_node("/root/GameState"):
 		return
@@ -874,6 +922,7 @@ func has_station_work_spot() -> bool:
 
 
 func command_work(target: Node2D, type_id: String, claim_key: String = "") -> void:
+	_cancel_idle_moment()
 	if target == null:
 		return
 	if GameState.is_world_frozen():
@@ -905,6 +954,7 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 
 
 func command_station(station: Node2D) -> void:
+	_cancel_idle_moment()
 	if station == null:
 		return
 	if GameState.is_world_frozen():
@@ -946,6 +996,7 @@ func end_work_loop() -> void:
 
 
 func begin_reach_pose() -> void:
+	_cancel_idle_moment()
 	## Berry pluck, frozen on the hand-extended frame while a confirm is open.
 	_pose_finish_left = 0.0
 	_pose_hold = true
@@ -1126,6 +1177,7 @@ func _ensure_work_spot(target: Node2D, type_id: String) -> Vector2:
 
 func gather_at(spot: Vector2) -> void:
 	## Drop the current job, then walk to the tree if this body is the one on screen.
+	_cancel_idle_moment()
 	halt()
 	cancel_reach_pose()
 	_face_on_arrive = "north"
@@ -1145,7 +1197,210 @@ func _present_in_clearing() -> bool:
 	return GameState.keeper_area == "clearing"
 
 
+func _keeper_standing_idle() -> bool:
+	if actor_id() != "keeper" or not visible:
+		return false
+	if GameState.is_world_frozen():
+		return false
+	if _moving or _water_pending or _pose_hold or _pose_finish_left > 0.0:
+		return false
+	if _channel_kind != ChannelKind.NONE or _work_loop:
+		return false
+	if _has_work_spot:
+		return false
+	if _should_work_loop():
+		return false
+	var task: Dictionary = read_published_task()
+	if bool(task.get("working", false)):
+		return false
+	return true
+
+
+func _schedule_idle_moment_wait() -> void:
+	_idle_moment_wait_sec = IDLE_MOMENT_WAIT_BASE_SEC + randf() * IDLE_MOMENT_WAIT_JITTER_SEC
+	_idle_stand_accum = 0.0
+
+
+func _player_input_active() -> bool:
+	if Input.is_anything_pressed():
+		return true
+	return false
+
+
+func _facing_toward_manatree() -> String:
+	var tree := _find_manatree()
+	if tree == null:
+		return "north"
+	return facing_for_velocity(tree.global_position - global_position, _facing)
+
+
+func _idle_moment_clips_ready() -> bool:
+	return sprite != null and sprite.sprite_frames != null and sprite.sprite_frames.has_animation(&"idle_stretch_south")
+
+
+func _start_idle_moment(kind: int) -> void:
+	_idle_moment_kind = kind
+	_idle_moment_face = ""
+	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
+	if _idle_moment_clips_ready():
+		_facing = "south"
+	match kind:
+		IdleMomentKind.STRETCH:
+			_idle_moment_left = IDLE_MOMENT_STRETCH_SEC
+		IdleMomentKind.LOOK_TREE:
+			if not _idle_moment_clips_ready():
+				_idle_moment_face = _facing_toward_manatree()
+			_idle_moment_left = IDLE_MOMENT_LOOK_SEC
+		IdleMomentKind.SIT:
+			_idle_moment_left = IDLE_MOMENT_SIT_SEC
+			if _idle_moment_clips_ready():
+				_idle_moment_sit_phase = IdleMomentSitPhase.DOWN
+		_:
+			_idle_moment_kind = IdleMomentKind.NONE
+			_idle_moment_left = 0.0
+			return
+	_apply_idle_moment_visual()
+
+
+func _pick_idle_moment_kind() -> int:
+	var roll: int = randi() % 3
+	match roll:
+		0:
+			return IdleMomentKind.STRETCH
+		1:
+			return IdleMomentKind.LOOK_TREE
+		_:
+			return IdleMomentKind.SIT
+
+
+func _play_idle_moment_clip(anim: StringName) -> void:
+	sprite.flip_h = false
+	sprite.speed_scale = 1.0
+	sprite.offset = OFFSET_BODY
+	if sprite.animation != anim:
+		sprite.play(anim)
+
+
+func _apply_idle_moment_visual() -> void:
+	if sprite == null:
+		return
+	if _idle_moment_clips_ready():
+		match _idle_moment_kind:
+			IdleMomentKind.STRETCH:
+				_play_idle_moment_clip(&"idle_stretch_south")
+			IdleMomentKind.LOOK_TREE:
+				_play_idle_moment_clip(&"idle_look_south")
+			IdleMomentKind.SIT:
+				match _idle_moment_sit_phase:
+					IdleMomentSitPhase.DOWN:
+						_play_idle_moment_clip(&"idle_sit_down_south")
+					IdleMomentSitPhase.BREATHE:
+						_play_idle_moment_clip(&"idle_sit_breathe_south")
+					IdleMomentSitPhase.STAND_UP:
+						_play_idle_moment_clip(&"idle_stand_up_south")
+		return
+	var face: String = _idle_moment_face if _idle_moment_face != "" else _facing
+	match _idle_moment_kind:
+		IdleMomentKind.STRETCH:
+			_play_loop(StringName("idle_%s" % face), 1.0, OFFSET_BODY)
+		IdleMomentKind.LOOK_TREE:
+			sprite.flip_h = false
+			sprite.speed_scale = 1.0
+			sprite.offset = OFFSET_BODY
+			var look_anim := StringName("idle_%s" % face)
+			if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(look_anim):
+				if sprite.animation != look_anim:
+					sprite.play(look_anim)
+					sprite.frame = 0
+					sprite.pause()
+		IdleMomentKind.SIT:
+			sprite.flip_h = false
+			sprite.speed_scale = 1.0
+			sprite.offset = OFFSET_BODY
+			var sit_anim := StringName("idle_%s" % face)
+			if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(sit_anim):
+				if sprite.animation != sit_anim:
+					sprite.play(sit_anim)
+					sprite.frame = mini(2, sprite.sprite_frames.get_frame_count(sit_anim) - 1)
+					sprite.pause()
+
+
+func _clear_idle_moment_state() -> void:
+	_idle_moment_kind = IdleMomentKind.NONE
+	_idle_moment_left = 0.0
+	_idle_moment_face = ""
+	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
+	if sprite != null:
+		sprite.flip_h = false
+		sprite.speed_scale = 1.0
+		sprite.offset = OFFSET_BODY
+	_schedule_idle_moment_wait()
+
+
+func _begin_sit_stand_up() -> void:
+	if _idle_moment_kind != IdleMomentKind.SIT or not _idle_moment_clips_ready():
+		_clear_idle_moment_state()
+		return
+	_idle_moment_sit_phase = IdleMomentSitPhase.STAND_UP
+	_play_idle_moment_clip(&"idle_stand_up_south")
+
+
+func _on_idle_moment_animation_finished() -> void:
+	if actor_id() != "keeper" or _idle_moment_kind == IdleMomentKind.NONE:
+		return
+	if not _idle_moment_clips_ready():
+		return
+	if _idle_moment_kind != IdleMomentKind.SIT:
+		return
+	match _idle_moment_sit_phase:
+		IdleMomentSitPhase.DOWN:
+			_idle_moment_sit_phase = IdleMomentSitPhase.BREATHE
+			_apply_idle_moment_visual()
+		IdleMomentSitPhase.STAND_UP:
+			_clear_idle_moment_state()
+			_update_anim(Vector2.ZERO)
+
+
+func _cancel_idle_moment() -> void:
+	if _idle_moment_kind == IdleMomentKind.NONE:
+		return
+	_clear_idle_moment_state()
+
+
+func _tick_idle_moments(delta: float) -> void:
+	if actor_id() != "keeper":
+		return
+	if _idle_moment_kind != IdleMomentKind.NONE:
+		if not _keeper_standing_idle() or _player_input_active():
+			_cancel_idle_moment()
+			_update_anim(Vector2.ZERO)
+			return
+		if _idle_moment_kind == IdleMomentKind.SIT and _idle_moment_clips_ready():
+			if _idle_moment_sit_phase == IdleMomentSitPhase.BREATHE:
+				_idle_moment_left -= delta
+				if _idle_moment_left <= 0.0:
+					_begin_sit_stand_up()
+			elif _idle_moment_sit_phase == IdleMomentSitPhase.STAND_UP:
+				pass
+			return
+		_idle_moment_left -= delta
+		if _idle_moment_left <= 0.0:
+			_clear_idle_moment_state()
+			_update_anim(Vector2.ZERO)
+		return
+	if not _keeper_standing_idle():
+		_idle_stand_accum = 0.0
+		return
+	if _idle_moment_wait_sec < 0.0:
+		_schedule_idle_moment_wait()
+	_idle_stand_accum += delta
+	if _idle_stand_accum < _idle_moment_wait_sec:
+		return
+	_start_idle_moment(_pick_idle_moment_kind())
+
+
 func halt() -> void:
+	_cancel_idle_moment()
 	_moving = false
 	_route_points.clear()
 	_pending_interact = null
@@ -1157,6 +1412,7 @@ func halt() -> void:
 
 
 func move_to(world_pos: Vector2, interact: Node = null) -> void:
+	_cancel_idle_moment()
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return
@@ -1207,6 +1463,7 @@ static func bench_approach_route(from: Vector2, spot: Vector2, footprint: Rect2)
 
 
 func start_harvest_channel(node: Gatherable) -> void:
+	_cancel_idle_moment()
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return
@@ -1228,6 +1485,7 @@ func start_harvest_channel(node: Gatherable) -> void:
 
 
 func start_water_channel(tree: Manatree) -> void:
+	_cancel_idle_moment()
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return
@@ -1432,6 +1690,9 @@ func _try_interact() -> void:
 
 
 func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+	if _idle_moment_kind != IdleMomentKind.NONE:
+		_cancel_idle_moment()
+		_update_anim(Vector2.ZERO)
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
 		if not mb.pressed:
