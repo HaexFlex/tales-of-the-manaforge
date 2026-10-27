@@ -10,7 +10,6 @@ const VIEW_NAMES: Array[String] = ["center", "ne", "nw", "se", "sw"]
 const PARTICLE_PREPROCESS_SEC: float = 9.0
 const CAPTURE_WARMUP_FRAMES: int = 30
 const VIEW_FALL_REALTIME_WARMUP_SEC: float = 9.0
-const VIEW_FALL_EMITTER_NAMES: Array[String] = ["SnowSmall", "SnowLarge", "Blossom"]
 
 
 func _initialize() -> void:
@@ -68,25 +67,25 @@ func _run() -> void:
 		hub_weather.call("force_state_for_debug", weather)
 		await process_frame
 		await process_frame
-		if _is_view_fall_weather(weather):
-			await _warmup_view_fall_particles_once(hub, weather)
 		for view_name: String in VIEW_NAMES:
 			cam.position = _camera_pos_for(hub, view_name)
-			if not _is_view_fall_weather(weather):
+			for _pf: int in 3:
+				await process_frame
+			if weather == &"light_snow" and view_name == "center":
+				await _ensure_clear_center_reference(hub, hub_weather, cam)
+			if _is_view_fall_weather(weather):
+				await _prepare_view_fall_capture(hub, weather)
+			elif weather != &"clear":
 				_preprocess_weather_particles(hub, weather)
 			var warmup: int = CAPTURE_WARMUP_FRAMES if _is_view_fall_weather(weather) else 10
 			for _f: int in warmup:
 				await process_frame
-			if _is_view_fall_weather(weather):
-				_force_view_fall_amount_ratio(hub, 1.0)
-				for _f2: int in 3:
-					await process_frame
 			var cam_pos: Vector2 = cam.position
 			print("CAM %s_%s %s" % [String(weather), view_name, cam_pos])
 			cam_lines.append("%s_%s %s" % [String(weather), view_name, cam_pos])
 			var fname: String = "%s_%s.png" % [String(weather), view_name]
 			if _is_view_fall_weather(weather):
-				_append_view_fall_debug(hub, hub_weather, fname, snow_debug_lines)
+				_append_view_fall_debug(hub, hub_weather, cam, fname, snow_debug_lines)
 			for dir: String in OUT_DIRS:
 				var path: String = "%s/%s" % [dir, fname]
 				if not _save_viewport_png(hub, path):
@@ -94,13 +93,18 @@ func _run() -> void:
 					quit(1)
 					return
 				if weather == &"light_snow":
+					var clear_path: String = "%s/clear_center.png" % dir
+					var flake_px: int = _count_flake_diff_pixels(path, clear_path)
 					snow_debug_lines.append(
-						"readback %s bright_px=%d diff_vs_clear_px=%d viewport=%s"
-						% [fname, _count_bright_pixels(path), _diff_vs_clear_pixels(path), _capture_viewport_path(hub)]
+						"readback %s bright_px=%d diff_vs_clear_px=%d flake_diff_px=%d viewport=%s"
+						% [fname, _count_bright_pixels(path), _diff_vs_clear_pixels(path), flake_px, _capture_viewport_path(hub)]
 					)
 			print("CAPTURE_OK %s" % fname)
 			if weather == &"light_snow" and view_name == "center":
-				_write_snow_flake_crop_4x("%s/%s" % [OUT_DIRS[0], fname])
+				_write_snow_flake_crop_4x_from_diff(
+					"%s/light_snow_center.png" % OUT_DIRS[0],
+					"%s/clear_center.png" % OUT_DIRS[0]
+				)
 	_write_snow_debug(snow_debug_lines)
 	if only_list.size() > 0:
 		print("CAPTURE_ALL_OK")
@@ -174,6 +178,42 @@ func _diff_vs_clear_pixels(path: String) -> int:
 	return n
 
 
+func _is_flake_diff_pixel(snow_c: Color, clear_c: Color) -> bool:
+	var d: float = absf(snow_c.r - clear_c.r) + absf(snow_c.g - clear_c.g) + absf(snow_c.b - clear_c.b)
+	if d < 0.05:
+		return false
+	var snow_luma: float = snow_c.r + snow_c.g + snow_c.b
+	var clear_luma: float = clear_c.r + clear_c.g + clear_c.b
+	if snow_luma < clear_luma + 0.12:
+		return false
+	if snow_c.r > 0.90 and snow_c.g > 0.90 and snow_c.b > 0.90:
+		return true
+	if (
+		snow_c.r > 0.30 and snow_c.r < 0.45
+		and snow_c.g > 0.38 and snow_c.g < 0.52
+		and snow_c.b > 0.48 and snow_c.b < 0.62
+	):
+		return true
+	return false
+
+
+func _count_flake_diff_pixels(snow_path: String, clear_path: String) -> int:
+	var snow: Image = Image.load_from_file(snow_path)
+	var clear: Image = Image.load_from_file(clear_path)
+	if snow == null or clear == null:
+		return -1
+	var n: int = 0
+	var y0: int = int(snow.get_height() * 0.08)
+	var y1: int = int(snow.get_height() * 0.78)
+	var x0: int = int(snow.get_width() * 0.06)
+	var x1: int = int(snow.get_width() * 0.94)
+	for y: int in range(y0, y1):
+		for x: int in range(x0, x1):
+			if _is_flake_diff_pixel(snow.get_pixel(x, y), clear.get_pixel(x, y)):
+				n += 1
+	return n
+
+
 func _write_snow_debug(lines: PackedStringArray) -> void:
 	if lines.is_empty():
 		return
@@ -189,28 +229,32 @@ func _write_snow_debug(lines: PackedStringArray) -> void:
 		f.close()
 
 
-func _append_view_fall_debug(hub: Node, hub_weather: Node, capture_label: String, lines: PackedStringArray) -> void:
+func _append_view_fall_debug(hub: Node, hub_weather: Node, cam: Camera2D, capture_label: String, lines: PackedStringArray) -> void:
 	lines.append("--- %s ---" % capture_label)
 	lines.append("hub_weather.current_state=%s" % str(hub_weather.call("current_state")))
 	var fx: Node = hub.get_node_or_null("World/GladeWeatherFx")
 	if fx == null:
 		lines.append("GladeWeatherFx=missing")
 		return
+	if fx.has_method("sync_view_emitters_for_camera"):
+		fx.call("sync_view_emitters_for_camera", cam)
+	if fx.has_method("count_particles_in_view"):
+		lines.append("particles_in_view_at_grab=%d" % int(fx.call("count_particles_in_view", cam)))
 	lines.append(
 		"fx_snow_amount_ratio_at_grab=%s fx_blossom_amount_ratio_at_grab=%s"
 		% [str(fx.get("_snow_amount_ratio")), str(fx.get("_blossom_amount_ratio"))]
 	)
-	_log_particles_under(fx, hub, lines)
+	_log_particles_under(fx, hub, cam, lines)
 
 
-func _log_particles_under(node: Node, hub: Node, lines: PackedStringArray) -> void:
+func _log_particles_under(node: Node, hub: Node, cam: Camera2D, lines: PackedStringArray) -> void:
 	if node is CPUParticles2D:
-		_log_one_particle(node as CPUParticles2D, hub, lines)
+		_log_one_particle(node as CPUParticles2D, hub, cam, lines)
 	for child: Node in node.get_children():
-		_log_particles_under(child, hub, lines)
+		_log_particles_under(child, hub, cam, lines)
 
 
-func _log_one_particle(motes: CPUParticles2D, hub: Node, lines: PackedStringArray) -> void:
+func _log_one_particle(motes: CPUParticles2D, hub: Node, cam: Camera2D, lines: PackedStringArray) -> void:
 	var n: String = str(motes.name)
 	if n != "SnowSmall" and n != "SnowLarge" and n != "Blossom":
 		return
@@ -237,9 +281,6 @@ func _log_one_particle(motes: CPUParticles2D, hub: Node, lines: PackedStringArra
 	var tex_path: String = ""
 	if tex != null:
 		tex_path = tex.resource_path
-	var live_count: String = "n/a"
-	if motes.has_method("get_particle_count"):
-		live_count = str(motes.call("get_particle_count"))
 	var mat: Material = motes.material
 	var anim_h: String = "n/a"
 	var anim_v: String = "n/a"
@@ -253,11 +294,9 @@ func _log_one_particle(motes: CPUParticles2D, hub: Node, lines: PackedStringArra
 	if motes.scale_amount_curve != null:
 		scale_curve_pts = motes.scale_amount_curve.get_point_count()
 	lines.append("path=%s" % path)
+	lines.append("global_position=%s" % motes.global_position)
 	lines.append("emitting=%s visible=%s is_visible_in_tree=%s" % [motes.emitting, motes.visible, motes.is_visible_in_tree()])
-	lines.append(
-		"amount_at_grab=%d configured_base=%s live_particle_count=%s"
-		% [motes.amount, configured_base, live_count]
-	)
+	lines.append("amount_at_grab=%d configured_base=%s" % [motes.amount, configured_base])
 	lines.append(
 		"scale_amount_min=%s scale_amount_max=%s scale_amount_curve_points=%d"
 		% [motes.scale_amount_min, motes.scale_amount_max, scale_curve_pts]
@@ -274,12 +313,18 @@ func _log_one_particle(motes: CPUParticles2D, hub: Node, lines: PackedStringArra
 	lines.append("emission_rect_extents=%s local_coords=%s preprocess=%s" % [
 		motes.emission_rect_extents, motes.local_coords, motes.preprocess
 	])
+	if cam != null:
+		lines.append("camera_global_position=%s" % cam.global_position)
 
 
-func _warmup_view_fall_particles_once(hub: Node, weather: StringName) -> void:
+func _prepare_view_fall_capture(hub: Node, weather: StringName) -> void:
 	var fx: Node = hub.get_node_or_null("World/GladeWeatherFx")
-	if fx == null:
+	var cam: Camera2D = hub.get_node_or_null("%Camera2D") as Camera2D
+	if fx == null or cam == null:
 		return
+	_force_view_fall_amount_ratio(hub, weather, 1.0)
+	if fx.has_method("sync_view_emitters_for_camera"):
+		fx.call("sync_view_emitters_for_camera", cam)
 	var names: Array[String] = []
 	if weather == &"light_snow":
 		names = ["SnowSmall", "SnowLarge"]
@@ -291,33 +336,46 @@ func _warmup_view_fall_particles_once(hub: Node, weather: StringName) -> void:
 			continue
 		motes.preprocess = PARTICLE_PREPROCESS_SEC
 		motes.restart()
-	_force_view_fall_amount_ratio(hub, 1.0)
 	for _f: int in CAPTURE_WARMUP_FRAMES:
 		await process_frame
 	await create_timer(VIEW_FALL_REALTIME_WARMUP_SEC).timeout
+	_force_view_fall_amount_ratio(hub, weather, 1.0)
+	if fx.has_method("sync_view_emitters_for_camera"):
+		fx.call("sync_view_emitters_for_camera", cam)
 	for _f2: int in 10:
 		await process_frame
 
 
-func _force_view_fall_amount_ratio(hub: Node, ratio: float) -> void:
+func _force_view_fall_amount_ratio(hub: Node, weather: StringName, ratio: float) -> void:
 	var fx: Node = hub.get_node_or_null("World/GladeWeatherFx")
 	if fx == null:
 		return
-	fx.set("_snow_amount_ratio", ratio)
-	fx.set("_blossom_amount_ratio", ratio)
-	for child_name: String in VIEW_FALL_EMITTER_NAMES:
-		var motes: CPUParticles2D = fx.get_node_or_null(child_name) as CPUParticles2D
-		if motes == null or not motes.emitting:
-			continue
-		var base_amt: int = 1
-		match child_name:
-			"SnowSmall":
-				base_amt = int(fx.get("_snow_small_base_amount"))
-			"SnowLarge":
-				base_amt = int(fx.get("_snow_large_base_amount"))
-			"Blossom":
-				base_amt = int(fx.get("_blossom_base_amount"))
-		motes.amount = clampi(int(round(float(base_amt) * ratio)), 1, base_amt)
+	if weather == &"light_snow":
+		fx.set("_snow_amount_ratio", ratio)
+	elif weather == &"blossom_fall":
+		fx.set("_blossom_amount_ratio", ratio)
+	var cam: Camera2D = hub.get_node_or_null("%Camera2D") as Camera2D
+	if fx.has_method("sync_view_emitters_for_camera") and cam != null:
+		fx.call("sync_view_emitters_for_camera", cam)
+
+
+func _ensure_clear_center_reference(hub: Node, hub_weather: Node, cam: Camera2D) -> void:
+	var clear_path: String = "%s/clear_center.png" % OUT_DIRS[0]
+	var saved_weather: StringName = hub_weather.call("current_state")
+	hub_weather.call("force_state_for_debug", &"clear")
+	await process_frame
+	await process_frame
+	cam.position = _camera_pos_for(hub, "center")
+	for _f: int in 15:
+		await process_frame
+	if not _save_viewport_png(hub, clear_path):
+		print("CAPTURE_FAIL %s" % clear_path)
+		quit(1)
+		return
+	print("CAPTURE_OK clear_center.png (reference)")
+	hub_weather.call("force_state_for_debug", saved_weather)
+	await process_frame
+	await process_frame
 
 
 func _preprocess_weather_particles(hub: Node, weather: StringName) -> void:
@@ -339,41 +397,67 @@ func _preprocess_particles_under(node: Node) -> void:
 		_preprocess_particles_under(child)
 
 
-func _write_snow_flake_crop_4x(center_png_path: String) -> void:
-	var image: Image = Image.load_from_file(center_png_path)
-	if image == null:
-		print("CAPTURE_FAIL snow_flake_crop source %s" % center_png_path)
+func _write_snow_flake_crop_4x_from_diff(snow_path: String, clear_path: String) -> void:
+	var snow: Image = Image.load_from_file(snow_path)
+	var clear: Image = Image.load_from_file(clear_path)
+	if snow == null or clear == null:
+		print("CAPTURE_FAIL snow_flake_crop missing snow or clear")
 		return
-	var best_score: int = -1
-	var best_origin: Vector2i = Vector2i.ZERO
-	const CROP: int = 24
-	var y0: int = int(image.get_height() * 0.12)
-	var y1: int = int(image.get_height() * 0.72)
-	var x0: int = int(image.get_width() * 0.08)
-	var x1: int = int(image.get_width() * 0.92)
-	for y: int in range(y0, y1 - CROP, 2):
-		for x: int in range(x0, x1 - CROP, 2):
-			var score: int = 0
-			for dy: int in CROP:
-				for dx: int in CROP:
-					var c: Color = image.get_pixel(x + dx, y + dy)
-					if c.a < 0.5:
-						continue
-					if c.r > 0.85 and c.g > 0.85 and c.b > 0.85:
-						score += 1
-					if c.r > 0.32 and c.r < 0.42 and c.g > 0.4 and c.g < 0.48 and c.b > 0.5 and c.b < 0.6:
-						score += 4
-			if score > best_score:
-				best_score = score
-				best_origin = Vector2i(x, y)
-	var region: Image = image.get_region(Rect2i(best_origin.x, best_origin.y, CROP, CROP))
+	const CROP: int = 32
+	var y0: int = int(snow.get_height() * 0.08)
+	var y1: int = int(snow.get_height() * 0.78)
+	var x0: int = int(snow.get_width() * 0.06)
+	var x1: int = int(snow.get_width() * 0.94)
+	var flake_pts: PackedVector2Array = PackedVector2Array()
+	for y: int in range(y0, y1):
+		for x: int in range(x0, x1):
+			if _is_flake_diff_pixel(snow.get_pixel(x, y), clear.get_pixel(x, y)):
+				flake_pts.append(Vector2(x, y))
+	if flake_pts.is_empty():
+		print("CAPTURE_FAIL snow_flake_crop_4x no flake diff pixels in scene grab")
+		for dir: String in OUT_DIRS:
+			var note_path: String = "%s/snow_flake_crop_4x.txt" % dir
+			var nf := FileAccess.open(note_path, FileAccess.WRITE)
+			if nf != null:
+				nf.store_line("no_flake_diff_pixels_in_light_snow_center")
+				nf.close()
+		return
+	var cluster_center: Vector2 = _best_flake_cluster_center(flake_pts, 10.0)
+	if cluster_center.x < 0.0:
+		print("CAPTURE_FAIL snow_flake_crop_4x no compact flake clusters in scene grab")
+		return
+	var origin: Vector2i = Vector2i(
+		clampi(int(round(cluster_center.x)) - CROP / 2, x0, x1 - CROP),
+		clampi(int(round(cluster_center.y)) - CROP / 2, y0, y1 - CROP)
+	)
+	var region: Image = snow.get_region(Rect2i(origin.x, origin.y, CROP, CROP))
 	region.resize(CROP * 4, CROP * 4, Image.INTERPOLATE_NEAREST)
 	for dir: String in OUT_DIRS:
 		var out_path: String = "%s/snow_flake_crop_4x.png" % dir
 		if region.save_png(out_path) != OK:
 			print("CAPTURE_FAIL %s" % out_path)
 		else:
-			print("CAPTURE_OK %s score=%d origin=%s" % [out_path, best_score, best_origin])
+			print(
+				"CAPTURE_OK %s flake_diff_px=%d origin=%s cluster_center=%s"
+				% [out_path, flake_pts.size(), origin, cluster_center]
+			)
+
+
+func _best_flake_cluster_center(pts: PackedVector2Array, radius: float) -> Vector2:
+	var best_count: int = 0
+	var best_center: Vector2 = Vector2(-1.0, -1.0)
+	var r2: float = radius * radius
+	for p: Vector2 in pts:
+		var count: int = 0
+		for q: Vector2 in pts:
+			if p.distance_squared_to(q) <= r2:
+				count += 1
+		if count > best_count:
+			best_count = count
+			best_center = p
+	if best_count < 3:
+		return Vector2(-1.0, -1.0)
+	return best_center
 
 
 func _camera_pos_for(hub: Node, view_name: String) -> Vector2:

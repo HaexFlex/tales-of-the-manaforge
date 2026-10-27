@@ -411,13 +411,60 @@ func _view_emitter_world_center(cam: Camera2D) -> Vector2:
 	return Vector2(cam.global_position.x, y_center)
 
 
-func _sync_view_emitter_node(motes: CPUParticles2D, world_center: Vector2, amount_ratio: float, base_amount: int) -> void:
+func _sync_view_emitter_node(motes: CPUParticles2D, world_center: Vector2, amount_ratio: float) -> void:
 	motes.global_position = world_center
-	if base_amount <= 0:
+	var alpha: float = clampf(amount_ratio, 0.0, 1.0)
+	motes.self_modulate = Color(1.0, 1.0, 1.0, alpha)
+
+
+func camera_visible_world_rect(cam: Camera2D) -> Rect2:
+	var half: Vector2 = cam.get_viewport().get_visible_rect().size * 0.5 / cam.zoom
+	return Rect2(cam.global_position - half, half * 2.0)
+
+
+func count_particles_in_view(cam: Camera2D) -> int:
+	if cam == null:
+		return 0
+	var view: Rect2 = camera_visible_world_rect(cam)
+	var total: int = 0
+	if _state == &"light_snow":
+		total += _estimate_emitter_particles_in_view(_snow_small, view)
+		total += _estimate_emitter_particles_in_view(_snow_large, view)
+	elif _state == &"blossom_fall":
+		total += _estimate_emitter_particles_in_view(_blossom, view)
+	return total
+
+
+func _estimate_emitter_particles_in_view(motes: CPUParticles2D, view: Rect2) -> int:
+	if motes == null or not motes.emitting or motes.self_modulate.a < 0.01:
+		return 0
+	var fall_dist: float = motes.lifetime * 0.5 * (motes.initial_velocity_min + motes.initial_velocity_max)
+	if fall_dist < 1.0:
+		return 0
+	var column_top: float = motes.global_position.y - motes.emission_rect_extents.y
+	var column_bottom: float = column_top + fall_dist
+	var view_top: float = view.position.y
+	var view_bottom: float = view.position.y + view.size.y
+	var overlap_h: float = minf(column_bottom, view_bottom) - maxf(column_top, view_top)
+	if overlap_h <= 0.0:
+		return 0
+	var frac: float = clampf(overlap_h / fall_dist, 0.0, 1.0)
+	return int(round(float(motes.amount) * frac))
+
+
+func sync_view_emitters_for_camera(cam: Camera2D) -> void:
+	if cam == null or _snow_small == null:
 		return
-	var scaled: int = clampi(int(round(float(base_amount) * amount_ratio)), 1, base_amount)
-	if motes.amount != scaled:
-		motes.amount = scaled
+	var snow_target: float = 1.0 if _state == &"light_snow" else 0.0
+	var blossom_target: float = 1.0 if _state == &"blossom_fall" else 0.0
+	var sway_period: float = (SNOW_SWAY_PERIOD_MIN_SEC + SNOW_SWAY_PERIOD_MAX_SEC) * 0.5
+	var sway_amp: float = SNOW_SWAY_PX if _state == &"light_snow" else BLOSSOM_SWAY_PX
+	var sway_x: float = sin(TAU * _sway_phase / sway_period) * sway_amp
+	var center: Vector2 = _view_emitter_world_center(cam)
+	center.x += sway_x
+	_sync_view_emitter_node(_snow_small, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
+	_sync_view_emitter_node(_snow_large, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
+	_sync_view_emitter_node(_blossom, center, _blossom_amount_ratio if _state == &"blossom_fall" else 0.0)
 
 
 func _ramp_ratio(current: float, target: float, delta: float, ramp_sec: float) -> float:
@@ -448,6 +495,6 @@ func _process(delta: float) -> void:
 	var sway_x: float = sin(TAU * _sway_phase / sway_period) * sway_amp
 	var center: Vector2 = _view_emitter_world_center(cam)
 	center.x += sway_x
-	_sync_view_emitter_node(_snow_small, center, _snow_amount_ratio, _snow_small_base_amount)
-	_sync_view_emitter_node(_snow_large, center, _snow_amount_ratio, _snow_large_base_amount)
-	_sync_view_emitter_node(_blossom, center, _blossom_amount_ratio, _blossom_base_amount)
+	_sync_view_emitter_node(_snow_small, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
+	_sync_view_emitter_node(_snow_large, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
+	_sync_view_emitter_node(_blossom, center, _blossom_amount_ratio if _state == &"blossom_fall" else 0.0)
