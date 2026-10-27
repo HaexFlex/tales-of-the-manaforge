@@ -61,3 +61,46 @@ Do not place into the playable clearing (inside rx/ry). Nudge ±8–16 px if a t
 ### New art files (native 1×, hard alpha)
 - bushes: `ring_bush_*_flip.png`, `ring_bush_cluster_fill_01.png`, `ring_bush_cluster_fill_02.png`
 - trees: `ring_tree_slim_01_flip.png`, `ring_tree_tall_02_flip.png`, `ring_tree_conifer_02_flip.png`
+
+## NE outer-hem fill pass 3 (Art ringcheck 2026-10-27)
+
+Pass-2 HemR6 trunks at y≈148–240 put tall-tree crowns **above** the NE camera top
+(visible world y starts ≈120). Only ~0.3% of NE pixels changed. Gaps remain as grass
+between trunks in the top ~200 px of `*_ne`.
+
+**Fix:** place dense low/wide bushes with trunk bases further **south** so the sprite
+span `[y-H, y]` covers the gap band (world y ≈ 130–280). Prefer hem walls / understory
+pads over more tall trees.
+
+New art (native 1×, hard alpha):
+- `assets/art/hub/bushes/ring_bush_hem_wall_01.png` (474×118)
+- `assets/art/hub/bushes/ring_bush_hem_wall_02.png` (427×103)
+- `assets/art/hub/bushes/ring_bush_understory_pad_01.png` (244×157)
+
+### Suggested placements (seed `r6_ne_hem_20261027_p3`)
+
+Keep HemR6_0001–0012. **Add** these (do not delete pass-2). `sprite_scale=1.0`,
+`y_sort_enabled=true`, trunk base = `position.y`.
+
+| # | sprite | world x | world y | prop_kind | collider_size | covers gap ≈ |
+|---|---|---|---|---|---|---|
+| 13 | `ring_bush_hem_wall_01.png` | 3865 | 230 | bush | (80, 14) | (3865,140) top patch |
+| 14 | `ring_bush_hem_wall_02.png` | 3940 | 310 | bush | (72, 14) | (3940,250) big mid |
+| 15 | `ring_bush_understory_pad_01.png` | 3833 | 280 | bush | (48, 14) | (3833,192) |
+| 16 | `ring_bush_hem_wall_01.png` | 3758 | 250 | bush | (80, 14) | (3758,167) |
+| 17 | `ring_bush_hem_wall_02.png` | 3795 | 220 | bush | (72, 14) | (3795,134) |
+| 18 | `ring_bush_understory_pad_01.png` | 3926 | 270 | bush | (48, 14) | (3926,190) |
+| 19 | `ring_bush_big_01_flip.png` | 3816 | 300 | bush | (40, 14) | (3816,235) |
+| 20 | `ring_bush_cluster_fill_02.png` | 4000 | 290 | bush | (56, 14) | east densify |
+| 21 | `ring_tree_slim_01_flip.png` | 3900 | 420 | tree | (22, 14) | canopy into gap band (H=320 → span 100–420) |
+| 22 | `ring_tree_conifer_02_flip.png` | 3980 | 450 | tree | (28, 16) | canopy into gap band (H=352 → span 98–450) |
+| 23 | `ring_bush_hem_wall_01.png` | 3600 | 280 | bush | (80, 14) | west NE shoulder (3595,311) |
+| 24 | `ring_bush_low_01_flip.png` | 4050 | 260 | bush | (32, 10) | NE densify |
+
+Also **nudge** pass-2 tall trees south if easy (same sprites):
+- HemR6_0001 conifer: (3848, 148) → **(3848, 380)**
+- HemR6_0002 slim: (3920, 168) → **(3920, 400)**
+- HemR6_0003 tall: (4088, 152) → **(4088, 420)**
+- HemR6_0012 slim: (4160, 240) → **(4160, 430)**
+
+Bushes HemR6_0004–0011 can stay. Keep `FOREST_SEAL leaked=no`. Stay outside clearing ellipse.
