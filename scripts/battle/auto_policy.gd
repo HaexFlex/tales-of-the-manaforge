@@ -15,6 +15,12 @@ static func idle_action(fight: FightState, actor_id: String) -> Dictionary:
 	var salve_target: String = _salve_target_id(fight)
 	if salve_target != "" and fight.salves_used < 2 and int(fight.loadout.get("heart_salve", 0)) > 0:
 		return {"kind": "item", "item": "heart_salve", "target": salve_target}
+	if fight.can_sweeping_arc(actor_id):
+		return {
+			"kind": "ability",
+			"ability": String(WeaponAbilities.SWEEPING_ARC),
+			"targets": fight.sweeping_arc_targets(actor_id),
+		}
 	return strike_for_me_action(fight, actor_id)
 
 
