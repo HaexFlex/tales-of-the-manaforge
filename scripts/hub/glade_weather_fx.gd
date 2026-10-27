@@ -80,7 +80,6 @@ var _wet_overlay: Sprite2D
 var _state: StringName = &"clear"
 var _snow_amount_ratio: float = 0.0
 var _blossom_amount_ratio: float = 0.0
-var _sway_phase: float = 0.0
 
 
 func setup(play_size: Vector2, clearing_center: Vector2 = Vector2(2160, 2025), clearing_rx: float = 1620.0, clearing_ry: float = 1323.0) -> void:
@@ -243,8 +242,8 @@ func _configure_view_fall_emitter(
 	motes.gravity = Vector2.ZERO
 	motes.initial_velocity_min = fall_min_px_s
 	motes.initial_velocity_max = fall_max_px_s
-	# Orbit velocity is radians/s (see glade_fireflies.gd); px sway is emitter + spread, not ±sway_px here.
-	motes.orbit_velocity_min = 0.02
+	# Symmetric orbit (rad/s); do not bias with one-sided min/max or emitter translation.
+	motes.orbit_velocity_min = -0.08
 	motes.orbit_velocity_max = 0.08
 	motes.scale_amount_min = 1.0
 	motes.scale_amount_max = 1.0
@@ -456,13 +455,7 @@ func _estimate_emitter_particles_in_view(motes: CPUParticles2D, view: Rect2) -> 
 func sync_view_emitters_for_camera(cam: Camera2D) -> void:
 	if cam == null or _snow_small == null:
 		return
-	var snow_target: float = 1.0 if _state == &"light_snow" else 0.0
-	var blossom_target: float = 1.0 if _state == &"blossom_fall" else 0.0
-	var sway_period: float = (SNOW_SWAY_PERIOD_MIN_SEC + SNOW_SWAY_PERIOD_MAX_SEC) * 0.5
-	var sway_amp: float = SNOW_SWAY_PX if _state == &"light_snow" else BLOSSOM_SWAY_PX
-	var sway_x: float = sin(TAU * _sway_phase / sway_period) * sway_amp
 	var center: Vector2 = _view_emitter_world_center(cam)
-	center.x += sway_x
 	_sync_view_emitter_node(_snow_small, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
 	_sync_view_emitter_node(_snow_large, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
 	_sync_view_emitter_node(_blossom, center, _blossom_amount_ratio if _state == &"blossom_fall" else 0.0)
@@ -490,12 +483,7 @@ func _process(delta: float) -> void:
 	var blossom_target: float = 1.0 if _state == &"blossom_fall" else 0.0
 	_snow_amount_ratio = _ramp_ratio(_snow_amount_ratio, snow_target, delta, SNOW_TRANSITION_RAMP_SEC)
 	_blossom_amount_ratio = _ramp_ratio(_blossom_amount_ratio, blossom_target, delta, BLOSSOM_TRANSITION_RAMP_SEC)
-	_sway_phase += delta
-	var sway_period: float = (SNOW_SWAY_PERIOD_MIN_SEC + SNOW_SWAY_PERIOD_MAX_SEC) * 0.5
-	var sway_amp: float = SNOW_SWAY_PX if _state == &"light_snow" else BLOSSOM_SWAY_PX
-	var sway_x: float = sin(TAU * _sway_phase / sway_period) * sway_amp
 	var center: Vector2 = _view_emitter_world_center(cam)
-	center.x += sway_x
 	_sync_view_emitter_node(_snow_small, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
 	_sync_view_emitter_node(_snow_large, center, _snow_amount_ratio if _state == &"light_snow" else 0.0)
 	_sync_view_emitter_node(_blossom, center, _blossom_amount_ratio if _state == &"blossom_fall" else 0.0)
