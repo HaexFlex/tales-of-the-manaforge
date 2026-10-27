@@ -1193,6 +1193,28 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, re
 	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess}
 
 
+## Soft rain drip — does not count toward lifetime_waters or blessing tuning.
+func apply_weather_water_pulse(auto_def: Dictionary) -> Dictionary:
+	if fruit_committed or is_world_frozen():
+		return {"ok": false, "reason": "frozen", "shards": 0, "essence": 0}
+	var ess_per: float = float(auto_def.get("essence_per_pulse", 0.4))
+	var shard_min: int = int(auto_def.get("shard_roll_min", 0))
+	var shard_max: int = int(auto_def.get("shard_roll_max", 1))
+	var shards: int = 0
+	if shard_max >= shard_min:
+		shards = randi_range(shard_min, shard_max)
+		if shards > 0:
+			add_resource(&"manashards", shards)
+	var ess_granted: int = 0
+	if ess_per > 0.0 and has_node("/root/HubWeather"):
+		HubWeather.weather_essence_frac += ess_per
+		ess_granted = int(floor(HubWeather.weather_essence_frac))
+		if ess_granted > 0:
+			HubWeather.weather_essence_frac -= float(ess_granted)
+			add_resource(&"essence", ess_granted)
+	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess_granted}
+
+
 ## k seconds of this hero's gather yield (tool interval, stage, Forager, work rate).
 ## Fractions stay in harvest_accum. Wisps are not a caller.
 func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds: float) -> Dictionary:
@@ -1846,6 +1868,8 @@ func ascend() -> void:
 		KeeperStats.on_ascend()
 	if has_node("/root/Equipment"):
 		Equipment.on_ascend()
+	if has_node("/root/HubWeather"):
+		HubWeather.on_ascend()
 	needs_changed.emit()
 	status_message.emit(ContentStrings.get_text("ascend_toast"))
 	status_message.emit(ContentStrings.get_text("ascend_essence_reset_toast"))
@@ -1999,7 +2023,7 @@ func to_save_dict() -> Dictionary:
 		"forge_visited": forge_visited,
 	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
 		Reach.capture_save_fields() if has_node("/root/Reach") else {}
-	)
+	).merged(HubWeather.to_save_dict() if has_node("/root/HubWeather") else {})
 
 
 func apply_save_dict(data: Dictionary) -> void:
@@ -2161,6 +2185,8 @@ func apply_save_dict(data: Dictionary) -> void:
 	needs_changed.emit()
 	upgrades_changed.emit()
 	echo_flags_changed.emit()
+	if has_node("/root/HubWeather"):
+		HubWeather.apply_from_save(data, true)
 	load_completed.emit()
 	applying_save = false
 
@@ -2231,6 +2257,8 @@ func reset_for_new_game() -> void:
 	_ensure_harvest_keys()
 	upgrade_ranks.clear()
 	_ensure_upgrade_keys()
+	if has_node("/root/HubWeather"):
+		HubWeather.reset_for_new_game()
 	shop_hide_locked = true
 	shop_hide_maxed = true
 	shop_spoiler_shown_count = 0

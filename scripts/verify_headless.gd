@@ -362,6 +362,16 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_R6") == "1":
+		var _weather_r6_only: int = _weather_r6(tree_root, game_state)
+		if _weather_r6_only > 0:
+			print("WEATHER_R6_FAIL: %d" % _weather_r6_only)
+			quit(1)
+		else:
+			print("WEATHER_R6_OK")
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_SPAWN_DATA") == "1":
 		var _spawn_data_only: int = _spawn_data(tree_root)
 		if _spawn_data_only > 0:
@@ -5817,6 +5827,48 @@ func _wants_check_only() -> bool:
 	return args.has("--check-only")
 
 
+func _weather_r6(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var hub_weather: Node = tree_root.get_node_or_null("HubWeather")
+	failed += _assert(hub_weather != null, "HubWeather autoload")
+	if hub_weather == null:
+		return failed
+	var states: Array[StringName] = [
+		&"clear", &"soft_rain", &"mist", &"light_snow", &"blossom_fall"
+	]
+	for sid: StringName in states:
+		for _i: int in 12:
+			var dur: float = float(hub_weather.call("roll_duration", sid))
+			var bounds: Vector2 = hub_weather.call("duration_bounds", sid)
+			failed += _assert(dur >= bounds.x and dur <= bounds.y, "duration %s" % String(sid))
+	hub_weather.call("force_state_for_debug", &"soft_rain")
+	var before_waters: int = int(game_state.get("lifetime_waters"))
+	var auto_def: Dictionary = {
+		"essence_per_pulse": 0.4,
+		"shard_roll_min": 0,
+		"shard_roll_max": 1,
+	}
+	for _p: int in 3:
+		game_state.call("apply_weather_water_pulse", auto_def)
+	failed += _assert(int(game_state.get("lifetime_waters")) == before_waters, "rain skips lifetime_waters")
+	var saved_state: StringName = hub_weather.get("weather_state")
+	hub_weather.set("weather_elapsed_sec", 42.0)
+	hub_weather.set("weather_duration_sec", 99.0)
+	var save_blob: Dictionary = hub_weather.call("to_save_dict")
+	save_blob["weather_state"] = String(saved_state)
+	hub_weather.call("apply_from_save", save_blob, true)
+	failed += _assert(float(hub_weather.get("weather_elapsed_sec")) < 0.01, "load discards elapsed")
+	var new_dur: float = float(hub_weather.get("weather_duration_sec"))
+	var new_bounds: Vector2 = hub_weather.call("duration_bounds", hub_weather.get("weather_state"))
+	failed += _assert(new_dur >= new_bounds.x and new_dur <= new_bounds.y, "load reroll duration")
+	var emit_stats: Dictionary = GladeWeatherFx.emit_map_stats(Vector2(4320, 3780))
+	var emit_n: int = int(emit_stats.get("count", 0))
+	var center_n: int = int(emit_stats.get("center_count", 0))
+	failed += _assert(emit_n >= 600 and emit_n <= 680, "emit map ring points %d" % emit_n)
+	failed += _assert(center_n == 0, "emit map empty center %d" % center_n)
+	return failed
+
+
 func _check_only_load() -> int:
 	## Compile and load the companion scripts. Does not run the suite.
 	var failed: int = 0
@@ -5827,6 +5879,8 @@ func _check_only_load() -> int:
 		"res://scripts/character_sheet.gd",
 		"res://scripts/hud.gd",
 		"res://scripts/main.gd",
+		"res://scripts/autoload/hub_weather.gd",
+		"res://scripts/hub/glade_weather_fx.gd",
 		"res://scripts/forge_room.gd",
 		"res://scripts/gatherable.gd",
 		"res://scripts/manatree.gd",
