@@ -233,6 +233,9 @@ func on_keeper_bench_sat() -> void:
 	if now - _bench_rest_last_play_msec >= int(BENCH_REST_RETRIGGER_SEC * 1000.0):
 		play(&"sfx_bench_rest", 0.0, 1.0)
 		_bench_rest_last_play_msec = now
+	if DisplayServer.get_name() == "headless":
+		_apply_bench_rest_bed_lift(BENCH_REST_BED_LIFT_DB)
+		return
 	_tween_bench_rest_bed(BENCH_REST_BED_LIFT_DB)
 
 
@@ -243,6 +246,9 @@ func on_keeper_bench_stood() -> void:
 func _tween_bench_rest_bed(target_lift_db: float) -> void:
 	if _bench_rest_bed_tween != null and _bench_rest_bed_tween.is_valid():
 		_bench_rest_bed_tween.kill()
+	if DisplayServer.get_name() == "headless":
+		_apply_bench_rest_bed_lift(target_lift_db)
+		return
 	var span: float = maxf(BENCH_REST_BED_TWEEN_SEC, 0.0)
 	if span <= 0.0001 or is_equal_approx(_bench_rest_bed_lift_db, target_lift_db):
 		_apply_bench_rest_bed_lift(target_lift_db)

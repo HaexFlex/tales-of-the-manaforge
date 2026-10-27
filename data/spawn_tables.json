@@ -10,7 +10,7 @@
  },
  "fill": {
   "max_beasts": 6,
-  "beast_floor_ratio": 0.75,
+  "beast_floor_ratio": 0.9,
   "variety_slack": 1,
   "note": "Beasts: enumerate multisets from every species on any spawn table with depth <= the room depth (earlier beasts never drop out). Weight = entry on the latest table at or below the room if listed there, else the weight from the latest earlier table that listed it. Keep every set at or above beast_floor_ratio x budget when any set can; otherwise max-threat sets. Prefer the most distinct species (A and dark/B count once). Pick among ties by the product of those weights with the room seed. Swarms spend leftover threat after place_rows (grow one swarm to 10 bugs before opening the next). Mossmites are not in these tables."
  },
