@@ -4036,6 +4036,7 @@ func _run() -> void:
 	failed += await _batch_offline(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_migration(tree_root, game_state, save_service, backpack)
+	failed += _dusk_greetings_ok()
 	failed += _no_old_keeper_idle()
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
@@ -5872,6 +5873,9 @@ func _check_only_load() -> int:
 		"res://scripts/minigames/games/steady_press.gd",
 		"res://scripts/minigames/games/with_the_grain.gd",
 		"res://scripts/minigames/games/steeping.gd",
+		"res://scripts/hub/hub_time_phase.gd",
+		"res://scripts/hub/hub_wisp_phase_greetings.gd",
+		"res://scripts/hub_day_night_cycle.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -5882,6 +5886,7 @@ func _check_only_load() -> int:
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "")), 0.8), "check-only elaia work rate")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "reliquary")), 1.5), "check-only elaia reliquary rate")
 	failed += _tree_whispers_ok(gs)
+	failed += _dusk_greetings_ok()
 	if failed == 0:
 		print("TREE_WHISPERS_OK")
 	return failed
@@ -6983,6 +6988,51 @@ func _duration_sum(sframes: SpriteFrames, anim: StringName) -> float:
 	for i: int in range(sframes.get_frame_count(anim)):
 		total += sframes.get_frame_duration(anim, i)
 	return total
+
+
+func _dusk_greetings_ok() -> int:
+	var failed: int = 0
+	HubWispPhaseGreetings.reset_for_tests()
+	HubTimePhase.set_driven_phase01(0.10)
+	HubWispPhaseGreetings.track_phase(0.10)
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.10) == "", "daylight wisp tap has no greeting")
+	failed += _assert(HubTimePhase.is_dusk_band(0.40) and not HubTimePhase.is_dawn_band(0.40), "dusk band helper")
+	failed += _assert(HubTimePhase.is_dawn_band(0.90) and not HubTimePhase.is_dusk_band(0.90), "dawn band helper")
+	HubTimePhase.set_driven_phase01(0.40)
+	HubWispPhaseGreetings.track_phase(0.40)
+	var dusk_line: String = HubWispPhaseGreetings.try_greeting(0.40)
+	failed += _assert(dusk_line != "", "first dusk wisp shows a dusk line")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.40) == "", "second dusk wisp tap stays silent")
+	HubTimePhase.set_driven_phase01(0.55)
+	HubWispPhaseGreetings.track_phase(0.55)
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.55) == "", "night wisp tap has no greeting")
+	HubTimePhase.set_driven_phase01(0.40)
+	HubWispPhaseGreetings.track_phase(0.40)
+	var dusk_again: String = HubWispPhaseGreetings.try_greeting(0.40)
+	failed += _assert(dusk_again != "", "re-entering dusk resets the dusk greeting")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.40) == "", "dusk greeting still once per visit")
+	HubTimePhase.set_driven_phase01(0.90)
+	HubWispPhaseGreetings.track_phase(0.90)
+	var dawn_line: String = HubWispPhaseGreetings.try_greeting(0.90)
+	failed += _assert(dawn_line != "", "first dawn wisp shows a dawn line")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.90) == "", "second dawn wisp tap stays silent")
+	HubTimePhase.set_driven_phase01(0.10)
+	HubWispPhaseGreetings.track_phase(0.10)
+	HubTimePhase.set_driven_phase01(0.90)
+	HubWispPhaseGreetings.track_phase(0.90)
+	var dawn_again: String = HubWispPhaseGreetings.try_greeting(0.90)
+	failed += _assert(dawn_again != "", "re-entering dawn resets the dawn greeting")
+	var cs: Node = root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null, "ContentStrings for dusk greetings")
+	if cs != null:
+		for i: int in range(1, 7):
+			var dk: String = "wisp_dusk_%02d" % i
+			var ak: String = "wisp_dawn_%02d" % i
+			failed += _assert(str(cs.call("get_text", dk)) != dk, "strings has %s" % dk)
+			failed += _assert(str(cs.call("get_text", ak)) != ak, "strings has %s" % ak)
+	if failed == 0:
+		print("DUSK_GREETINGS_OK")
+	return failed
 
 
 func _no_old_keeper_idle() -> int:
