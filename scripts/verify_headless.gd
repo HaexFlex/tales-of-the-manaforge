@@ -7060,6 +7060,19 @@ func _bench_seat_ok(tree_root: Window) -> int:
 		failed += await _wait_bench_rest_bed_tween(tree_root)
 		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db"))) < 0.05, "bench rest restores hub bed lift on stood")
 		failed += _assert(absf(float(game_audio.call("music_bed_volume_db")) - bed_before) < 0.15, "bench rest restores hub bed volume on stood")
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var rested_failed: int = _rested_hands_ok(game_state)
+	failed += rested_failed
+	if rested_failed == 0:
+		print("RESTED_HANDS_OK")
+	var sayings_failed: int = _bench_sayings_ok(tree_root, game_state)
+	failed += sayings_failed
+	if sayings_failed == 0:
+		print("BENCH_SAYINGS_OK")
+	var dusk_failed: int = _bench_dusk_props_ok(bench, keeper)
+	failed += dusk_failed
+	if dusk_failed == 0:
+		print("BENCH_DUSK_PROPS_OK")
 	await process_frame
 	live.free()
 	if save_service:
@@ -7068,6 +7081,112 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	if failed == 0:
 		print("BENCH_SEAT_OK")
 		print("BENCH_REST_OK")
+	return failed
+
+
+func _rested_hands_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "rested hands game state")
+	failed += _assert(game_state.has_method("debug_complete_bench_sit_sec"), "rested hands helpers on GameState")
+	failed += _assert(
+		is_equal_approx(float(game_state.call("param_float", "RESTED_SIT_SEC", -1.0)), 20.0),
+		"RESTED_SIT_SEC param"
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult idle")
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	failed += _assert(int(game_state.get("rested_until_ms")) > Time.get_ticks_msec(), "20s sit sets rested window")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.15), "20s sit grants rested mult")
+	var mult: float = float(game_state.call("keeper_rested_mult"))
+	game_state.set("harvest_accum", {})
+	var control: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper"))))
+	game_state.set("harvest_accum", {})
+	var boosted: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper")) * mult)
+	)
+	var boosted_accum: float = float((game_state.get("harvest_accum") as Dictionary).get("wood", 0.0))
+	failed += _assert(boosted > control or boosted_accum > 0.05, "rested mult banks more wood than control")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() - 1)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult expires")
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.call("debug_complete_bench_sit_sec", 19.0)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "19s sit grants nothing")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() + 60000)
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	var until_after: int = int(game_state.get("rested_until_ms"))
+	var remaining_ms: int = until_after - Time.get_ticks_msec()
+	failed += _assert(remaining_ms > 115000 and remaining_ms < 125000, "second sit resets rested timer to 120s")
+	game_state.set("harvest_accum", {})
+	var elaia_grant: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.set("harvest_accum", {})
+	var elaia_again: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	failed += _assert(elaia_grant == elaia_again, "elaia harvest ignores rested mult")
+	game_state.call("clear_rested_hands_bench_buff")
+	return failed
+
+
+func _bench_sayings_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "bench sayings game state")
+	var content: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(content != null, "bench sayings content strings")
+	if content == null:
+		return failed + 1
+	for i: int in range(1, 11):
+		var key: String = "bench_saying_%02d" % i
+		var line: String = str(content.call("get_text", key))
+		failed += _assert(line != key and line.length() > 4, "bench saying %s loaded" % key)
+	var seen: Array[String] = []
+	var grab: Callable = func(t: String) -> void:
+		seen.append(t)
+	game_state.connect("status_message", grab)
+	game_state.call("on_keeper_bench_sat")
+	game_state.disconnect("status_message", grab)
+	failed += _assert(seen.size() == 1, "bench sit toasts one line")
+	if seen.size() == 1:
+		var ok: bool = false
+		for j: int in range(1, 11):
+			if seen[0] == str(content.call("get_text", "bench_saying_%02d" % j)):
+				ok = true
+				break
+		failed += _assert(ok, "bench saying line is from lore table")
+	return failed
+
+
+func _bench_dusk_props_ok(bench: Node2D, keeper: Node2D) -> int:
+	var failed: int = 0
+	if bench == null or keeper == null:
+		return _assert(false, "bench dusk props actors")
+	HubTimePhase.set_driven_phase01(0.1)
+	keeper.call("_emit_keeper_bench_sat")
+	var cup: CanvasItem = bench.get_node_or_null("DuskCup") as CanvasItem
+	var steam: CanvasItem = bench.get_node_or_null("DuskSteam") as CanvasItem
+	var blanket: CanvasItem = bench.get_node_or_null("DuskBlanket") as CanvasItem
+	failed += _assert(cup != null and steam != null and blanket != null, "dusk prop nodes exist")
+	if cup != null:
+		failed += _assert(not cup.visible, "daylight hides dusk props on sit")
+	HubTimePhase.set_driven_phase01(0.40)
+	keeper.call("_emit_keeper_bench_sat")
+	if cup != null:
+		failed += _assert(cup.visible and cup.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "dusk cup visible nearest")
+		failed += _assert(is_equal_approx(cup.scale.x, 1.0) and is_equal_approx(cup.position.x, 46.0), "dusk cup placement")
+	if blanket != null:
+		failed += _assert(blanket.visible, "dusk blanket visible")
+		failed += _assert(is_equal_approx(blanket.position.x, -74.0), "dusk blanket placement")
+	if steam != null:
+		failed += _assert(steam.visible, "dusk steam visible")
+		failed += _assert(is_equal_approx(steam.position.x, 48.0), "dusk steam placement")
+	keeper.call("_emit_keeper_bench_stood")
+	if cup != null:
+		failed += _assert(not cup.visible and not steam.visible and not blanket.visible, "stood hides dusk props")
+	HubTimePhase.set_driven_phase01(0.0)
 	return failed
 
 

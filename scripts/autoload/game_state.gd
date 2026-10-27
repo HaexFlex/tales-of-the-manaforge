@@ -149,6 +149,10 @@ var _companions: Dictionary = {}
 var stages_data: Array = []
 var upgrades_data: Array = []
 var params: Dictionary = {}
+## Bench rest buff (wall clock, not saved). Cleared on Ascend.
+var _sit_started_ms: int = -1
+var rested_until_ms: int = 0
+var _rested_sit_granted: bool = false
 
 
 func _ready() -> void:
@@ -236,6 +240,67 @@ func advance_open_play(delta: float) -> void:
 	active_since_load_sec += delta
 	tick_ancient(play_delta)
 	apply_wisp_pulses(play_delta)
+	_tick_rested_sit_timer()
+
+
+func _tick_rested_sit_timer() -> void:
+	if _sit_started_ms < 0 or _rested_sit_granted:
+		return
+	var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+	if float(Time.get_ticks_msec() - _sit_started_ms) >= sit_sec * 1000.0:
+		_grant_rested_hands_buff()
+
+
+func on_keeper_bench_sat() -> void:
+	_sit_started_ms = Time.get_ticks_msec()
+	_rested_sit_granted = false
+	status_message.emit(ContentStrings.random_bench_saying())
+
+
+func on_keeper_bench_stood() -> void:
+	if _sit_started_ms >= 0 and not _rested_sit_granted:
+		var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+		if float(Time.get_ticks_msec() - _sit_started_ms) >= sit_sec * 1000.0:
+			_grant_rested_hands_buff()
+	_sit_started_ms = -1
+
+
+func _grant_rested_hands_buff() -> void:
+	var duration_sec: float = param_float("RESTED_DURATION_SEC", 120.0)
+	rested_until_ms = Time.get_ticks_msec() + int(duration_sec * 1000.0)
+	_rested_sit_granted = true
+
+
+func keeper_rested_mult() -> float:
+	if Time.get_ticks_msec() < rested_until_ms:
+		return param_float("RESTED_GATHER_MULT", 1.15)
+	return 1.0
+
+
+func _clear_rested_hands_buff() -> void:
+	_sit_started_ms = -1
+	rested_until_ms = 0
+	_rested_sit_granted = false
+
+
+## Headless verify: backdate an active bench sit without waiting on wall clock.
+func debug_backdate_bench_sit_sec(elapsed_sec: float) -> void:
+	if _sit_started_ms < 0:
+		return
+	_sit_started_ms = Time.get_ticks_msec() - int(elapsed_sec * 1000.0)
+
+
+func clear_rested_hands_bench_buff() -> void:
+	_clear_rested_hands_buff()
+
+
+func debug_complete_bench_sit_sec(elapsed_sec: float) -> void:
+	on_keeper_bench_sat()
+	_sit_started_ms = Time.get_ticks_msec() - int(elapsed_sec * 1000.0)
+	var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+	if elapsed_sec + 0.001 >= sit_sec and not _rested_sit_granted:
+		_grant_rested_hands_buff()
+	on_keeper_bench_stood()
 
 
 func idle_catch_up_seconds(gap_sec: float) -> float:
@@ -1146,10 +1211,10 @@ func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
 
 
 ## One base yield at the active factor, remainder kept. Not a one-second pulse.
-func apply_harvest_pulse(resource_id: StringName) -> int:
+func apply_harvest_pulse(resource_id: StringName, rate: float = 1.0) -> int:
 	if not resource_id in HARVEST_IDS:
 		return 0
-	return accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+	return accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor() * rate)
 
 
 func get_harvest_grant(resource_id: StringName) -> int:
@@ -1204,7 +1269,10 @@ func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds
 		return {"ok": false, "reason": "resource", "units": 0.0, "granted": 0}
 	var key: String = String(resource_id)
 	var before: float = float(harvest_accum.get(key, 0.0))
-	var granted: int = accumulate_keeper_harvest(resource_id, seconds, actor_work_rate(actor))
+	var rate: float = actor_work_rate(actor)
+	if actor == "keeper":
+		rate *= keeper_rested_mult()
+	var granted: int = accumulate_keeper_harvest(resource_id, seconds, rate)
 	var after: float = float(harvest_accum.get(key, 0.0))
 	return {"ok": true, "reason": "ok", "granted": granted, "units": float(granted) + after - before}
 
@@ -1827,6 +1895,7 @@ func ascend() -> void:
 	wisp_assignments.clear()
 	wisp_pulse_accum.clear()
 	harvest_accum.clear()
+	_clear_rested_hands_buff()
 	_ensure_wisp_slots()
 	clear_selection()
 	wisps_changed.emit()

@@ -1397,12 +1397,16 @@ func _on_idle_moment_animation_finished() -> void:
 
 func _emit_keeper_bench_sat() -> void:
 	keeper_bench_sat.emit()
+	if has_node("/root/GameState"):
+		GameState.on_keeper_bench_sat()
 	if has_node("/root/GameAudio"):
 		GameAudio.on_keeper_bench_sat()
 
 
 func _emit_keeper_bench_stood() -> void:
 	keeper_bench_stood.emit()
+	if has_node("/root/GameState"):
+		GameState.on_keeper_bench_stood()
 	if has_node("/root/GameAudio"):
 		GameAudio.on_keeper_bench_stood()
 
@@ -1710,7 +1714,7 @@ func _tick_channel(delta: float) -> void:
 	var play_delta: float = GameState.active_play_delta(delta)
 	if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
 		var rid: StringName = (_channel_target as Gatherable).resource_id
-		GameState.accumulate_keeper_harvest(rid, play_delta, actor_work_rate())
+		GameState.accumulate_keeper_harvest(rid, play_delta, actor_work_rate() * GameState.keeper_rested_mult())
 	elif _channel_kind == ChannelKind.WATER:
 		_channel_accum += play_delta
 		var pulse: float = GameState.get_water_essence_pulse_sec()
