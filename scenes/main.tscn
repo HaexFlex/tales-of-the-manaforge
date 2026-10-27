@@ -32,6 +32,9 @@
 [ext_resource type="PackedScene" path="res://scenes/thorn_wall.tscn" id="29_thorn"]
 [ext_resource type="PackedScene" path="res://scenes/expedition_board.tscn" id="30_board"]
 [ext_resource type="PackedScene" path="res://scenes/bramble_warden.tscn" id="31_warden"]
+[ext_resource type="Texture2D" path="res://assets/art/hub/canopy_band/canopy_band_north_01.png" id="32_cb_north"]
+[ext_resource type="Texture2D" path="res://assets/art/hub/canopy_band/canopy_band_ne_corner_01.png" id="32_cb_corner"]
+[ext_resource type="Texture2D" path="res://assets/art/hub/canopy_band/canopy_band_east_01.png" id="32_cb_east"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vxglm"]
 texture = ExtResource("2_0ld40")
@@ -655,6 +658,44 @@ offset_right = 4320.0
 offset_bottom = 3780.0
 mouse_filter = 2
 color = Color(1, 1, 1, 0)
+[node name="CanopyBand" type="Node2D" parent="."]
+z_index = 0
+y_sort_enabled = false
+[node name="North_00" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3300, 162)
+centered = false
+texture = ExtResource("32_cb_north")
+[node name="North_01" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3556, 162)
+centered = false
+texture = ExtResource("32_cb_north")
+[node name="North_02" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3812, 162)
+centered = false
+texture = ExtResource("32_cb_north")
+[node name="NE_Corner" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3948, 162)
+centered = false
+texture = ExtResource("32_cb_corner")
+[node name="East_00" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3948, 450)
+centered = false
+texture = ExtResource("32_cb_east")
+[node name="East_01" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3948, 706)
+centered = false
+texture = ExtResource("32_cb_east")
+[node name="East_02" type="Sprite2D" parent="CanopyBand"]
+texture_filter = 0
+position = Vector2(3948, 962)
+centered = false
+texture = ExtResource("32_cb_east")
 [node name="World" type="Node2D" parent="." unique_id=146612391]
 unique_name_in_owner = true
 z_index = 1
