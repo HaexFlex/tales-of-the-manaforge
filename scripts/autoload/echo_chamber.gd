@@ -136,14 +136,24 @@ func tortoise_def() -> Dictionary:
 	return _tortoise_def
 
 
+func puff_fee_affordable() -> bool:
+	if not puff_gate_open() or GameState.echo_03_fee_paid:
+		return false
+	return GameState.owned_tier2_tool_count() >= 2 and GameState.essence >= R5Constants.PUFF_ECHO_FEE
+
+
+func tortoise_fee_affordable() -> bool:
+	if not tortoise_gate_open() or GameState.echo_04_fee_paid:
+		return false
+	return GameState.essence >= R5Constants.MOSS_TORTOISE_ECHO_FEE and Backpack.get_count("heart_salve") >= 1
+
+
 func try_pay_puff() -> String:
 	if not puff_gate_open():
 		return "closed"
 	if GameState.echo_03_fee_paid:
 		return "already_paid"
-	if GameState.owned_tier2_tool_count() < 2:
-		return "reject"
-	if GameState.essence < R5Constants.PUFF_ECHO_FEE:
+	if not puff_fee_affordable():
 		return "reject"
 	GameState.add_resource(&"essence", -R5Constants.PUFF_ECHO_FEE)
 	GameState.echo_03_fee_paid = true
@@ -156,9 +166,7 @@ func try_pay_tortoise() -> String:
 		return "closed"
 	if GameState.echo_04_fee_paid:
 		return "already_paid"
-	if GameState.essence < R5Constants.MOSS_TORTOISE_ECHO_FEE:
-		return "reject"
-	if Backpack.get_count("heart_salve") < 1:
+	if not tortoise_fee_affordable():
 		return "reject"
 	if not Backpack.try_spend("heart_salve", 1):
 		return "reject"

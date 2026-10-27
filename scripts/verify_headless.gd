@@ -290,6 +290,8 @@ func _run() -> void:
 			print("FIREFLY_JAR_OK")
 			print("SEED_SWAP_OK")
 			print("WISP_NAP_OK")
+			print("PARTY_LOOT_DUO_TIER_OK")
+			print("ECHO_PORTAL_FEE_UI_OK")
 			print("R5_SYSTEMS_OK")
 			quit(0)
 		return
@@ -26793,6 +26795,57 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 	failed += puff_walk_failed
 	if puff_walk_failed == 0:
 		print("PUFF_WALK_OK")
+	var loot_tier_failed: int = 0
+	loot_tier_failed += _assert(RoomLoot._size_key(1) == "solo", "loot solo")
+	loot_tier_failed += _assert(RoomLoot._size_key(2) == "duo", "loot duo pair")
+	loot_tier_failed += _assert(RoomLoot._size_key(3) == "duo", "loot party 3 uses duo")
+	loot_tier_failed += _assert(RoomLoot._size_key(6) == "duo", "loot party 6 uses duo")
+	failed += loot_tier_failed
+	if loot_tier_failed == 0:
+		print("PARTY_LOOT_DUO_TIER_OK")
+	var echo_chamber: Node = tree_root.get_node_or_null("EchoChamber")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var portal_fee_failed: int = 0
+	if echo_chamber == null or equipment == null or backpack == null:
+		portal_fee_failed += 1
+	else:
+		game_state.call("reset_for_new_game")
+		game_state.set("echo_01_resolved", true)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("echo_03_resolved", false)
+		game_state.set("echo_03_fee_paid", false)
+		game_state.set("lifetime_t2_tool_arch_seen", true)
+		game_state.set("essence", 70)
+		portal_fee_failed += _assert(not bool(echo_chamber.call("puff_fee_affordable")), "echo3 blocked without tools")
+		game_state.set("essence", 69)
+		portal_fee_failed += _assert(not bool(echo_chamber.call("puff_fee_affordable")), "echo3 blocked low essence")
+		game_state.set("essence", 70)
+		equipment.call("grant_item", "rootsteel_edge")
+		equipment.call("grant_item", "heartwand")
+		portal_fee_failed += _assert(bool(echo_chamber.call("puff_fee_affordable")), "echo3 affordable")
+		var ess0: int = int(game_state.get("essence"))
+		portal_fee_failed += _assert(str(echo_chamber.call("try_pay_puff")) == "paid", "echo3 pay")
+		portal_fee_failed += _assert(int(game_state.get("essence")) == ess0 - R5Constants.PUFF_ECHO_FEE, "echo3 essence deducted")
+		game_state.call("reset_for_new_game")
+		game_state.set("echo_03_resolved", true)
+		game_state.set("echo_04_resolved", false)
+		game_state.set("echo_04_fee_paid", false)
+		game_state.set("brewing_unlocked", true)
+		if reach != null:
+			reach.set("reaches_cleared", R5Constants.MOSS_TORTOISE_JOIN_CLEARS)
+		game_state.set("essence", 40)
+		backpack.call("set_count", "heart_salve", 0)
+		portal_fee_failed += _assert(not bool(echo_chamber.call("tortoise_fee_affordable")), "echo4 no salve")
+		backpack.call("set_count", "heart_salve", 1)
+		portal_fee_failed += _assert(bool(echo_chamber.call("tortoise_fee_affordable")), "echo4 affordable")
+		var ess1: int = int(game_state.get("essence"))
+		portal_fee_failed += _assert(str(echo_chamber.call("try_pay_tortoise")) == "paid", "echo4 pay")
+		portal_fee_failed += _assert(int(game_state.get("essence")) == ess1 - R5Constants.MOSS_TORTOISE_ECHO_FEE, "echo4 essence deducted")
+		portal_fee_failed += _assert(int(backpack.call("get_count", "heart_salve")) == 0, "echo4 salve deducted")
+	failed += portal_fee_failed
+	if portal_fee_failed == 0:
+		print("ECHO_PORTAL_FEE_UI_OK")
 	return failed
 
 

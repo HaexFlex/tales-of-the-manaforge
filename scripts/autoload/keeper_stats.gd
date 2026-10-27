@@ -1,6 +1,8 @@
 extends Node
 ## Seven combat stats. Runestones spend shared Manashards per actor.
-## R5: ranks_by_actor; cost uses target stat value (brief: floor(100*1.65^(target-5))).
+## R5: ranks_by_actor. Next rank cost = floor(cost_base * cost_growth^(trained - STAT_BASE_START)).
+## Design v2 runestone table (trained value before buy): 5→100, 6→165, 7→272, 8→449, 9→741, …
+## Example: Puff Arcana trained 8 → next point costs 449 Essence.
 
 signal ranks_changed(stat_id: StringName)
 
@@ -202,7 +204,7 @@ func get_next_cost_for_actor(actor: String, stat_id: String) -> int:
 	var base_cost: int = int(params.get("cost_base", 100))
 	var growth: float = float(params.get("cost_growth", 1.65))
 	var current: int = trained_value(actor, stat_id)
-	## Cost step uses trained value before the raise (Design v2 table). Brief target-5 differs at 8→9.
+	## Exponent = trained − STAT_BASE_START (5). Matches Design v2 table; see file header.
 	var exponent: int = maxi(0, current - stat_base_start())
 	return int(floor(float(base_cost) * pow(growth, float(exponent)) + 0.0000001))
 
