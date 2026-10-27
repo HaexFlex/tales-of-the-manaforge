@@ -245,7 +245,10 @@ func confirm_spend() -> String:
 		return "missing"
 	var sid: String = _pending_stat
 	var stat_name: String = KeeperStats.stat_display_name(sid)
-	var result: String = KeeperStats.try_buy(sid)
+	var actor: String = GameState.selected_hero_id()
+	if actor == "":
+		actor = "keeper"
+	var result: String = KeeperStats.try_buy(sid, actor)
 	match result:
 		"ok":
 			GameAudio.play_upgrade_buy()

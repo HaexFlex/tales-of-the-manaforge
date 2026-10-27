@@ -24,6 +24,7 @@ const MANATREE_DECOR_RADIUS: float = 200.0
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
 const PORTAL_SCENE: PackedScene = preload("res://scenes/echo_portal.tscn")
+const BREWING_STAND_SCENE: PackedScene = preload("res://scenes/brewing_stand.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
@@ -131,6 +132,7 @@ func _ready() -> void:
 		hud.call("maybe_show_elaia_join")
 	_attach_hub_day_night()
 	_ensure_glade_fireflies()
+	_setup_r5_hub()
 
 
 func _attach_hub_day_night() -> void:
@@ -138,6 +140,20 @@ func _attach_hub_day_night() -> void:
 	cycle.dusk_ground_changed.connect(_on_hub_dusk_ground_changed)
 	add_child(cycle)
 	move_child(cycle, 0)
+
+
+func _setup_r5_hub() -> void:
+	if has_node("/root/BrewingJobs"):
+		BrewingJobs.note_hub_scene(true)
+	if world and world.get_node_or_null("BrewingStand") == null and BREWING_STAND_SCENE != null:
+		var stand: Node2D = BREWING_STAND_SCENE.instantiate() as Node2D
+		stand.name = "BrewingStand"
+		stand.global_position = BrewingJobs.hub_pos() if has_node("/root/BrewingJobs") else Vector2(1688, 2580)
+		world.add_child(stand)
+	if get_node_or_null("FireflyRing") == null:
+		var ring := preload("res://scripts/hub/firefly_ring.gd").new()
+		ring.name = "FireflyRing"
+		add_child(ring)
 
 
 func _ensure_glade_fireflies() -> void:

@@ -6,6 +6,8 @@ const FEE: int = 30
 const BRAMBLE_FEE: int = 50
 const DATA_PATH: String = "res://data/echo_keeper_01.json"
 const BRAMBLE_PATH: String = "res://data/echo_bramble_02.json"
+const PUFF_PATH: String = "res://data/echo_puff_03.json"
+const TORTOISE_PATH: String = "res://data/echo_moss_tortoise_04.json"
 const BATTLE_SCENE: String = "res://scenes/echo_battle.tscn"
 const FORGE_WEAPONS: PackedStringArray = ["rootsteel_edge", "heartwand", "switchshaft"]
 
@@ -17,6 +19,8 @@ var battle: EchoBattle = null
 var _battle_ui: Node = null
 var _echo_def: Dictionary = {}
 var _bramble_def: Dictionary = {}
+var _puff_def: Dictionary = {}
+var _tortoise_def: Dictionary = {}
 
 
 func _ready() -> void:
@@ -41,6 +45,18 @@ func _load_def() -> void:
 	bramble.close()
 	if typeof(bramble_parsed) == TYPE_DICTIONARY:
 		_bramble_def = bramble_parsed
+	var puff := FileAccess.open(PUFF_PATH, FileAccess.READ)
+	if puff != null:
+		var puff_parsed: Variant = JSON.parse_string(puff.get_as_text())
+		puff.close()
+		if typeof(puff_parsed) == TYPE_DICTIONARY:
+			_puff_def = puff_parsed
+	var tortoise := FileAccess.open(TORTOISE_PATH, FileAccess.READ)
+	if tortoise != null:
+		var tortoise_parsed: Variant = JSON.parse_string(tortoise.get_as_text())
+		tortoise.close()
+		if typeof(tortoise_parsed) == TYPE_DICTIONARY:
+			_tortoise_def = tortoise_parsed
 
 
 func echo_def() -> Dictionary:
@@ -97,7 +113,67 @@ func hub_portal_context() -> String:
 		return "echo1"
 	if GameState.echo_01_resolved and bramble_gate_open():
 		return "echo2"
+	if GameState.echo_02_resolved and puff_gate_open():
+		return "echo3"
+	if GameState.echo_03_resolved and tortoise_gate_open():
+		return "echo4"
 	return ""
+
+
+func puff_gate_open() -> bool:
+	return GameState.puff_echo_gate_open() and not GameState.echo_03_resolved
+
+
+func tortoise_gate_open() -> bool:
+	return GameState.moss_tortoise_echo_gate_open()
+
+
+func puff_def() -> Dictionary:
+	return _puff_def
+
+
+func tortoise_def() -> Dictionary:
+	return _tortoise_def
+
+
+func try_pay_puff() -> String:
+	if not puff_gate_open():
+		return "closed"
+	if GameState.echo_03_fee_paid:
+		return "already_paid"
+	if GameState.owned_tier2_tool_count() < 2:
+		return "reject"
+	if GameState.essence < R5Constants.PUFF_ECHO_FEE:
+		return "reject"
+	GameState.add_resource(&"essence", -R5Constants.PUFF_ECHO_FEE)
+	GameState.echo_03_fee_paid = true
+	GameState.echo_flags_changed.emit()
+	return "paid"
+
+
+func try_pay_tortoise() -> String:
+	if not tortoise_gate_open():
+		return "closed"
+	if GameState.echo_04_fee_paid:
+		return "already_paid"
+	if GameState.essence < R5Constants.MOSS_TORTOISE_ECHO_FEE:
+		return "reject"
+	if Backpack.get_count("heart_salve") < 1:
+		return "reject"
+	if not Backpack.try_spend("heart_salve", 1):
+		return "reject"
+	GameState.add_resource(&"essence", -R5Constants.MOSS_TORTOISE_ECHO_FEE)
+	GameState.echo_04_fee_paid = true
+	GameState.echo_flags_changed.emit()
+	return "paid"
+
+
+func open_puff(already_paid: bool) -> void:
+	open_context(_puff_def, "echo3", _keeper_totals(), Equipment.equipped_strike_kind(), already_paid)
+
+
+func open_tortoise(already_paid: bool) -> void:
+	open_context(_tortoise_def, "echo4", _keeper_totals(), Equipment.equipped_strike_kind(), already_paid)
 
 
 func hub_portal_open() -> bool:
@@ -183,6 +259,10 @@ func apply_outcome(outcome: String) -> Dictionary:
 	battle_context = ""
 	if ctx == "echo2":
 		return _apply_bramble(outcome)
+	if ctx == "echo3":
+		return _apply_puff(outcome)
+	if ctx == "echo4":
+		return _apply_tortoise(outcome)
 	var shards: int = 0
 	if outcome == "spare" or outcome == "defeat":
 		shards = snapshot_payout(outcome)
@@ -196,6 +276,46 @@ func apply_outcome(outcome: String) -> Dictionary:
 			Equipment.ensure_forge_key_equipped()
 	elif outcome == "ko":
 		GameState.portal_fee_paid = false
+	GameState.echo_flags_changed.emit()
+	return {"outcome": outcome, "shards": shards}
+
+
+func _apply_puff(outcome: String) -> Dictionary:
+	var shards: int = 0
+	if outcome == "spare" or outcome == "defeat":
+		shards = snapshot_payout(outcome)
+		if shards > 0:
+			GameState.add_resource(&"manashards", shards)
+		GameState.echo_03_resolved = true
+		GameState.echo_03_fee_paid = false
+		GameState.brewing_unlocked = true
+		if outcome == "spare":
+			GameState.puff_in_party = true
+			GameState.puff_join_seen = true
+	elif outcome == "ko":
+		GameState.echo_03_fee_paid = false
+	GameState.echo_flags_changed.emit()
+	return {"outcome": outcome, "shards": shards}
+
+
+func _apply_tortoise(outcome: String) -> Dictionary:
+	var shards: int = 0
+	if outcome == "spare" or outcome == "defeat":
+		shards = snapshot_payout(outcome)
+		if shards > 0:
+			GameState.add_resource(&"manashards", shards)
+		GameState.echo_04_resolved = true
+		GameState.echo_04_fee_paid = false
+		GameState.echo_04_outcome = outcome
+		if outcome == "spare":
+			GameState.moss_tortoise_in_party = true
+			GameState.moss_tortoise_join_seen = true
+			if has_node("/root/GameAudio"):
+				GameAudio.play(&"mus_moss_tortoise_sting")
+		elif outcome == "defeat":
+			GameState.regrowth_defeat_mult = R5Constants.REGROW_DEFEAT_MULT
+	elif outcome == "ko":
+		GameState.echo_04_fee_paid = false
 	GameState.echo_flags_changed.emit()
 	return {"outcome": outcome, "shards": shards}
 
@@ -235,6 +355,10 @@ func finish_battle(outcome: String) -> void:
 
 func dismiss_battle_without_reward() -> void:
 	## Load / new game / quit abandon the fight. Disk state is the flee-equivalent.
+	if battle_context == "echo3" and GameState.echo_03_fee_paid and not GameState.echo_03_resolved:
+		GameState.echo_flags_changed.emit()
+	if battle_context == "echo4" and GameState.echo_04_fee_paid and not GameState.echo_04_resolved:
+		GameState.echo_flags_changed.emit()
 	if battle_context == "echo2" and GameState.echo_02_fee_paid and not GameState.echo_02_resolved:
 		GameState.echo_02_outcome = "flee"
 		GameState.echo_flags_changed.emit()

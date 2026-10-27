@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "notes": [
+    "R5 PLACEHOLDER. Offline = raw closed gap (Forge craft precedent).",
+    "Unlock when Puff Echo resolved (Spare or Defeat)."
+  ],
+  "station": {
+    "id": "brewing",
+    "display_name": "Brewing Stand",
+    "hub_landmark": "brewing_stand",
+    "hub_pos": [1688, 2580],
+    "wisp_cap": 2,
+    "queue_max_outputs": 20,
+    "auto_repeat": true
+  },
+  "staffing": {
+    "keeper_speed": 1.0,
+    "companion_speed_key": "brew_rate",
+    "wisp_speed": 0.1,
+    "puff_brew_rate": 1.5
+  },
+  "moss_tonic_buff": {
+    "id": "moss_tonic",
+    "wisp_work_mult": 1.10,
+    "duration_sec": 600,
+    "stacking": "refresh_not_stack",
+    "applies_offline": false
+  },
+  "recipes": [
+    {
+      "id": "heart_salve",
+      "output_id": "heart_salve",
+      "output_count": 1,
+      "inputs": { "glowcap": 2, "essence": 5 },
+      "duration_sec": 45,
+      "category": "potions"
+    },
+    {
+      "id": "bile_vial",
+      "output_id": "bile_vial",
+      "output_count": 1,
+      "inputs": { "bitterroot": 2, "essence": 5 },
+      "duration_sec": 45,
+      "category": "potions"
+    },
+    {
+      "id": "moss_tonic",
+      "output_id": "moss_tonic",
+      "output_count": 1,
+      "inputs": { "glowcap": 1, "bitterroot": 1, "essence": 3 },
+      "duration_sec": 60,
+      "category": "potions",
+      "use": "hub_buff"
+    }
+  ],
+  "combat": {
+    "heart_salve_heal_num": 3,
+    "heart_salve_heal_den": 10,
+    "heart_salve_max_per_fight": 2,
+    "auto_policy_hp_num": 4,
+    "auto_policy_hp_den": 10,
+    "bile_poison_total": 15
+  }
+}

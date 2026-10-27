@@ -75,6 +75,9 @@ func _ready() -> void:
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
 	GameState.stage_changed.connect(_on_stage_changed)
+	_apply_manatree_tint()
+	if not GameState.load_completed.is_connected(_apply_manatree_tint):
+		GameState.load_completed.connect(_apply_manatree_tint)
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
 	GameState.selection_changed.connect(_refresh_label)
@@ -854,3 +857,17 @@ func _exit_tree() -> void:
 	if _damp_sprite != null and is_instance_valid(_damp_sprite):
 		_damp_sprite.queue_free()
 		_damp_sprite = null
+
+
+const MANATREE_TINTS: Array[Color] = [
+	Color(1.0, 1.0, 1.0, 1.0),
+	Color(1.0, 0.92, 0.82, 1.0),
+	Color(0.88, 0.95, 1.0, 1.0),
+]
+
+
+func _apply_manatree_tint() -> void:
+	if sprite == null:
+		return
+	var idx: int = clampi(GameState.manatree_tint, 0, MANATREE_TINTS.size() - 1)
+	sprite.modulate = MANATREE_TINTS[idx]

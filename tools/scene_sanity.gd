@@ -169,7 +169,7 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 15") >= 0, "SAVE_VERSION 15")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 16") >= 0, "SAVE_VERSION 16")
 	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
@@ -474,7 +474,7 @@ func _trait_speed_rows() -> int:
 	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "", false)
 	sheet.set("_actor_id", "puff")
 	sheet.call("open_trait_popup")
-	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.0×", true)
+	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.5×", true)
 	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
 	sheet.queue_free()
 	if failed == 0:
@@ -1841,7 +1841,7 @@ func _newest_autosave_salves(save: Node) -> int:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return -1
 	version = int((parsed as Dictionary).get("save_version", -1))
-	if version != 15:
+	if version != 16:
 		return -1
 	var state_v: Variant = (parsed as Dictionary).get("state", {})
 	if typeof(state_v) != TYPE_DICTIONARY:

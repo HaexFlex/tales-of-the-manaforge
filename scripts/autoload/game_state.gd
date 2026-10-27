@@ -65,6 +65,28 @@ var echo_02_outcome: String = ""
 ## Lifetime reach room wins before spared Bramble appears in the clearing (companion gate).
 const BRAMBLE_JOIN_CLEARS: int = 30
 var echo_02_narrator_heard: bool = false
+## Echo 3 (Puff). R5 PLACEHOLDER gates.
+var echo_03_resolved: bool = false
+var echo_03_fee_paid: bool = false
+var puff_in_party: bool = false
+var puff_join_seen: bool = false
+var brewing_unlocked: bool = false
+var lifetime_t2_tool_arch_seen: bool = false
+## Echo 4 (moss tortoise).
+var echo_04_resolved: bool = false
+var echo_04_fee_paid: bool = false
+var echo_04_outcome: String = ""
+var moss_tortoise_in_party: bool = false
+var moss_tortoise_join_seen: bool = false
+var regrowth_defeat_mult: float = 1.0
+## Track 4 surprises (persist through Ascend where noted).
+var firefly_jar_count: int = 0
+var manatree_tint: int = 0
+var moss_tonic_until_ms: int = 0
+## Wisp nap (session-only; not saved).
+var _wisp_idle_accum: Dictionary = {}
+var _wisp_napping: Dictionary = {}
+var _wisp_nap_burst_until: Dictionary = {}
 ## Expedition board lantern. dark | amber | cyan. Amber is a run out, cyan is done.
 var expedition_lantern: String = "dark"
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
@@ -625,6 +647,8 @@ func assignment_target_display(node_id: String) -> String:
 func is_valid_wisp_node_id(node_id: String) -> bool:
 	if resource_for_node_id(node_id) != &"":
 		return true
+	if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(node_id):
+		return true
 	return has_node("/root/ForgeJobs") and ForgeJobs.is_craft_spot(node_id)
 
 
@@ -676,6 +700,10 @@ func wisp_slot_index_on_node(wisp_id: int, node_id: String) -> int:
 
 func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 	## Returns "ok" | "reassign" | "invalid". Stacking allowed (no slot-full busy deny).
+	if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(node_id):
+		if count_wisps_on_node(node_id) >= BrewingJobs.wisp_cap() and str(wisp_assignments.get(str(wisp_id), "")) != node_id:
+			wisp_assign_failed.emit("full", node_id)
+			return "full"
 	if fruit_committed:
 		wisp_assign_failed.emit("invalid", node_id)
 		return "invalid"
@@ -706,6 +734,10 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 			return "cross_scene"
 	var joining: bool = count_wisps_on_node(node_id) > 0
 	var first_assign: bool = prev == ""
+	if bool(_wisp_napping.get(key, false)):
+		_wisp_napping[key] = false
+		_wisp_nap_burst_until[key] = Time.get_ticks_msec() + int(R5Constants.WISP_NAP_BURST_SEC * 1000.0)
+	_wisp_idle_accum[key] = 0.0
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
 	if first_assign and resource_for_node_id(node_id) != &"":
@@ -764,6 +796,11 @@ func apply_wisp_pulses(delta: float) -> void:
 	## Forge-station wisps do not gather. One pulse signal per node that banks a whole unit.
 	if fruit_committed or delta <= 0.0:
 		return
+	var play_delta: float = active_play_delta(delta)
+	if play_delta <= 0.0:
+		return
+	_tick_wisp_nap_idle(play_delta)
+	var tonic_mult: float = moss_tonic_wisp_mult()
 	var pulsed_nodes: Dictionary = {}
 	for i: int in range(wisp_count):
 		var key: String = str(i)
@@ -772,16 +809,110 @@ func apply_wisp_pulses(delta: float) -> void:
 			continue
 		if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(nid):
 			continue
+		if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(nid):
+			continue
 		var rid: StringName = resource_for_node_id(nid)
 		if rid == &"":
 			continue
 		var fav_mult: float = 1.0
 		if str(wisp_favourites.get(key, "")) == nid:
 			fav_mult = param_float("WISP_FAVOURITE_RATE_MULT", 1.2)
-		if accumulate_wisp_harvest(rid, delta * fav_mult) > 0:
+		var rate: float = play_delta * fav_mult * tonic_mult * wisp_nap_burst_mult(key)
+		if accumulate_wisp_harvest(rid, rate) > 0:
 			pulsed_nodes[nid] = rid
 	for nid2: Variant in pulsed_nodes.keys():
 		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
+
+
+func _tick_wisp_nap_idle(delta: float) -> void:
+	for i: int in range(wisp_count):
+		var key: String = str(i)
+		if str(wisp_assignments.get(key, "")) != "":
+			continue
+		if bool(_wisp_napping.get(key, false)):
+			continue
+		var acc: float = float(_wisp_idle_accum.get(key, 0.0)) + delta
+		_wisp_idle_accum[key] = acc
+		if acc >= R5Constants.WISP_NAP_AFTER_SEC:
+			_wisp_napping[key] = true
+			wisps_changed.emit()
+
+
+func wisp_is_napping(wisp_id: int) -> bool:
+	return bool(_wisp_napping.get(str(wisp_id), false))
+
+
+func wisp_nap_burst_mult(wisp_key: String) -> float:
+	var until: int = int(_wisp_nap_burst_until.get(wisp_key, 0))
+	if until > Time.get_ticks_msec():
+		return R5Constants.WISP_NAP_BURST_MULT
+	return 1.0
+
+
+func moss_tonic_wisp_mult() -> float:
+	if moss_tonic_until_ms <= Time.get_ticks_msec():
+		return 1.0
+	if has_node("/root/BrewingJobs"):
+		var buff: Dictionary = BrewingJobs.moss_tonic_buff()
+		return float(buff.get("wisp_work_mult", 1.0))
+	return 1.0
+
+
+func drink_moss_tonic() -> void:
+	var dur_ms: int = 600000
+	if has_node("/root/BrewingJobs"):
+		dur_ms = int(float(BrewingJobs.moss_tonic_buff().get("duration_sec", 600)) * 1000.0)
+	moss_tonic_until_ms = Time.get_ticks_msec() + dur_ms
+	status_message.emit(ContentStrings.get_text("moss_tonic_toast"))
+
+
+func owned_tier2_tool_count() -> int:
+	if not has_node("/root/Equipment"):
+		return 0
+	var n: int = 0
+	for tool_id: String in R5Constants.T2_TOOL_IDS:
+		if Equipment.owns_anywhere(tool_id):
+			n += 1
+	return n
+
+
+func note_tier2_tool_ownership() -> void:
+	if owned_tier2_tool_count() >= 2:
+		lifetime_t2_tool_arch_seen = true
+		echo_flags_changed.emit()
+
+
+func puff_echo_gate_open() -> bool:
+	return lifetime_t2_tool_arch_seen or owned_tier2_tool_count() >= 2
+
+
+func puff_in_party_active() -> bool:
+	return puff_in_party and puff_join_seen
+
+
+func moss_tortoise_joined() -> bool:
+	return moss_tortoise_in_party and moss_tortoise_join_seen
+
+
+func moss_tortoise_echo_gate_open() -> bool:
+	if not echo_03_resolved or echo_04_resolved:
+		return false
+	if not (puff_in_party_active() or brewing_unlocked):
+		return false
+	if not has_node("/root/Reach"):
+		return false
+	return Reach.reaches_cleared >= R5Constants.MOSS_TORTOISE_JOIN_CLEARS
+
+
+func party_cap() -> int:
+	return R5Constants.PARTY_CAP
+
+
+func regrowth_time_mult() -> float:
+	var mult: float = regrowth_defeat_mult
+	if moss_tortoise_joined() and not member_away("moss_tortoise"):
+		mult *= R5Constants.MOSS_TORTOISE_REGROW_MULT
+	return mult
 
 
 func set_keeper_selected(value: bool) -> void:
@@ -1962,6 +2093,7 @@ func harvest_fruit() -> int:
 	fruit_ready = false
 	_set_fruit_committed(true)
 	fruit_ready_changed.emit(false)
+	manatree_tint = clampi(manatree_tint, 0, 2)
 	return 1
 
 
@@ -2184,11 +2316,28 @@ func to_save_dict() -> Dictionary:
 		"echo_02_resolved": echo_02_resolved,
 		"echo_02_outcome": echo_02_outcome,
 		"echo_02_narrator_heard": echo_02_narrator_heard,
+		"echo_03_resolved": echo_03_resolved,
+		"echo_03_fee_paid": echo_03_fee_paid,
+		"puff_in_party": puff_in_party,
+		"puff_join_seen": puff_join_seen,
+		"brewing_unlocked": brewing_unlocked,
+		"lifetime_t2_tool_arch_seen": lifetime_t2_tool_arch_seen,
+		"echo_04_resolved": echo_04_resolved,
+		"echo_04_fee_paid": echo_04_fee_paid,
+		"echo_04_outcome": echo_04_outcome,
+		"moss_tortoise_in_party": moss_tortoise_in_party,
+		"moss_tortoise_join_seen": moss_tortoise_join_seen,
+		"regrowth_defeat_mult": regrowth_defeat_mult,
+		"firefly_jar_count": firefly_jar_count,
+		"manatree_tint": manatree_tint,
+		"moss_tonic_until_ms": moss_tonic_until_ms,
 		"expedition_lantern": expedition_lantern,
 		"arrow_mode": arrow_mode,
 		"ancient_frozen": ancient_frozen,
 		"forge_visited": forge_visited,
 	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
+		BrewingJobs.capture_save_fields() if has_node("/root/BrewingJobs") else {}
+	).merged(
 		Reach.capture_save_fields() if has_node("/root/Reach") else {}
 	)
 
@@ -2282,6 +2431,21 @@ func apply_save_dict(data: Dictionary) -> void:
 	echo_02_resolved = bool(data.get("echo_02_resolved", false))
 	echo_02_outcome = str(data.get("echo_02_outcome", ""))
 	echo_02_narrator_heard = bool(data.get("echo_02_narrator_heard", false))
+	echo_03_resolved = bool(data.get("echo_03_resolved", false))
+	echo_03_fee_paid = bool(data.get("echo_03_fee_paid", false))
+	puff_in_party = bool(data.get("puff_in_party", false))
+	puff_join_seen = bool(data.get("puff_join_seen", false))
+	brewing_unlocked = bool(data.get("brewing_unlocked", false))
+	lifetime_t2_tool_arch_seen = bool(data.get("lifetime_t2_tool_arch_seen", false))
+	echo_04_resolved = bool(data.get("echo_04_resolved", false))
+	echo_04_fee_paid = bool(data.get("echo_04_fee_paid", false))
+	echo_04_outcome = str(data.get("echo_04_outcome", ""))
+	moss_tortoise_in_party = bool(data.get("moss_tortoise_in_party", false))
+	moss_tortoise_join_seen = bool(data.get("moss_tortoise_join_seen", false))
+	regrowth_defeat_mult = float(data.get("regrowth_defeat_mult", 1.0))
+	firefly_jar_count = int(data.get("firefly_jar_count", 0))
+	manatree_tint = clampi(int(data.get("manatree_tint", 0)), 0, 2)
+	moss_tonic_until_ms = int(data.get("moss_tonic_until_ms", 0))
 	var lantern: String = str(data.get("expedition_lantern", "dark"))
 	expedition_lantern = lantern if lantern == "amber" or lantern == "cyan" else "dark"
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
@@ -2348,6 +2512,8 @@ func apply_save_dict(data: Dictionary) -> void:
 			Equipment.ensure_forge_key_from_load()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.apply_save_fields(data)
+	if has_node("/root/BrewingJobs"):
+		BrewingJobs.apply_save_fields(data)
 	if has_node("/root/Reach"):
 		var reach_v: Variant = data.get("reach", {})
 		Reach.apply_save_fields(reach_v if typeof(reach_v) == TYPE_DICTIONARY else {})

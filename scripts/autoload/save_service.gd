@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 15 — ascension shop UI + blessing unlock flags. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 16 — R5 systems (ranks_by_actor, companions, surprises). Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,7 +14,7 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 15
+const SAVE_VERSION: int = 16
 ## Never read a save newer than this build writes: unknown fields would be dropped silently.
 const SAVE_VERSION_MAX_READ: int = SAVE_VERSION
 const SAVE_SLOT_COUNT: int = 7
@@ -799,6 +799,8 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v14(out)
 	if from_version < 15:
 		_migrate_v15(out)
+	if from_version < 16:
+		_migrate_v16(out)
 	_drop_removed_blessings(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
@@ -888,6 +890,37 @@ func _drop_removed_blessings(out: Dictionary) -> void:
 			continue
 		var ranks: Dictionary = ranks_v as Dictionary
 		ranks.erase("keep_forge_intermediates")
+
+
+func _migrate_v16(out: Dictionary) -> void:
+	var stats_v: Variant = out.get("keeper_stats", {})
+	var stats: Dictionary = stats_v if typeof(stats_v) == TYPE_DICTIONARY else {}
+	if not stats.has("ranks_by_actor"):
+		var legacy: Dictionary = {}
+		for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+			if stats.has(sid):
+				legacy[sid] = maxi(0, int(stats[sid]))
+		stats["ranks_by_actor"] = {"keeper": legacy}
+		out["keeper_stats"] = stats
+	for key: String in [
+		"echo_03_resolved", "echo_03_fee_paid", "puff_in_party", "puff_join_seen", "brewing_unlocked",
+		"lifetime_t2_tool_arch_seen", "echo_04_resolved", "echo_04_fee_paid", "moss_tortoise_in_party",
+		"moss_tortoise_join_seen",
+	]:
+		if not out.has(key):
+			out[key] = false
+	if not out.has("echo_04_outcome"):
+		out["echo_04_outcome"] = ""
+	if not out.has("regrowth_defeat_mult"):
+		out["regrowth_defeat_mult"] = 1.0
+	if not out.has("firefly_jar_count"):
+		out["firefly_jar_count"] = 0
+	if not out.has("manatree_tint"):
+		out["manatree_tint"] = 0
+	if not out.has("moss_tonic_until_ms"):
+		out["moss_tonic_until_ms"] = 0
+	if not out.has("brewing_job"):
+		out["brewing_job"] = {}
 
 
 func _migrate_v15(out: Dictionary) -> void:
@@ -1059,13 +1092,16 @@ func _migrate_gear_v7(out: Dictionary) -> void:
 func _normalize_stat_ranks(out: Dictionary) -> void:
 	var raw_v: Variant = out.get("keeper_stats", {})
 	var src: Dictionary = raw_v if typeof(raw_v) == TYPE_DICTIONARY else {}
+	if src.has("ranks_by_actor") and typeof(src.get("ranks_by_actor")) == TYPE_DICTIONARY:
+		out["keeper_stats"] = src
+		return
 	var stats: Dictionary = {}
 	for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
 		if not src.has(sid):
 			stats[sid] = 0
 		else:
 			stats[sid] = maxi(0, int(src[sid]))
-	out["keeper_stats"] = stats
+	out["keeper_stats"] = {"ranks_by_actor": {"keeper": stats}}
 
 
 func delete_slot(slot: int) -> void:
@@ -1129,6 +1165,9 @@ func _apply_offline_gap(closed: float) -> void:
 		reach_before = Reach.capture_offline_snapshot()
 	var forge: Dictionary = ForgeJobs.apply_saved_offline_gap(closed)
 	order.append("forge")
+	if has_node("/root/BrewingJobs"):
+		var brew: Dictionary = BrewingJobs.apply_offline_seconds(closed)
+		forge["brew_completed"] = int(brew.get("brew_completed", 0))
 	## Road time is the raw gap. Play speed and Rush do not stretch a closed game.
 	var reach_after: Dictionary = reach_before
 	if has_node("/root/Reach"):

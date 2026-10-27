@@ -140,12 +140,16 @@ func wisp_cap() -> int:
 
 
 func wisp_cap_for(node_id: String) -> int:
+	if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(node_id):
+		return BrewingJobs.wisp_cap()
 	if node_id == WORKBENCH_ID:
 		return maxi(0, int(_tuning.get("bench_wisp_cap", 2)))
 	return wisp_cap()
 
 
 func is_craft_spot(node_id: String) -> bool:
+	if has_node("/root/BrewingJobs") and BrewingJobs.is_brewing_station(node_id):
+		return true
 	return is_forge_station(node_id) or node_id == WORKBENCH_ID
 
 

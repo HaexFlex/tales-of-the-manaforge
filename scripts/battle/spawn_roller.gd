@@ -325,12 +325,12 @@ static func beast_fill_floor(depth: int) -> int:
 	return floor90
 
 
-static func roll_room(depth: int, rng: BattleRng, boss: bool = false) -> Array[Dictionary]:
+static func roll_room(depth: int, rng: BattleRng, boss: bool = false, party_size: int = 1) -> Array[Dictionary]:
 	_ensure_data()
 	var fill: Dictionary = _spawn_data.get("fill", {}) as Dictionary
-	var max_beasts: int = int(fill.get("max_beasts", 6))
+	var max_beasts: int = _party_max_beasts(party_size)
 	var table: Array[Dictionary] = table_for(depth)
-	var room_budget: int = budget(depth)
+	var room_budget: int = _party_scaled_budget(depth, party_size)
 	var combos: Array = []
 	_enumerate_combos(table, max_beasts, room_budget, 0, [], 0, combos)
 	if combos.is_empty():
@@ -503,16 +503,29 @@ static func mossmite_res(bugs: int) -> int:
 	return int(bugs / float(div)) + off
 
 
-static func roll_room_with_mossmites(depth: int, rng: BattleRng, boss: bool = false) -> Array[Dictionary]:
+static func roll_room_with_mossmites(depth: int, rng: BattleRng, boss: bool = false, party_size: int = 1) -> Array[Dictionary]:
 	## Beasts fill first (search + variety). Swarms spend leftover threat only.
 	## Boss rooms are not simmed: no swarms there.
-	var room: Array[Dictionary] = roll_room(depth, rng, boss)
+	var room: Array[Dictionary] = roll_room(depth, rng, boss, party_size)
 	if boss:
 		return room
 	var spent: int = 0
 	for entry: Dictionary in room:
 		spent += int(entry.get("threat", 0))
-	return fill_mossmites(room, budget(depth) - spent, rng)
+	var room_budget: int = _party_scaled_budget(depth, party_size)
+	return fill_mossmites(room, room_budget - spent, rng)
+
+
+static func _party_scaled_budget(depth: int, party_size: int) -> int:
+	var n: int = maxi(1, party_size)
+	var mult: float = 1.0 + R5Constants.PARTY_THREAT_K * float(n - 1)
+	return int(floor(float(budget(depth)) * mult))
+
+
+static func _party_max_beasts(party_size: int) -> int:
+	var fill: Dictionary = _spawn_data.get("fill", {}) as Dictionary
+	var base: int = int(fill.get("max_beasts", 6))
+	return base + mini(2, maxi(0, party_size - 1))
 
 
 static func fill_mossmites(room: Array[Dictionary], rem: int, _rng: BattleRng) -> Array[Dictionary]:

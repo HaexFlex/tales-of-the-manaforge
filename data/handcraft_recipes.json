@@ -213,6 +213,16 @@
       "unique": false,
       "color": "#8a9a32",
       "art_name": "icon_bile_vial"
+    },
+    {
+      "id": "moss_tonic",
+      "display_name": "Moss Tonic",
+      "string_key": "item_moss_tonic",
+      "kind": "consumable",
+      "category": "potions",
+      "unique": false,
+      "color": "#6a9a5a",
+      "art_name": "icon_heart_salve"
     }
   ],
   "recipes": [

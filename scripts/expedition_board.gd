@@ -280,6 +280,10 @@ func available_members() -> Array[String]:
 		out.append("elaia")
 	if GameState.bramble_joined():
 		out.append("bramble")
+	if GameState.puff_in_party_active():
+		out.append("puff")
+	if GameState.moss_tortoise_joined():
+		out.append("moss_tortoise")
 	return out
 
 

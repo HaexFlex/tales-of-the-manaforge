@@ -1,0 +1,21 @@
+{
+  "id": "echo_moss_tortoise_04",
+  "display_name_key": "moss_tortoise_name",
+  "display_name": "Moss Tortoise",
+  "subtitle_key": "moss_tortoise_subtitle",
+  "examine_key": "echo_moss_tortoise_examine",
+  "portrait_id": "moss_tortoise_portrait",
+  "battle_art_path": "res://assets/art/moss_tortoise/battle_moss_tortoise_idle.png",
+  "facing": "west",
+  "attack_profile": "physical",
+  "role": "R5 PLACEHOLDER — mercy echo 4.",
+  "stats": {
+    "might": 7,
+    "arcana": 2,
+    "resilience": 12,
+    "ward": 10,
+    "vitality": 16,
+    "swiftness": 4,
+    "fate": 10
+  }
+}

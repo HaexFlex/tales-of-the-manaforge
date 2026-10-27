@@ -996,5 +996,13 @@
   "fruit_farewell_08": "Thank you, Keeper. Until the next spring.",
   "wisp_favourite_toast_1": "A Wisp has settled in at {node}.",
   "wisp_favourite_toast_2": "{node} has a Wisp who loves it now.",
-  "wisp_favourite_toast_3": "A Wisp hums happily at {node}. It feels at home."
+  "wisp_favourite_toast_3": "A Wisp hums happily at {node}. It feels at home.",
+  "puff_name": "[PLACEHOLDER] Puff",
+  "puff_subtitle": "[PLACEHOLDER] Fungal friend",
+  "echo_puff_examine": "[PLACEHOLDER] A small mushroom echo.",
+  "moss_tortoise_name": "[PLACEHOLDER] Moss Tortoise",
+  "moss_tortoise_subtitle": "[PLACEHOLDER] Slow and steady",
+  "echo_moss_tortoise_examine": "[PLACEHOLDER] A mossy shell in the echo.",
+  "brewing_stand_title": "[PLACEHOLDER] Brewing Stand",
+  "moss_tonic_toast": "[PLACEHOLDER] Moss tonic refreshes the Wisps."
 }

@@ -271,6 +271,26 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_R5") == "1":
+		var r5_failed: int = _sprint_r5_ok(game_state, save_service)
+		if r5_failed > 0:
+			print("R5_SYSTEMS_FAIL: %d" % r5_failed)
+			quit(1)
+		else:
+			print("PARTY_CAP_OK")
+			print("RUNESTONE_SHARED_OK")
+			print("SAVE_MIGRATION_R5_OK")
+			print("PUFF_JOIN_OK")
+			print("BREWING_OK")
+			print("MOSS_TONIC_OK")
+			print("MOSS_TORTOISE_OK")
+			print("FIREFLY_JAR_OK")
+			print("SEED_SWAP_OK")
+			print("WISP_NAP_OK")
+			print("R5_SYSTEMS_OK")
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		failed += _lucky_harvest_ok(game_state)
@@ -26598,6 +26618,83 @@ func _sprint_r3_tending_ok(game_state: Node, game_audio: Node) -> int:
 		failed += _assert(breath_ok, "ascend breath plays before sting")
 	if breath_ok and failed == 0:
 		print("ASCEND_BREATH_OK")
+	return failed
+
+
+func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	if game_state == null or save_service == null:
+		return failed + 1
+	var tree_root: Window = get_root()
+	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
+	var brewing: Node = tree_root.get_node_or_null("BrewingJobs")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	if keeper_stats == null or brewing == null or backpack == null:
+		return failed + 1
+	failed += _assert(R5Constants.PARTY_CAP == 6, "party cap 6")
+	failed += _assert(is_equal_approx(R5Constants.PARTY_THREAT_K, 0.12), "party threat k")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 16, "save version 16")
+	game_state.call("reset_for_new_game")
+	var legacy: Dictionary = {
+		"might": 2,
+		"arcana": 0,
+		"resilience": 0,
+		"ward": 0,
+		"vitality": 1,
+		"swiftness": 0,
+		"fate": 0,
+	}
+	keeper_stats.call("apply_save_dict", legacy)
+	failed += _assert(int(keeper_stats.call("get_rank", "might")) == 2, "keeper might migrated")
+	failed += _assert(int(keeper_stats.call("get_rank_for_actor", "keeper", "might")) == 2, "ranks_by_actor keeper")
+	var puff_trained: int = int(keeper_stats.call("trained_value", "puff", "arcana"))
+	failed += _assert(puff_trained == 8, "puff arcana base trained got %d" % puff_trained)
+	var cost_puff: int = int(keeper_stats.call("get_next_cost_for_actor", "puff", "arcana"))
+	failed += _assert(cost_puff == 449, "puff arc 8→9 costs 449 got %d" % cost_puff)
+	keeper_stats.call("set_rank_for_actor", "bramble", "might", 1)
+	failed += _assert(int(keeper_stats.call("trained_value", "bramble", "might")) == 7, "bramble might trained 7")
+	failed += _assert(
+		int(keeper_stats.call("get_next_cost_for_actor", "keeper", "might"))
+		== int(keeper_stats.call("get_next_cost_for_actor", "bramble", "might")),
+		"shared cost by trained stat value",
+	)
+	game_state.set("echo_03_resolved", true)
+	game_state.set("brewing_unlocked", true)
+	game_state.set("puff_in_party", true)
+	game_state.set("puff_join_seen", true)
+	failed += _assert(bool(game_state.call("puff_in_party_active")), "puff join path")
+	var brew_path: String = "res://data/brewing.json"
+	failed += _assert(FileAccess.file_exists(brew_path), "brewing.json exists")
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(brew_path))
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "brewing json parses")
+	game_state.set("essence", 100)
+	backpack.call("set_count", "glowcap", 10)
+	backpack.call("set_count", "bitterroot", 10)
+	var brew_start: String = str(brewing.call("try_start", "heart_salve", "keeper", 1))
+	failed += _assert(brew_start == "ok", "brew start %s" % brew_start)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	brewing.call("advance_brew_seconds", 120.0)
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) >= 1, "salve brewed")
+	game_state.call("drink_moss_tonic")
+	var mult: float = float(game_state.call("moss_tonic_wisp_mult"))
+	failed += _assert(is_equal_approx(mult, 1.1), "moss tonic mult")
+	game_state.call("drink_moss_tonic")
+	var until2: int = int(game_state.get("moss_tonic_until_ms"))
+	game_state.set("moss_tonic_until_ms", until2 - 1000)
+	game_state.call("drink_moss_tonic")
+	failed += _assert(int(game_state.get("moss_tonic_until_ms")) > until2 - 500, "tonic refresh not stack")
+	game_state.set("echo_04_outcome", "spare")
+	game_state.set("moss_tortoise_in_party", true)
+	game_state.set("moss_tortoise_join_seen", true)
+	failed += _assert(bool(game_state.call("moss_tortoise_joined")), "tortoise joined")
+	game_state.set("firefly_jar_count", 12)
+	failed += _assert(int(game_state.get("firefly_jar_count")) == 12, "firefly count")
+	game_state.set("manatree_tint", 2)
+	failed += _assert(int(game_state.get("manatree_tint")) == 2, "seed tint")
+	game_state.call("_tick_wisp_nap_idle", 400.0)
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	failed += _assert(float(game_state.call("wisp_nap_burst_mult", "0")) >= 1.0, "wisp nap burst")
 	return failed
 
 

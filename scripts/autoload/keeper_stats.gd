@@ -1,19 +1,18 @@
 extends Node
-## Seven Keeper combat stats. Thin module beside GameState.
-## Runestones spend Manashards for +1 rank. Cost is exponential; power is flat.
-## Ranks persist through Ascend. Fate does not touch gather, Wisps, or handcraft.
+## Seven combat stats. Runestones spend shared Manashards per actor.
+## R5: ranks_by_actor; cost uses target stat value (brief: floor(100*1.65^(target-5))).
 
 signal ranks_changed(stat_id: StringName)
 
-## Displayed combat base before gear. Ranks are purchases on top of this.
 const STAT_BASE_START: int = 5
 const DATA_PATH: String = "res://data/keeper_stats.json"
 const STAT_ORDER: Array[StringName] = [
 	&"might", &"arcana", &"resilience", &"ward", &"vitality", &"swiftness", &"fate"
 ]
+const RUNESTONE_ACTORS: PackedStringArray = [
+	"keeper", "elaia", "puff", "moss_tortoise", "bramble"
+]
 
-## stat_color is tuned for dark wood and runestone glow; on parchment these dark-ink cousins
-## (char540 r4) keep the hue and reach readable contrast against #E7D4A6.
 const STAT_INK: Dictionary = {
 	"might": Color8(170, 52, 40),
 	"arcana": Color8(118, 64, 150),
@@ -25,6 +24,7 @@ const STAT_INK: Dictionary = {
 }
 
 var ranks: Dictionary = {}
+var ranks_by_actor: Dictionary = {}
 var params: Dictionary = {}
 var stats_data: Array = []
 var _stat_index: Dictionary = {}
@@ -33,7 +33,7 @@ var _stat_index: Dictionary = {}
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_load_tables()
-	_ensure_keys()
+	_ensure_actor_ranks()
 
 
 func _load_tables() -> void:
@@ -67,11 +67,19 @@ func starting_base() -> int:
 	return stat_base_start()
 
 
-func _ensure_keys() -> void:
+func _ensure_actor_ranks() -> void:
+	for actor: String in RUNESTONE_ACTORS:
+		_ensure_actor_keys(actor)
+
+
+func _ensure_actor_keys(actor: String) -> void:
+	if not ranks_by_actor.has(actor):
+		ranks_by_actor[actor] = {}
+	var bucket: Dictionary = ranks_by_actor[actor]
 	for sid: StringName in STAT_ORDER:
 		var key: String = String(sid)
-		if not ranks.has(key):
-			ranks[key] = 0
+		if not bucket.has(key):
+			bucket[key] = 0
 
 
 func is_known_stat(stat_id: String) -> bool:
@@ -116,11 +124,18 @@ func stat_ink_color(stat_id: String) -> Color:
 
 
 func get_rank(stat_id: String) -> int:
-	return int(ranks.get(stat_id, 0))
+	return get_rank_for_actor("keeper", stat_id)
+
+
+func get_rank_for_actor(actor: String, stat_id: String) -> int:
+	_ensure_actor_keys(actor)
+	var bucket: Variant = ranks_by_actor.get(actor, {})
+	if typeof(bucket) != TYPE_DICTIONARY:
+		return 0
+	return int((bucket as Dictionary).get(stat_id, 0))
 
 
 func get_max_rank() -> int:
-	## Uncapped: cost curve continues at 100×1.65^rank with no purchase ceiling.
 	if params.has("max_rank"):
 		return maxi(1, int(params.get("max_rank", 1)))
 	return 1_000_000
@@ -130,17 +145,26 @@ func power_per_rank() -> int:
 	return maxi(1, int(params.get("power_per_rank", 1)))
 
 
-## Sheet base. `STAT_BASE_START + ranks`. Gear is added by Equipment, not here.
-func get_base(stat_id: String) -> int:
-	return stat_base_start() + get_rank(stat_id) * power_per_rank()
-
-
-## Elaia's sheet base is the Echo 1 enemy block, not a Runestone rank.
-## A sheet row with no Echo stat is 0. Her gear is added by Equipment.
-func get_base_for(actor: String, stat_id: String) -> int:
+func sheet_base_for(actor: String, stat_id: String) -> int:
+	if actor == "keeper":
+		return stat_base_start()
 	if actor == "elaia":
 		return elaia_echo_base(stat_id)
-	return get_base(stat_id)
+	if has_node("/root/CompanionSheets") and CompanionSheets.has_actor(actor):
+		return int(CompanionSheets.base_stats(actor).get(stat_id, 0))
+	return 0
+
+
+func trained_value(actor: String, stat_id: String) -> int:
+	return sheet_base_for(actor, stat_id) + get_rank_for_actor(actor, stat_id) * power_per_rank()
+
+
+func get_base(stat_id: String) -> int:
+	return trained_value("keeper", stat_id)
+
+
+func get_base_for(actor: String, stat_id: String) -> int:
+	return trained_value(actor, stat_id)
 
 
 func elaia_echo_base(stat_id: String) -> int:
@@ -151,7 +175,6 @@ func elaia_echo_base(stat_id: String) -> int:
 
 
 func _echo_elaia_stats() -> Dictionary:
-	## Same file the Echo Chamber fight uses. Numbers are not copied here.
 	if has_node("/root/EchoChamber"):
 		var live: Variant = EchoChamber.echo_def().get("stats", {})
 		if typeof(live) == TYPE_DICTIONARY and not (live as Dictionary).is_empty():
@@ -167,30 +190,33 @@ func _echo_elaia_stats() -> Dictionary:
 	return stats if typeof(stats) == TYPE_DICTIONARY else {}
 
 
-## Next purchase cost. -1 when the rank cap is reached.
-## Rank 0 still costs BASE. The curve is not shifted by STAT_BASE_START.
-func get_next_cost(stat_id: String) -> int:
+func get_next_cost(stat_id: String, actor: String = "keeper") -> int:
+	return get_next_cost_for_actor(actor, stat_id)
+
+
+func get_next_cost_for_actor(actor: String, stat_id: String) -> int:
 	if not is_known_stat(stat_id):
 		return -1
-	var rank: int = get_rank(stat_id)
-	if rank >= get_max_rank():
+	if get_rank_for_actor(actor, stat_id) >= get_max_rank():
 		return -1
-	var base: int = int(params.get("cost_base", 100))
+	var base_cost: int = int(params.get("cost_base", 100))
 	var growth: float = float(params.get("cost_growth", 1.65))
-	## floor(BASE * GROWTH^rank). Tiny epsilon keeps binary 1.65 products on the documented step.
-	return int(floor(float(base) * pow(growth, float(rank)) + 0.0000001))
+	var current: int = trained_value(actor, stat_id)
+	## Cost step uses trained value before the raise (Design v2 table). Brief target-5 differs at 8→9.
+	var exponent: int = maxi(0, current - stat_base_start())
+	return int(floor(float(base_cost) * pow(growth, float(exponent)) + 0.0000001))
 
 
-func can_buy(stat_id: String) -> bool:
-	return try_buy_reason(stat_id) == ""
+func can_buy(stat_id: String, actor: String = "keeper") -> bool:
+	return try_buy_reason(stat_id, actor) == ""
 
 
-func try_buy_reason(stat_id: String) -> String:
+func try_buy_reason(stat_id: String, actor: String = "keeper") -> String:
 	if not is_known_stat(stat_id):
 		return "unknown"
 	if GameState.fruit_committed:
 		return "pending_ascend"
-	var cost: int = get_next_cost(stat_id)
+	var cost: int = get_next_cost_for_actor(actor, stat_id)
 	if cost < 0:
 		return "maxed"
 	if GameState.manashards < cost:
@@ -198,24 +224,30 @@ func try_buy_reason(stat_id: String) -> String:
 	return ""
 
 
-func try_buy(stat_id: String) -> String:
-	var reason: String = try_buy_reason(stat_id)
+func try_buy(stat_id: String, actor: String = "keeper") -> String:
+	var reason: String = try_buy_reason(stat_id, actor)
 	if reason != "":
 		return reason
-	var cost: int = get_next_cost(stat_id)
+	var cost: int = get_next_cost_for_actor(actor, stat_id)
 	GameState.add_resource(&"manashards", -cost)
-	set_rank(stat_id, get_rank(stat_id) + 1)
+	set_rank_for_actor(actor, stat_id, get_rank_for_actor(actor, stat_id) + 1)
 	return "ok"
 
 
 func set_rank(stat_id: String, rank: int) -> void:
+	set_rank_for_actor("keeper", stat_id, rank)
+
+
+func set_rank_for_actor(actor: String, stat_id: String, rank: int) -> void:
 	if not is_known_stat(stat_id):
 		return
-	ranks[stat_id] = clampi(rank, 0, get_max_rank())
+	_ensure_actor_keys(actor)
+	(ranks_by_actor[actor] as Dictionary)[stat_id] = clampi(rank, 0, get_max_rank())
+	if actor == "keeper":
+		ranks[stat_id] = get_rank_for_actor("keeper", stat_id)
 	ranks_changed.emit(StringName(stat_id))
 
 
-## Explicit lock: no stat, including Fate, feeds gather / Wisp / craft math.
 func affects_gather(_stat_id: String) -> bool:
 	return false
 
@@ -229,24 +261,20 @@ func affects_craft(_stat_id: String) -> bool:
 
 
 func on_ascend() -> void:
-	## Ranks stay. Elaia's base is the Echo file, so it stays too.
-	## GameState still wipes the soft Manashard bank.
 	pass
 
 
 func reset_for_new_game() -> void:
 	ranks.clear()
-	_ensure_keys()
+	ranks_by_actor.clear()
+	_ensure_actor_ranks()
 	ranks_changed.emit(&"")
 
 
 func to_save_dict() -> Dictionary:
-	return ranks.duplicate(true)
+	return {"ranks_by_actor": ranks_by_actor.duplicate(true)}
 
 
-## Missing ranks load as 0 (sheet base 5). A stored absolute below
-## STAT_BASE_START stays a non-negative rank so the sheet base floors at 5
-## via `5 + rank`. Ranks already >= 5 are not reduced.
 func normalize_loaded_rank(present: bool, raw: int) -> int:
 	if not present:
 		return 0
@@ -255,10 +283,20 @@ func normalize_loaded_rank(present: bool, raw: int) -> int:
 
 func apply_save_dict(data: Variant) -> void:
 	ranks.clear()
-	var src: Dictionary = data if typeof(data) == TYPE_DICTIONARY else {}
+	ranks_by_actor.clear()
+	if typeof(data) == TYPE_DICTIONARY:
+		var src: Dictionary = data
+		if src.has("ranks_by_actor") and typeof(src.get("ranks_by_actor")) == TYPE_DICTIONARY:
+			ranks_by_actor = (src.get("ranks_by_actor") as Dictionary).duplicate(true)
+		else:
+			var legacy: Dictionary = {}
+			for sid: StringName in STAT_ORDER:
+				var key: String = String(sid)
+				var present: bool = src.has(key)
+				var raw: int = int(src.get(key, 0)) if present else 0
+				legacy[key] = normalize_loaded_rank(present, raw)
+			ranks_by_actor["keeper"] = legacy
+	_ensure_actor_ranks()
 	for sid: StringName in STAT_ORDER:
-		var key: String = String(sid)
-		var present: bool = src.has(key)
-		var raw: int = int(src.get(key, 0)) if present else 0
-		ranks[key] = normalize_loaded_rank(present, raw)
+		ranks[String(sid)] = get_rank_for_actor("keeper", String(sid))
 	ranks_changed.emit(&"")

@@ -15,6 +15,8 @@ static func idle_action(fight: FightState, actor_id: String) -> Dictionary:
 	var salve_target: String = _salve_target_id(fight)
 	if salve_target != "" and fight.salves_used < 2 and int(fight.loadout.get("heart_salve", 0)) > 0:
 		return {"kind": "item", "item": "heart_salve", "target": salve_target}
+	if _should_brace(fight, actor_id):
+		return {"kind": "brace", "target": actor_id}
 	if fight.can_sweeping_arc(actor_id):
 		return {
 			"kind": "ability",
@@ -79,6 +81,36 @@ static func run_idle(fight: FightState, trace: Dictionary = _NO_TRACE) -> String
 		if outcome == "flee" and not trace.has("flee_reason"):
 			trace["flee_reason"] = "round_cap"
 	return outcome
+
+
+static func _should_brace(fight: FightState, actor_id: String) -> bool:
+	if actor_id != "moss_tortoise" and not str(actor_id).ends_with(":moss_tortoise"):
+		return false
+	var ally: String = _lowest_hp_ally_id(fight, actor_id, 0.6)
+	return ally != ""
+
+
+static func _lowest_hp_ally_id(fight: FightState, skip_id: String, frac_threshold: float) -> String:
+	var best_id: String = ""
+	for fighter_id: String in fight.order:
+		if fighter_id == skip_id:
+			continue
+		var card: Dictionary = fight.fighter_dict(fighter_id)
+		if str(card.get("side", "")) != "party":
+			continue
+		if str(card.get("status", "")) != "active":
+			continue
+		var hp: int = int(card.get("hp", 0))
+		var max_hp: int = int(card.get("max_hp", 0))
+		if max_hp <= 0 or float(hp) / float(max_hp) > frac_threshold:
+			continue
+		if best_id == "":
+			best_id = fighter_id
+			continue
+		var best: Dictionary = fight.fighter_dict(best_id)
+		if hp * int(best.get("max_hp", 1)) < int(best.get("hp", 0)) * max_hp:
+			best_id = fighter_id
+	return best_id
 
 
 static func _salve_target_id(fight: FightState) -> String:

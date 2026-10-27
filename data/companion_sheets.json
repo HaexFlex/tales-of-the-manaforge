@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "notes": "R5 PLACEHOLDER adventure sheet bases before runestone ranks.",
+  "puff": {
+    "might": 3,
+    "arcana": 8,
+    "resilience": 5,
+    "ward": 6,
+    "vitality": 8,
+    "swiftness": 6,
+    "fate": 5,
+    "attack": "magic",
+    "abilities": ["fungal_sip", "spore_bile"]
+  },
+  "bramble": {
+    "might": 6,
+    "arcana": 6,
+    "resilience": 7,
+    "ward": 7,
+    "vitality": 10,
+    "swiftness": 10,
+    "fate": 15,
+    "attack": "physical",
+    "abilities": []
+  },
+  "moss_tortoise": {
+    "might": 4,
+    "arcana": 2,
+    "resilience": 10,
+    "ward": 8,
+    "vitality": 10,
+    "swiftness": 3,
+    "fate": 4,
+    "attack": "physical",
+    "abilities": ["brace"]
+  }
+}

@@ -363,6 +363,24 @@
       "loop": false,
       "path": "res://assets/audio/sfx_firefly_twinkle_3.ogg",
       "volume_db": -6.0
+    },
+    "sfx_brew_bubble": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_brew_bubble.ogg",
+      "volume_db": -8.0
+    },
+    "sfx_brew_done": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_brew_done.ogg",
+      "volume_db": -6.0
+    },
+    "mus_moss_tortoise_sting": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/mus_moss_tortoise_sting.ogg",
+      "volume_db": 0.0
     }
   },
   "battle_playback": {
