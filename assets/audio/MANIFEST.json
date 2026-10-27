@@ -283,6 +283,20 @@
       "play_offset_db": 0.0,
       "notes": "With mus_ascend_sting on Ascend confirm."
     },
+    "sfx_ascend_breath": {
+      "file": "sfx_ascend_breath.ogg",
+      "path": "res://assets/audio/sfx_ascend_breath.ogg",
+      "bus": "SFX_Progress",
+      "loop": false,
+      "notes": "Once on Ascend confirm, before sfx_ascend (sprint r3)."
+    },
+    "sfx_wisp_hum": {
+      "file": "sfx_wisp_hum.ogg",
+      "path": "res://assets/audio/sfx_wisp_hum.ogg",
+      "bus": "SFX_World",
+      "loop": true,
+      "notes": "Nearest Wisp to camera/Keeper only; -8 dB, max_distance 96 px (sprint r3)."
+    },
     "sfx_footstep": {
       "file": "sfx_footstep.ogg",
       "path": "res://assets/audio/sfx_footstep.ogg",

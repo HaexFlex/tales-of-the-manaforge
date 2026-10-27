@@ -786,6 +786,7 @@ func play_fruit_harvest() -> void:
 
 
 func play_ascend() -> void:
+	play(&"sfx_ascend_breath")
 	play(&"sfx_ascend")
 	play(&"mus_ascend_sting")
 

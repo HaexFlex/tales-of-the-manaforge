@@ -975,5 +975,26 @@
     "help_touch_pinch": "Pinch: zoom in or out.",
     "help_touch_box": "Box button: then drag to choose several at once.",
     "touch_box_select_button": "Box select"
-  }
+  },
+  "bench_saying_01": "The bark is warm today.",
+  "bench_saying_02": "A good place to sit. It always was.",
+  "bench_saying_03": "The Wisps work quieter when you rest.",
+  "bench_saying_04": "Someone carved a small leaf here, long ago.",
+  "bench_saying_05": "The tree breathes slower. So do you.",
+  "bench_saying_06": "Rest is a kind of tending, too.",
+  "bench_saying_07": "The wind smells of rain and moss.",
+  "bench_saying_08": "From here, the clearing looks bigger.",
+  "bench_saying_09": "Your hands remember the work.",
+  "bench_saying_10": "Nothing needs you this very moment.",
+  "fruit_farewell_01": "Go gently. I will grow again.",
+  "fruit_farewell_02": "You were kind to me. I remember.",
+  "fruit_farewell_03": "Carry this with you. Come back.",
+  "fruit_farewell_04": "Every ending feeds a root.",
+  "fruit_farewell_05": "Again, then. I am not afraid.",
+  "fruit_farewell_06": "The seed knows the way home.",
+  "fruit_farewell_07": "Each time, I grow a little wiser.",
+  "fruit_farewell_08": "Thank you, Keeper. Until the next spring.",
+  "wisp_favourite_toast_1": "A Wisp has settled in at {node}.",
+  "wisp_favourite_toast_2": "{node} has a Wisp who loves it now.",
+  "wisp_favourite_toast_3": "A Wisp hums happily at {node}. It feels at home."
 }

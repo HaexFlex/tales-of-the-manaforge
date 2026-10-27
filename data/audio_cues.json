@@ -155,6 +155,16 @@
       "loop": false,
       "path": "res://assets/audio/sfx_ascend.ogg"
     },
+    "sfx_ascend_breath": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ascend_breath.ogg"
+    },
+    "sfx_wisp_hum": {
+      "bus": "SFX_World",
+      "loop": true,
+      "path": "res://assets/audio/sfx_wisp_hum.ogg"
+    },
     "sfx_footstep": {
       "bus": "SFX_World",
       "loop": false,

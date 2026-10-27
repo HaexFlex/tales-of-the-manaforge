@@ -29,6 +29,15 @@ func _run() -> void:
 	var save_service: Node = tree_root.get_node_or_null("SaveService")
 	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
 	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+
+	if OS.get_environment("MANAFORGE_R3_TENDING") == "1":
+		var r3_failed: int = _sprint_r3_tending_ok(game_state, game_audio)
+		if r3_failed > 0:
+			print("R3_TENDING_FAIL: %d" % r3_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
 	var backpack: Node = tree_root.get_node_or_null("Backpack")
 
 	var failed: int = 0
@@ -4173,6 +4182,7 @@ func _run() -> void:
 	failed += await _touch_nav_ok(tree_root, game_state, save_service)
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
+	failed += _sprint_r3_tending_ok(game_state, game_audio)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -5982,6 +5992,7 @@ func _check_only_load() -> int:
 		"res://scripts/fx/lucky_spark_fx.gd",
 		"res://scripts/manatree.gd",
 		"res://scripts/tree_whispers.gd",
+		"res://scripts/manatree_stage_bloom.gd",
 		"res://scripts/forge_station.gd",
 		"res://scripts/runestone.gd",
 		"res://scripts/autoload/game_state.gd",
@@ -26229,3 +26240,96 @@ func _flip_h_diff(text_node: Node, bin_node: Node) -> PackedStringArray:
 		if not text_flips.has(path):
 			out.append("%s text=absent binary=%s" % [path, str(bin_flips[path])])
 	return out
+
+
+func _sprint_r3_tending_ok(game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var content_strings: Node = get_root().get_node_or_null("ContentStrings")
+	failed += _assert(content_strings != null, "r3 tending strings autoload")
+	if game_state == null or content_strings == null:
+		return failed + 1
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", "")
+	game_state.set("wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	var w0: int = int(game_state.get("wood"))
+	var g1: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(g1 == 10, "morning gift sapling is 10 units")
+	failed += _assert(int(game_state.get("wood")) == w0 + 10, "morning gift banks wood")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "morning gift stamps day")
+	var g2: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(g2 == 0, "second gift same day blocked")
+	game_state.set("_morning_gift_day_override", "2026-10-26")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 0, "clock backwards blocks gift")
+	game_state.set("_morning_gift_day_override", "2026-10-28")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 10, "new day grants gift")
+	game_state.set("last_gift_day", "")
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	game_state.call("accumulate_wisp_harvest", &"wood", 1000.0)
+	failed += _assert(str(game_state.get("last_gift_day")) == "", "wisp harvest does not take gift")
+	game_state.set("last_gift_day", "")
+	game_state.call("apply_offline_keeper_harvest", 600.0, &"wood")
+	failed += _assert(str(game_state.get("last_gift_day")) == "", "offline keeper does not take gift")
+	game_state.set("last_gift_day", "2026-10-29")
+	var blob: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-29", "morning gift save round-trip")
+	game_state.set("_morning_gift_day_override", "")
+	if failed == 0:
+		print("MORNING_GIFT_OK")
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "favourite is first node")
+	game_state.call("try_assign_wisp", 0, "harvest_stone")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "reassign keeps favourite")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	game_state.call("apply_wisp_pulses", 1000.0)
+	var fav_wood: int = int(game_state.get("wood"))
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	game_state.set("wisp_favourites", {"0": "harvest_stone"})
+	game_state.call("apply_wisp_pulses", 1000.0)
+	var other_wood: int = int(game_state.get("wood"))
+	failed += _assert(
+		fav_wood > other_wood,
+		"favourite node yields more wood (fav=%d plain=%d assign=%s)" % [
+			fav_wood,
+			other_wood,
+			str(game_state.call("get_wisp_assignment", 0)),
+		],
+	)
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	failed += _assert((game_state.get("wisp_favourites") as Dictionary).is_empty(), "ascend clears favourites")
+	var farewell: String = str(content_strings.call("get_text", "fruit_farewell_01"))
+	failed += _assert(farewell.find("grow again") >= 0, "fruit farewell string present")
+	if failed == 0:
+		print("WISP_FAVOURITE_OK")
+	failed += _assert(FileAccess.file_exists("res://assets/art/fx/stage_bloom/bloom_petal_strip_5x5x6.png"), "stage bloom petal art")
+	failed += _assert(load("res://scripts/manatree_stage_bloom.gd") != null, "stage bloom script loads")
+	if failed == 0:
+		print("STAGE_BLOOM_OK")
+	var cues: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cue_map: Dictionary = (cues as Dictionary).get("cues", {}) if typeof(cues) == TYPE_DICTIONARY else {}
+	failed += _assert(cue_map.has("sfx_wisp_hum"), "sfx_wisp_hum cue")
+	failed += _assert(cue_map.has("sfx_ascend_breath"), "sfx_ascend_breath cue")
+	failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_wisp_hum.ogg"), "wisp hum file")
+	failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_ascend_breath.ogg"), "ascend breath file")
+	var hum_ok: bool = cue_map.has("sfx_wisp_hum") and FileAccess.file_exists("res://assets/audio/sfx_wisp_hum.ogg")
+	if hum_ok and failed == 0:
+		print("WISP_HUM_OK")
+	var breath_ok: bool = false
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.call("play_ascend")
+		breath_ok = bool(game_audio.call("did_play", &"sfx_ascend_breath"))
+		failed += _assert(breath_ok, "ascend breath plays before sting")
+	if breath_ok and failed == 0:
+		print("ASCEND_BREATH_OK")
+	return failed
