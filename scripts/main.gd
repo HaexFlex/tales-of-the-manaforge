@@ -129,6 +129,49 @@ func _ready() -> void:
 	hud.maybe_show_welcome()
 	if hud.has_method("maybe_show_elaia_join"):
 		hud.call("maybe_show_elaia_join")
+	_attach_hub_day_night()
+	_ensure_glade_fireflies()
+
+
+func _attach_hub_day_night() -> void:
+	var cycle := HubDayNightCycle.new()
+	cycle.dusk_ground_changed.connect(_on_hub_dusk_ground_changed)
+	add_child(cycle)
+	move_child(cycle, 0)
+
+
+func _ensure_glade_fireflies() -> void:
+	if get_node_or_null("GladeFireflies") != null:
+		return
+	var fx := GladeFireflies.new()
+	fx.name = "GladeFireflies"
+	fx.z_index = 2
+	add_child(fx)
+	fx.setup(glade)
+
+
+func _on_hub_dusk_ground_changed(use_dusk: bool) -> void:
+	_apply_grass_tileset_dusk(use_dusk)
+	_sync_hub_ground_deco_dusk(use_dusk)
+
+
+func _apply_grass_tileset_dusk(use_dusk: bool) -> void:
+	if ground == null or ground.tile_set == null:
+		return
+	var src: TileSetAtlasSource = ground.tile_set.get_source(0) as TileSetAtlasSource
+	if src == null:
+		return
+	var path: String = HubGroundDusk.TILESET_DUSK if use_dusk else HubGroundDusk.TILESET_DAY
+	var tex: Texture2D = load(path) as Texture2D
+	if tex != null:
+		src.texture = tex
+
+
+func _sync_hub_ground_deco_dusk(use_dusk: bool) -> void:
+	for node: Node in get_tree().get_nodes_in_group("hub_ground_deco"):
+		var prop: ForestProp = node as ForestProp
+		if prop != null:
+			prop.apply_dusk_variant(use_dusk)
 
 
 func _load_hub_map() -> void:

@@ -659,6 +659,7 @@
   "nav_to_clearing": "To the Clearing",
   "forge_elaia_footsteps": "Soft footsteps sound outside the Forge. Someone is waiting in the clearing.",
   "forge_elaia_footsteps_ok": "Go and see",
+  "options_day_night_toggle": "Day and night",
   "options_speedup_toggle": "Show speed-up button",
   "options_speedup_toggle_hint": "Adds a 1x / 2x / 4x / 8x button next to Pause.",
   "options_debug_tools_toggle": "Show debug tools",
