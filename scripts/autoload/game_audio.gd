@@ -9,6 +9,13 @@ signal volumes_changed(music_linear: float, sfx_linear: float)
 const MANIFEST_PATH: String = "res://data/audio_cues.json"
 const SETTINGS_PATH: String = "user://manaforge_settings.cfg"
 const SETTINGS_SECTION: String = "audio"
+const HUB_BED_BUS: String = "Music_HubBed"
+const HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ: float = HubTimePhase.HUB_AMBIENCE_DAY_CUTOFF_HZ
+const HUB_AMBIENCE_FILTER_NIGHT_CUTOFF_HZ: float = HubTimePhase.HUB_AMBIENCE_NIGHT_CUTOFF_HZ
+const HUB_AMBIENCE_FILTER_RESONANCE: float = 0.5
+const HUB_AMBIENCE_FILTER_DISCONTINUITY_SEC: float = 2.0
+## Matches HubDayNightCycle.CYCLE_SEC (phase jump detection).
+const HUB_DAY_NIGHT_CYCLE_SEC: float = 1200.0
 const MUSIC_BUS_DEFAULT_DB: float = -9.0
 const SFX_BUS_DEFAULT_DB: float = 0.0
 const SFX_BUS_NAMES: PackedStringArray = ["SFX_UI", "SFX_World", "SFX_Progress"]
@@ -60,6 +67,13 @@ var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
 var _forge_lowpass: AudioEffectLowPassFilter
 var _forge_reverb: AudioEffectReverb
+var _hub_bed_lowpass: AudioEffectLowPassFilter
+var _hub_bed_cutoff_hz: float = HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+var _hub_filter_prev_phase: float = -1.0
+var _hub_filter_cutoff_tween: Tween
+var _hub_filter_discontinuity_pending: bool = false
+## < 0 = pause-menu low-pass cap off. When set, effective cutoff = min(phase, this).
+var _pause_hub_bed_lowpass_cutoff_hz: float = -1.0
 var last_cue_volume_db: float = 0.0
 var _duck_amount_db: float = -5.0
 var _duck_attack_sec: float = 0.05
@@ -80,7 +94,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_buses()
 	_load_manifest()
-	_music_player = _make_player("MusicPlayer", "Music")
+	_music_player = _make_player("MusicPlayer", HUB_BED_BUS)
+	set_process(true)
 	_sting_player = _make_player("StingPlayer", "Music")
 	for i: int in SFX_POOL_SIZE:
 		var sfx: AudioStreamPlayer = _make_player("SfxVoice%d" % i, "SFX_World")
@@ -114,9 +129,20 @@ func _make_player(node_name: String, bus_name: String) -> AudioStreamPlayer:
 
 func _ensure_buses() -> void:
 	_add_bus_if_missing("Music")
+	_add_bus_if_missing(HUB_BED_BUS)
 	_add_bus_if_missing("SFX_UI")
 	_add_bus_if_missing("SFX_World")
 	_add_bus_if_missing("SFX_Progress")
+	var hub_bed_idx: int = AudioServer.get_bus_index(HUB_BED_BUS)
+	if hub_bed_idx >= 0:
+		AudioServer.set_bus_send(hub_bed_idx, "Music")
+		if _hub_bed_lowpass == null:
+			_hub_bed_lowpass = AudioEffectLowPassFilter.new()
+			_hub_bed_lowpass.db = AudioEffectFilter.FILTER_12DB
+			_hub_bed_lowpass.cutoff_hz = HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+			_hub_bed_lowpass.resonance = HUB_AMBIENCE_FILTER_RESONANCE
+			_hub_bed_cutoff_hz = HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+			AudioServer.add_bus_effect(hub_bed_idx, _hub_bed_lowpass)
 	## Duck is a bed-player envelope. A sidechain compressor would also duck the stings.
 	var music_idx: int = AudioServer.get_bus_index("Music")
 	if music_idx < 0:
@@ -381,15 +407,17 @@ func play(cue_id: StringName, offset_db: float = 0.0, pitch: float = 1.0) -> voi
 	if bus == "Music":
 		if looping or key == "mus_hub_forest":
 			var hub_stream: AudioStream = null
+			var bed_bus: String = bus
 			if key == "mus_hub_forest":
 				hub_stream = _resolve_hub_stream(path)
+				bed_bus = HUB_BED_BUS
 			elif path != "" and ResourceLoader.exists(path):
 				hub_stream = load(path) as AudioStream
 			if hub_stream == null:
 				cue_missing.emit(cue_id)
 				cue_played.emit(cue_id)
 				return
-			_play_hub_stream(hub_stream, bus)
+			_play_hub_stream(hub_stream, bed_bus)
 			cue_played.emit(cue_id)
 			return
 		if path == "" or not ResourceLoader.exists(path):
@@ -536,6 +564,7 @@ func _play_hub_stream(stream: AudioStream, bus: String) -> void:
 		_hub_playing = true
 		_ensure_music_bus_audible()
 		player.volume_db = _duck_db
+		player.bus = bus
 		return
 	_force_stream_loop(stream)
 	_ensure_music_bus_audible()
@@ -545,6 +574,102 @@ func _play_hub_stream(stream: AudioStream, bus: String) -> void:
 	player.pitch_scale = 1.0
 	player.play()
 	_hub_playing = true
+
+
+func hub_ambience_filter_cutoff_hz() -> float:
+	return _hub_bed_cutoff_hz
+
+
+## Optional pause-menu low-pass cap on the hub bed (one filter on Music_HubBed). hz < 0 clears.
+func set_pause_hub_bed_lowpass_cutoff_hz(hz: float) -> void:
+	var prev: float = _pause_hub_bed_lowpass_cutoff_hz
+	_pause_hub_bed_lowpass_cutoff_hz = hz
+	if not is_equal_approx(prev, hz):
+		_request_hub_filter_discontinuity_tween()
+
+
+func pause_hub_bed_lowpass_cutoff_hz() -> float:
+	return _pause_hub_bed_lowpass_cutoff_hz
+
+
+func _process(delta: float) -> void:
+	_refresh_hub_ambience_lowpass(delta)
+
+
+func _phase_hub_bed_cutoff_hz() -> float:
+	if not day_night_enabled:
+		return HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+	return HubTimePhase.hub_ambience_filter_cutoff_hz(HubTimePhase.sample_phase01())
+
+
+func _pause_hub_bed_lowpass_cap_hz() -> float:
+	if _pause_hub_bed_lowpass_cutoff_hz < 0.0:
+		return HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+	return _pause_hub_bed_lowpass_cutoff_hz
+
+
+func _effective_hub_bed_cutoff_hz(phase_hz: float) -> float:
+	return minf(phase_hz, _pause_hub_bed_lowpass_cap_hz())
+
+
+func _apply_hub_bed_cutoff_hz(cutoff_hz: float) -> void:
+	_hub_bed_cutoff_hz = cutoff_hz
+	if _hub_bed_lowpass != null:
+		_hub_bed_lowpass.cutoff_hz = cutoff_hz
+
+
+func _request_hub_filter_discontinuity_tween() -> void:
+	_hub_filter_discontinuity_pending = true
+
+
+func _hub_filter_phase_discontinuity(phase: float, delta: float) -> bool:
+	if _hub_filter_prev_phase < 0.0:
+		return false
+	var delta_phase: float = absf(phase - _hub_filter_prev_phase)
+	if delta_phase > 0.5:
+		delta_phase = 1.0 - delta_phase
+	var max_step: float = delta / HUB_DAY_NIGHT_CYCLE_SEC
+	return delta_phase > max_step * 3.0 + 0.012
+
+
+func _tween_hub_bed_cutoff_to(target_hz: float, seconds: float) -> void:
+	if _hub_filter_cutoff_tween != null and _hub_filter_cutoff_tween.is_valid():
+		_hub_filter_cutoff_tween.kill()
+	var from_hz: float = _hub_bed_cutoff_hz
+	var from_log: float = log(from_hz)
+	var to_log: float = log(target_hz)
+	var span: float = maxf(seconds, HUB_AMBIENCE_FILTER_DISCONTINUITY_SEC)
+	if span <= 0.0001 or is_equal_approx(from_hz, target_hz):
+		_apply_hub_bed_cutoff_hz(target_hz)
+		return
+	_hub_filter_cutoff_tween = create_tween()
+	_hub_filter_cutoff_tween.tween_method(_apply_hub_bed_cutoff_log, from_log, to_log, span)
+
+
+func _apply_hub_bed_cutoff_log(log_hz: float) -> void:
+	_apply_hub_bed_cutoff_hz(exp(log_hz))
+
+
+func _refresh_hub_ambience_lowpass(delta: float) -> void:
+	if _hub_bed_lowpass == null:
+		return
+	var phase: float = HubTimePhase.sample_phase01()
+	var target_hz: float = _effective_hub_bed_cutoff_hz(_phase_hub_bed_cutoff_hz())
+	var tweening: bool = _hub_filter_cutoff_tween != null and _hub_filter_cutoff_tween.is_valid()
+	if _hub_filter_discontinuity_pending and not tweening:
+		_hub_filter_discontinuity_pending = false
+		_tween_hub_bed_cutoff_to(target_hz, HUB_AMBIENCE_FILTER_DISCONTINUITY_SEC)
+		_hub_filter_prev_phase = phase
+		return
+	if not tweening and _hub_filter_phase_discontinuity(phase, delta):
+		_tween_hub_bed_cutoff_to(target_hz, HUB_AMBIENCE_FILTER_DISCONTINUITY_SEC)
+		_hub_filter_prev_phase = phase
+		return
+	if tweening:
+		_hub_filter_prev_phase = phase
+		return
+	_apply_hub_bed_cutoff_hz(target_hz)
+	_hub_filter_prev_phase = phase
 
 
 func _play_sting_stream(stream: AudioStream, bus: String) -> void:
@@ -900,6 +1025,7 @@ func load_settings() -> void:
 	camera_zoom = float(cfg.get_value("display", "camera_zoom", 1.0))
 	touch_hold_hint_seen = bool(cfg.get_value("touch", "hold_hint_seen", false))
 	day_night_enabled = bool(cfg.get_value("display", "day_night", true))
+	_request_hub_filter_discontinuity_tween()
 	apply_display()
 	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
 		music_volume_linear = 1.0
@@ -944,6 +1070,7 @@ func set_use_speedup_button(enabled: bool) -> void:
 
 func set_day_night_enabled(enabled: bool) -> void:
 	day_night_enabled = enabled
+	_request_hub_filter_discontinuity_tween()
 	save_settings()
 
 
