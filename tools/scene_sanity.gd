@@ -146,6 +146,7 @@ func _run() -> void:
 	failed += _hover_rest()
 	failed += _trait_speed_rows()
 	failed += _water_splash()
+	failed += _watered_ground()
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
 	failed += _wisp_trails()
@@ -507,6 +508,44 @@ func _water_splash() -> int:
 		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -18.0), "watering plays at -18 dB")
 	if failed == 0:
 		print("WATER_SPLASH_OK")
+	return failed
+
+
+func _watered_ground() -> int:
+	var failed: int = 0
+	for size_key: String in ["sapling", "young", "mature", "ancient"]:
+		for step_key: String in ["0_full", "1_66", "2_33", "3_faint"]:
+			var path: String = "res://assets/art/hub/ground/damp/damp_soil_%s_%s.png" % [size_key, step_key]
+			failed += _check(ResourceLoader.exists(path), "damp decal exists: %s" % path)
+	var tree_src: String = FileAccess.get_file_as_string("res://scripts/manatree.gd")
+	failed += _check(tree_src.find("DAMP_HIDE_SEC: float = 30.0") >= 0, "damp hide at 30 s")
+	failed += _check(tree_src.find("DAMP_FADE_AT: Array[float] = [8.0, 16.0, 24.0]") >= 0, "damp steps at 8/16/24 s")
+	failed += _check(tree_src.find("\"elder\", \"ancient\"") >= 0, "elder uses ancient damp size")
+	var packed: PackedScene = load("res://scenes/manatree.tscn") as PackedScene
+	failed += _check(packed != null, "manatree scene for damp wiring")
+	if packed == null:
+		return failed
+	var tree: Node = packed.instantiate()
+	var world := Node2D.new()
+	world.name = &"World"
+	world.y_sort_enabled = true
+	root.add_child(world)
+	world.add_child(tree)
+	tree.call("set_watering", true)
+	var decal: Sprite2D = world.get_node_or_null("WateredGroundDecal") as Sprite2D
+	failed += _check(decal != null, "damp decal is a World sibling under the tree")
+	if decal != null:
+		failed += _check(decal.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "damp decal nearest filter")
+		failed += _check(decal.z_index < int(tree.z_index), "damp decal draws below the tree")
+		var tex_path: String = decal.texture.resource_path if decal.texture != null else ""
+		failed += _check(tex_path.ends_with("damp_soil_sapling_0_full.png"), "watering starts on step 0_full")
+	tree.set("_damp_elapsed", 12.0)
+	tree.call("set_watering", false)
+	tree.call("set_watering", true)
+	failed += _check(is_equal_approx(float(tree.get("_damp_elapsed")), 0.0), "re-watering restarts the fade clock")
+	world.queue_free()
+	if failed == 0:
+		print("WATERED_GROUND_OK")
 	return failed
 
 

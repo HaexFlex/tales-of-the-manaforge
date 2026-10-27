@@ -20,6 +20,10 @@ signal care_menu_requested
 
 var _watering: bool = false
 var _hovered: bool = false
+var _damp_sprite: Sprite2D
+var _damp_active: bool = false
+var _damp_elapsed: float = 0.0
+var _damp_step: int = -1
 ## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/native/manatree_meta.json
 var _meta_stages: Dictionary = {}
 var _anim_frames: int = 1
@@ -189,7 +193,10 @@ func on_interact(_keeper: Node) -> void:
 
 
 func set_watering(active: bool) -> void:
+	var was_watering: bool = _watering
 	_watering = active
+	if active and not was_watering:
+		_restart_damp_decal()
 	if active:
 		label.modulate = Color(0.85, 0.95, 1.1, 1.0)
 	else:
@@ -245,6 +252,7 @@ func _on_stage_changed(_id: StringName) -> void:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
+	_tick_damp_decal(delta)
 	if _anim_frames <= 1 or sprite == null:
 		return
 	_anim_time += delta
@@ -426,7 +434,16 @@ func _refresh_visual() -> void:
 	_apply_trunk(String(stage))
 	_apply_veins(String(stage))
 	_apply_breath(String(stage))
+	if _damp_active and _damp_sprite != null and _damp_sprite.visible:
+		_apply_damp_step(_damp_step)
+		_update_damp_position()
 
+
+const DAMP_SOIL_PATH: String = "res://assets/art/hub/ground/damp/"
+const DAMP_FADE_STEPS: Array[String] = ["0_full", "1_66", "2_33", "3_faint"]
+const DAMP_FADE_AT: Array[float] = [8.0, 16.0, 24.0]
+const DAMP_HIDE_SEC: float = 30.0
+const DAMP_TOP_PAD: float = 4.0
 
 const TRUNK_SIZE: Dictionary = {
 	"sapling": Vector2(28, 40),
@@ -734,3 +751,94 @@ func _apply_breath(stage: String) -> void:
 	leaves.position = Vector2(0, -crown_h * 0.55)
 	leaves.emission_rect_extents = Vector2(door.x * sc * 0.42, crown_h * 0.14)
 	leaves.emitting = true
+
+
+func _damp_decal_size_key(stage: StringName) -> String:
+	match String(stage):
+		"sapling":
+			return "sapling"
+		"young":
+			return "young"
+		"mature":
+			return "mature"
+		"elder", "ancient":
+			return "ancient"
+		_:
+			return "sapling"
+
+
+func _ensure_damp_decal() -> void:
+	if _damp_sprite != null:
+		return
+	var world: Node = get_parent()
+	if world == null:
+		return
+	_damp_sprite = Sprite2D.new()
+	_damp_sprite.name = &"WateredGroundDecal"
+	_damp_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_damp_sprite.centered = true
+	_damp_sprite.visible = false
+	_damp_sprite.y_sort_enabled = true
+	world.add_child(_damp_sprite)
+	world.move_child(_damp_sprite, get_index())
+
+
+func _restart_damp_decal() -> void:
+	if Engine.is_editor_hint():
+		return
+	_ensure_damp_decal()
+	if _damp_sprite == null:
+		return
+	_damp_active = true
+	_damp_elapsed = 0.0
+	_damp_step = 0
+	_apply_damp_step(0)
+	_update_damp_position()
+	_damp_sprite.visible = true
+
+
+func _apply_damp_step(step: int) -> void:
+	if _damp_sprite == null:
+		return
+	var idx: int = clampi(step, 0, DAMP_FADE_STEPS.size() - 1)
+	_damp_step = idx
+	var size_key: String = _damp_decal_size_key(GameState.stage_id)
+	var step_key: String = DAMP_FADE_STEPS[idx]
+	var path: String = "%sdamp_soil_%s_%s.png" % [DAMP_SOIL_PATH, size_key, step_key]
+	_damp_sprite.texture = load(path) as Texture2D
+
+
+func _update_damp_position() -> void:
+	if _damp_sprite == null:
+		return
+	_damp_sprite.z_index = z_index - 1
+	var door: Vector2 = door_floor_px(GameState.stage_id)
+	var scale_v: float = _display_scale(GameState.stage_id)
+	var door_local: Vector2 = door * scale_v
+	var tex_h: float = 16.0
+	if _damp_sprite.texture != null:
+		tex_h = float(_damp_sprite.texture.get_height())
+	_damp_sprite.global_position = global_position + Vector2(door_local.x, door_local.y - DAMP_TOP_PAD - tex_h * 0.5)
+
+
+func _tick_damp_decal(delta: float) -> void:
+	if not _damp_active or _damp_sprite == null:
+		return
+	_damp_elapsed += delta
+	if _damp_elapsed >= DAMP_HIDE_SEC:
+		_damp_active = false
+		_damp_sprite.visible = false
+		return
+	if _damp_elapsed >= DAMP_FADE_AT[2] and _damp_step < 3:
+		_apply_damp_step(3)
+	elif _damp_elapsed >= DAMP_FADE_AT[1] and _damp_step < 2:
+		_apply_damp_step(2)
+	elif _damp_elapsed >= DAMP_FADE_AT[0] and _damp_step < 1:
+		_apply_damp_step(1)
+	_update_damp_position()
+
+
+func _exit_tree() -> void:
+	if _damp_sprite != null and is_instance_valid(_damp_sprite):
+		_damp_sprite.queue_free()
+		_damp_sprite = null
