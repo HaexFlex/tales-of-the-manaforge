@@ -2,10 +2,7 @@ extends SceneTree
 ## Headless weather ring captures for Art review.
 ## godot --headless --path . -s res://tools/capture_r6_weather_views.gd
 
-const OUT_DIRS: Array[String] = [
-	"/cursor/stores/self/caps",
-	"/opt/cursor/artifacts/weather_r6",
-]
+const OUT_DIRS: Array[String] = ["/cursor/stores/self/caps"]
 const WEATHER_STATES: Array[StringName] = [
 	&"clear", &"soft_rain", &"mist", &"light_snow", &"blossom_fall",
 ]
