@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "notes": [
+    "R6 PLACEHOLDER. Proposed new data/combat_anims.json. Not on origin/main.",
+    "Live battle poses today are single 128×128 stills (battle_view.gd PARTY_POSES / BEAST_*).",
+    "Tick = BattlePlayback GAP_STRIKE_SEC 1.0s; impact / damage float at REACT_SEC 0.4s; hurt ends HURT_END_SEC 0.75s.",
+    "Speed button cycles 1×/2×/4×/8× (battle_view.gd). Playback: delta*=speed and _scaled(sec)=sec/speed.",
+    "Sprite scheme wpn_<family>_t<tier>. Families from live damage_kind / craft line."
+  ],
+  "tick": {
+    "strike_sec": 1.0,
+    "react_sec": 0.4,
+    "hurt_end_sec": 0.75,
+    "gap_short_sec": 0.6,
+    "gap_ko_sec": 0.8,
+    "nudge_sec": 0.25,
+    "flash_sec": 0.15,
+    "cite": {
+      "GAP_STRIKE_SEC": "scripts/battle/battle_playback.gd:7",
+      "REACT_SEC": "scripts/battle/battle_playback.gd:12",
+      "HURT_END_SEC": "scripts/battle/battle_playback.gd:13",
+      "speed_cycle": "scripts/battle/battle_view.gd:2312-2320",
+      "impact_at": "cues_for_event uses REACT_SEC/speed (battle_playback.gd:476)"
+    }
+  },
+  "speed_scale": {
+    "steps": [1, 2, 4, 8],
+    "rule": "wall_ms_per_frame = base_ms_per_frame / speed; hit_frame wall time = react_sec / speed",
+    "at_4x": {
+      "strike_wall_sec": 0.25,
+      "react_wall_sec": 0.10,
+      "hurt_end_wall_sec": 0.1875,
+      "ms_per_frame_attack": 25,
+      "note": "PLACEHOLDER. Art plays faster; do not drop frames at 4× (8× OPEN may skip to keyframes)."
+    },
+    "strike_for_me_locks_1x": true
+  },
+  "weapon_families": {
+    "sword": {
+      "damage_kind": "physical",
+      "items": [
+        { "id": "weapon_rod", "tier": 0, "sprite_id": "wpn_sword_t0", "display": "Weapon Rod", "note": "refined intermediate; battle prop for bare/rod look" },
+        { "id": "stone_sword", "tier": 1, "sprite_id": "wpn_sword_t1", "display": "Flintblade", "bonuses": { "might": 2 } },
+        { "id": "rootsteel_edge", "tier": 2, "sprite_id": "wpn_sword_t2", "display": "Rootsteel Edge", "bonuses": { "might": 5 } }
+      ]
+    },
+    "wand": {
+      "damage_kind": "magical",
+      "items": [
+        { "id": "sapstaff", "tier": 1, "sprite_id": "wpn_wand_t1", "display": "Sapstaff", "bonuses": { "arcana": 2 } },
+        { "id": "heartwand", "tier": 2, "sprite_id": "wpn_wand_t2", "display": "Heartwand", "bonuses": { "arcana": 5 } }
+      ]
+    },
+    "bow": {
+      "damage_kind": "hybrid",
+      "items": [
+        { "id": "thornbow", "tier": 1, "sprite_id": "wpn_bow_t1", "display": "Thornbow", "bonuses": { "might": 1, "arcana": 1 } },
+        { "id": "switchshaft", "tier": 2, "sprite_id": "wpn_bow_t2", "display": "Switchshaft", "bonuses": { "might": 3, "arcana": 3 } }
+      ]
+    }
+  },
+  "bare_hands_sprite_id": "wpn_none",
+  "sheet_layout": {
+    "cell_px": 128,
+    "feet_row": 123,
+    "center_x": 63.5,
+    "party_facing": "east",
+    "beast_facing": "west",
+    "strip_axis": "horizontal",
+    "path_pattern_party": "res://assets/art/battle/party/battle_{actor}_{anim}.png",
+    "path_pattern_beast": "res://assets/art/battle/beasts/battle_{species}_{anim}.png",
+    "path_pattern_weapon": "res://assets/art/battle/weapons/{sprite_id}.png",
+    "weapon_attach": "overlay_on_attack_cast_frames"
+  },
+  "actors_party": {
+    "keeper": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": ["idle", "attack", "brace", "hurt", "ko"] },
+    "elaia": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": ["idle", "attack", "brace", "hurt", "ko"] },
+    "puff": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": [], "note": "not on main; R5 companion" },
+    "moss_tortoise": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": [], "note": "not on main; R5 Echo 4" },
+    "bramble": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": ["idle", "attack", "brace", "hurt", "ko"], "note": "live debug poses; included for parity" }
+  },
+  "actors_enemy": {
+    "species": [
+      "acorn_imp", "spore_moth", "wilt_wisp", "root_snapper", "thorn_boar",
+      "vine_serpent", "briar_hulk", "moss_brute", "stump_ogre", "stag_spirit"
+    ],
+    "variants_reuse_base": ["acorn_imp_dark", "spore_moth_dark"],
+    "filler": {
+      "foe_mossmite": { "anims": ["attack", "hit", "calm"], "live_poses": ["idle", "attack", "hurt"], "per_bug_1_to_10": true }
+    },
+    "anims_each": ["attack", "hit", "calm"],
+    "calm_maps_to_playback": "calmed status / knocked_out calmed branch",
+    "hit_maps_to_playback": "hurt pose",
+    "art_missing_on_main": ["stump_ogre", "stag_spirit"]
+  },
+  "timings_1x": {
+    "party": {
+      "attack": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 4, "hit_ms": 400, "maps_event": "strike" },
+      "hit": { "frames": 4, "ms_per_frame": 100, "total_ms": 400, "hit_frame": 1, "hit_ms": 0, "maps_event": "react/hurt" },
+      "brace": { "frames": 6, "ms_per_frame": 100, "total_ms": 600, "hit_frame": 2, "hit_ms": 200, "maps_event": "brace" },
+      "cast": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 5, "hit_ms": 500, "maps_event": "item/ability" },
+      "spare": { "frames": 6, "ms_per_frame": 100, "total_ms": 600, "hit_frame": 3, "hit_ms": 300, "maps_event": "spare/calm outcome" }
+    },
+    "enemy": {
+      "attack": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 4, "hit_ms": 400, "maps_event": "strike" },
+      "hit": { "frames": 4, "ms_per_frame": 100, "total_ms": 400, "hit_frame": 1, "hit_ms": 0, "maps_event": "react/hurt" },
+      "calm": { "frames": 6, "ms_per_frame": 100, "total_ms": 600, "hit_frame": 3, "hit_ms": 300, "maps_event": "calmed" }
+    },
+    "alignment_note": "PLACEHOLDER. Party/enemy attack hit_frame 4 @ 400ms == live REACT_SEC 0.4 so damage float + impact SFX pop on the contact frame. Strip finishes before GAP_STRIKE_SEC 1.0; leftover 200ms holds last frame or idle."
+  },
+  "playback_hooks": {
+    "set_fighter_pose": "battle_view.gd:699",
+    "pose_names_today": ["idle", "attack", "brace", "hurt", "ko"],
+    "rename_or_alias": {
+      "hit": "hurt",
+      "calm": "calmed visual (beast alpha 0.35 today; strip replaces)"
+    },
+    "damage_pop": "BattlePlayback._on_target_react at local_t >= _scaled(REACT_SEC)",
+    "weapon_swap": "when Equipment weapon changes, attack/cast strips composite body+wpn_<family>_t<tier>"
+  }
+}

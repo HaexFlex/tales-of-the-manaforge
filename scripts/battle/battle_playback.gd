@@ -118,6 +118,9 @@ func _process(delta: float) -> void:
 func _tick(dt: float) -> void:
 	_drain_scheduled_sounds()
 	_tick_floats(dt)
+	if _view != null:
+		_view.call("playback_tick_combat_anims", dt)
+		_view.call("playback_tick_hit_flashes", dt)
 	if not _active:
 		return
 	var local_t: float = clock_sec - _event_started_at
@@ -161,6 +164,8 @@ func _start_next_event() -> void:
 func _finish_event() -> void:
 	var kind: String = str(_event.get("kind", ""))
 	var actor_id: String = str(_event.get("actor", ""))
+	if actor_id != "" and _view != null:
+		_view.call("playback_stop_combat_anim", actor_id)
 	if kind == "strike" and actor_id != "" and _view != null:
 		_view.call("playback_release_swarm_attack", actor_id)
 	_clear_nudge()
@@ -194,12 +199,15 @@ func _on_event_start() -> void:
 	var kind: String = str(_event.get("kind", ""))
 	_view.call("playback_reveal_log", _event)
 	match kind:
-		"strike", "item", "poison_apply":
+		"strike", "poison_apply":
 			_begin_nudge(str(_event.get("actor", "")))
-			_view.call("set_fighter_pose", str(_event.get("actor", "")), "attack")
+			_playback_actor_clip(str(_event.get("actor", "")), "attack")
+		"item":
+			_begin_nudge(str(_event.get("actor", "")))
+			_playback_actor_clip(str(_event.get("actor", "")), "cast")
 		"brace":
 			_begin_nudge(str(_event.get("actor", "")))
-			_view.call("set_fighter_pose", str(_event.get("actor", "")), "brace")
+			_playback_actor_clip(str(_event.get("actor", "")), "brace")
 		"intent_reveal":
 			_view.call("playback_refresh_intent", str(_event.get("actor", "")))
 		"knocked_out", "calmed":
@@ -231,12 +239,20 @@ func _on_hurt_end() -> void:
 		_view.call("playback_set_beast_idle", target_id)
 
 
+func _playback_actor_clip(actor_id: String, clip: String) -> void:
+	if actor_id == "":
+		return
+	if not bool(_view.call("playback_start_combat_anim", actor_id, clip, speed)):
+		var pose: String = clip if clip != "cast" else "attack"
+		_view.call("set_fighter_pose", actor_id, pose)
+
+
 func _apply_hurt_pose(target_id: String) -> void:
 	if _fight == null:
 		return
 	var row: Dictionary = _fight.fighter_dict(target_id)
 	if str(row.get("side", "")) == "party":
-		_view.call("set_fighter_pose", target_id, "hurt")
+		_view.call("playback_begin_hit_react", target_id, speed)
 		return
 	var species: String = str(row.get("species", ""))
 	if _view.call("playback_set_beast_hurt", target_id, species):

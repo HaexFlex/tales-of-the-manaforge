@@ -696,13 +696,218 @@ func fighter_pose(fighter_id: String) -> String:
 	return str(root.get_meta("pose", "idle"))
 
 
+func _modular_actor_for_root(root: Control) -> String:
+	var member: String = str(root.get_meta("member", ""))
+	if member != "":
+		return member
+	return _beast_base_species(str(root.get_meta("species", "")))
+
+
+func _weapon_sprite_for_root(root: Control) -> String:
+	var member: String = str(root.get_meta("member", ""))
+	if member == "":
+		return ""
+	var equip: Node = get_node_or_null("/root/Equipment")
+	var weapon_id: String = ""
+	if equip != null:
+		weapon_id = str(equip.call("equipped_id_for", member, "weapon"))
+	return CombatAnimsConfig.weapon_sprite_id_for_item(weapon_id)
+
+
+func _ensure_weapon_sprite(root: Control) -> TextureRect:
+	var existing: Node = root.get_node_or_null("WeaponSprite")
+	if existing is TextureRect:
+		return existing as TextureRect
+	var weapon := TextureRect.new()
+	weapon.name = "WeaponSprite"
+	weapon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	weapon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	root.add_child(weapon)
+	return weapon
+
+
+func _hide_weapon_sprite(root: Control) -> void:
+	var weapon: TextureRect = root.get_node_or_null("WeaponSprite") as TextureRect
+	if weapon != null:
+		weapon.texture = null
+
+
+func _apply_modular_frame(
+	root: Control,
+	actor: String,
+	clip: String,
+	logical_frame: int,
+	speed: int,
+	weapon_sprite_id: String = "",
+) -> bool:
+	if not CombatAnimsConfig.has_modular_body(actor, clip):
+		return false
+	var side_key: String = "party" if str(root.get_meta("side", "")) == "party" else "enemy"
+	var timing: Dictionary = CombatAnimsConfig.timing(side_key, clip)
+	var logical_total: int = int(timing.get("frames", 8))
+	var hit_frame: int = int(timing.get("hit_frame", 0))
+	var display_logical: int = CombatAnimsConfig.display_logical_frame(
+		logical_frame, speed, hit_frame, logical_total,
+	)
+	var art_frame: int = CombatAnimsConfig.art_frame_for_logical(actor, clip, display_logical, logical_total)
+	var path: String = CombatAnimsConfig.modular_body_path(actor, clip, art_frame)
+	var tex: Texture2D = load(path) as Texture2D
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+	if tex == null or sprite == null:
+		return false
+	sprite.texture = tex
+	sprite.size = FIGHTER_FRAME
+	sprite.position = -FIGHTER_SOLE
+	if weapon_sprite_id != "" and CombatAnimsConfig.uses_weapon_overlay(actor, clip):
+		var wpath: String = CombatAnimsConfig.weapon_texture_path(weapon_sprite_id)
+		if wpath != "" and ResourceLoader.exists(wpath):
+			var weapon: TextureRect = _ensure_weapon_sprite(root)
+			weapon.texture = load(wpath) as Texture2D
+			var anchor: Dictionary = CombatAnimsConfig.hand_anchor(actor, clip, art_frame)
+			if not anchor.is_empty():
+				var hx: float = float(anchor.get("hand_x", 0.0))
+				var hy: float = float(anchor.get("hand_y", 0.0))
+				weapon.position = Vector2(-FIGHTER_SOLE.x + hx, -FIGHTER_SOLE.y + hy) - CombatAnimsConfig.WEAPON_GRIP
+				if weapon.texture != null:
+					weapon.size = weapon.texture.get_size()
+				var z: String = str(anchor.get("z", "front"))
+				var sprite_idx: int = sprite.get_index()
+				if z == "behind" and weapon.get_index() > sprite_idx:
+					root.move_child(weapon, sprite_idx)
+				elif z == "front" and weapon.get_index() < sprite_idx:
+					root.move_child(weapon, sprite_idx + 1)
+		else:
+			_hide_weapon_sprite(root)
+	else:
+		_hide_weapon_sprite(root)
+	return true
+
+
+func playback_stop_combat_anim(fighter_id: String) -> void:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return
+	for key: String in [
+		"combat_anim_clip",
+		"combat_anim_elapsed",
+		"combat_anim_speed",
+		"combat_anim_weapon",
+		"combat_anim_last_logical",
+	]:
+		if root.has_meta(key):
+			root.remove_meta(key)
+
+
+func playback_start_combat_anim(fighter_id: String, clip: String, speed: int) -> bool:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return false
+	var actor: String = _modular_actor_for_root(root)
+	var norm_clip: String = CombatAnimsConfig.clip_for_pose(clip)
+	if not CombatAnimsConfig.has_modular_body(actor, norm_clip):
+		return false
+	var weapon_id: String = _weapon_sprite_for_root(root) if str(root.get_meta("side", "")) == "party" else ""
+	root.set_meta("combat_anim_clip", norm_clip)
+	root.set_meta("combat_anim_elapsed", 0.0)
+	root.set_meta("combat_anim_speed", speed)
+	root.set_meta("combat_anim_weapon", weapon_id)
+	root.set_meta("combat_anim_last_logical", -1)
+	_apply_modular_frame(root, actor, norm_clip, 0, speed, weapon_id)
+	root.set_meta("pose", clip)
+	return true
+
+
+func playback_tick_combat_anims(dt: float) -> void:
+	if _fighters == null:
+		return
+	for child: Node in _fighters.get_children():
+		if not child is Control:
+			continue
+		var root: Control = child as Control
+		if not root.has_meta("combat_anim_clip"):
+			continue
+		var clip: String = str(root.get_meta("combat_anim_clip", ""))
+		if clip == "":
+			continue
+		var elapsed: float = float(root.get_meta("combat_anim_elapsed", 0.0)) + dt
+		root.set_meta("combat_anim_elapsed", elapsed)
+		var speed: int = int(root.get_meta("combat_anim_speed", 1))
+		var actor: String = _modular_actor_for_root(root)
+		var side_key: String = "party" if str(root.get_meta("side", "")) == "party" else "enemy"
+		var timing: Dictionary = CombatAnimsConfig.timing(side_key, clip)
+		var base_ms: int = int(timing.get("ms_per_frame", 100))
+		var frame_count: int = int(timing.get("frames", 8))
+		var logical: int = CombatAnimsConfig.logical_frame_at(elapsed, speed, base_ms, frame_count)
+		var last_logical: int = int(root.get_meta("combat_anim_last_logical", -1))
+		if logical != last_logical:
+			root.set_meta("combat_anim_last_logical", logical)
+			var weapon_id: String = str(root.get_meta("combat_anim_weapon", ""))
+			_apply_modular_frame(root, actor, clip, logical, speed, weapon_id)
+
+
+func playback_begin_hit_react(fighter_id: String, speed: int) -> void:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return
+	var actor: String = _modular_actor_for_root(root)
+	if CombatAnimsConfig.has_modular_body(actor, "hit"):
+		playback_start_combat_anim(fighter_id, "hurt", speed)
+		return
+	var member: String = str(root.get_meta("member", ""))
+	if member != "" and PARTY_POSES.get(member, {}).has("hurt"):
+		set_fighter_pose(fighter_id, "hurt")
+		return
+	var flash_sec: float = 0.15 / float(maxi(1, speed))
+	root.set_meta("hit_flash_remaining", flash_sec)
+	root.set_meta("hit_flash_phase", 0)
+
+
+func playback_tick_hit_flashes(dt: float) -> void:
+	if _fighters == null:
+		return
+	for child: Node in _fighters.get_children():
+		if not child is Control:
+			continue
+		var root: Control = child as Control
+		if not root.has_meta("hit_flash_remaining"):
+			continue
+		var rem: float = float(root.get_meta("hit_flash_remaining", 0.0)) - dt
+		root.set_meta("hit_flash_remaining", rem)
+		var sprite: CanvasItem = root.get_node_or_null("Sprite") as CanvasItem
+		if sprite == null:
+			continue
+		if rem <= 0.0:
+			sprite.modulate = Color.WHITE
+			root.remove_meta("hit_flash_remaining")
+			root.remove_meta("hit_flash_phase")
+			continue
+		var phase: int = int(root.get_meta("hit_flash_phase", 0))
+		phase = (phase + 1) % 2
+		root.set_meta("hit_flash_phase", phase)
+		sprite.modulate = Color(1.25, 1.15, 1.05, 1.0) if phase == 0 else Color.WHITE
+
+
 func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
 	if root == null:
 		return false
+	playback_stop_combat_anim(fighter_id)
+	if root is Control:
+		var root_c: Control = root as Control
+		if root_c.has_meta("hit_flash_remaining"):
+			root_c.remove_meta("hit_flash_remaining")
+			root_c.remove_meta("hit_flash_phase")
 	if bool(root.get_meta("swarm", false)):
 		return _set_swarm_pose(root, fighter_id, pose)
 	var member: String = str(root.get_meta("member", fighter_id))
+	var species: String = _beast_base_species(str(root.get_meta("species", "")))
+	var modular_actor: String = member if member != "" else species
+	var modular_clip: String = CombatAnimsConfig.clip_for_pose(pose)
+	if modular_actor != "" and CombatAnimsConfig.has_modular_body(modular_actor, modular_clip):
+		var weapon_id: String = _weapon_sprite_for_root(root as Control) if member != "" else ""
+		if _apply_modular_frame(root as Control, modular_actor, modular_clip, 0, 1, weapon_id):
+			root.set_meta("pose", pose)
+			return true
 	var poses: Dictionary = PARTY_POSES.get(member, {})
 	if not poses.has(pose):
 		return false
@@ -711,6 +916,7 @@ func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	if tex == null or sprite == null:
 		return false
 	sprite.texture = tex
+	_hide_weapon_sprite(root as Control)
 	root.set_meta("pose", pose)
 	return true
 
@@ -735,6 +941,9 @@ func playback_set_beast_hurt(fighter_id: String, species: String) -> bool:
 	if _fighter_root_is_swarm(fighter_id) or species == MOSSMITE_ID:
 		return set_fighter_pose(fighter_id, "hurt")
 	var base: String = _beast_base_species(species)
+	if CombatAnimsConfig.has_modular_body(base, "hit"):
+		var spd: int = _playback.speed if _playback != null else 1
+		return playback_start_combat_anim(fighter_id, "hurt", spd)
 	if not BEAST_HURT.has(base):
 		return false
 	var tex: Texture2D = load(str(BEAST_HURT[base])) as Texture2D
@@ -773,6 +982,9 @@ func playback_set_beast_idle(fighter_id: String) -> void:
 		sprite.modulate = swarm_mod
 		return
 	var base: String = _beast_base_species(species)
+	if str(row.get("status", "")) == "calmed" and CombatAnimsConfig.has_modular_body(base, "calm"):
+		set_fighter_pose(fighter_id, "calm")
+		return
 	var idle_path: String = str(BEAST_IDLE.get(base, ""))
 	if idle_path == "" or not ResourceLoader.exists(idle_path):
 		idle_path = ECHO_BEAST_IDLE % base

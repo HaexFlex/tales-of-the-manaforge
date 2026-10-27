@@ -7,6 +7,7 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+const CombatAnimsConfigScript := preload("res://scripts/battle/combat_anims_config.gd")
 const LuckySparkFxScript := preload("res://scripts/fx/lucky_spark_fx.gd")
 ## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
 const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
@@ -268,6 +269,16 @@ func _run() -> void:
 			quit(1)
 		else:
 			print("INTEGRATION_R1_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_R6") == "1":
+		var r6_failed: int = _combat_anims_r6_ok()
+		if r6_failed > 0:
+			print("COMBAT_ANIMS_R6_FAIL: %d" % r6_failed)
+			quit(1)
+		else:
+			print("COMBAT_ANIMS_R6_OK")
 			quit(0)
 		return
 
@@ -26709,4 +26720,71 @@ func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -
 	failed += _assert(int(game_state.get("wood")) > wood_before_fav, "favourite wisp harvest in same session")
 	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "wisp harvest did not steal gift day")
 	game_state.set("_morning_gift_day_override", "")
+	return failed
+
+
+func _combat_anims_r6_ok() -> int:
+	var failed: int = 0
+	CombatAnimsConfigScript.reload()
+	failed += _assert(FileAccess.file_exists("res://data/combat_anims.json"), "combat_anims.json present")
+	failed += _assert(
+		FileAccess.file_exists("res://assets/library/combat_2026-10-27/hand_anchors.json"),
+		"hand_anchors.json present",
+	)
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("keeper", "attack"), "keeper attack modular art")
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("acorn_imp", "calm"), "acorn imp calm modular art")
+	var attack_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack")
+	failed += _assert(int(attack_timing.get("hit_ms", -1)) == 400, "attack hit_ms 400 at 1x")
+	failed += _assert(int(attack_timing.get("hit_frame", -1)) == 4, "attack hit_frame 4")
+	var cast_timing: Dictionary = CombatAnimsConfigScript.timing("party", "cast")
+	failed += _assert(int(cast_timing.get("hit_ms", -1)) == 500, "cast hit_ms 500 at 1x")
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.ms_per_frame_at_speed(4, 100), 25.0),
+		"4x ms_per_frame 25",
+	)
+	failed += _assert(
+		is_equal_approx(
+			CombatAnimsConfigScript.wall_sec_for_frame_index(1, 100, 4),
+			0.4,
+		),
+		"1x frame 4 wall time 0.4s",
+	)
+	failed += _assert(
+		is_equal_approx(
+			CombatAnimsConfigScript.wall_sec_for_frame_index(4, 100, 4),
+			0.1,
+		),
+		"4x frame 4 wall time 0.1s",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.display_logical_frame(3, 8, 4, 8) == 0,
+		"8x holds keyframe 1 before hit",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.display_logical_frame(4, 8, 4, 8) == 4,
+		"8x shows hit frame at react",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.display_logical_frame(7, 8, 4, 8) == 7,
+		"8x shows last keyframe",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.weapon_sprite_id_for_item("weapon_rod") == "wpn_sword_t0",
+		"weapon rod maps to wpn_sword_t0",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.weapon_sprite_id_for_item("rootsteel_edge") == "wpn_sword_t2",
+		"rootsteel edge tier sprite",
+	)
+	var t0_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t0")
+	var t2_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t2")
+	failed += _assert(t0_path != t2_path, "weapon tier paths differ")
+	failed += _assert(ResourceLoader.exists(t0_path), "wpn_sword_t0 art")
+	failed += _assert(ResourceLoader.exists(t2_path), "wpn_sword_t2 art")
+	failed += _assert(
+		not CombatAnimsConfigScript.has_modular_body("stump_ogre", "attack"),
+		"stump_ogre uses hit flash fallback",
+	)
+	var anchor: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 0)
+	failed += _assert(int(anchor.get("hand_x", -1)) == 108, "keeper attack hand anchor")
 	return failed
