@@ -244,10 +244,12 @@ func _run() -> void:
 
 	if _wants_check_only():
 		failed += _check_only_load()
+		failed += _lucky_harvest_ok(game_state)
 		if failed > 0:
 			print("CHECK_ONLY_FAIL: %d" % failed)
 			quit(1)
 		else:
+			print("LUCKY_HARVEST_OK")
 			print("CHECK_ONLY_OK")
 			quit(0)
 		return
@@ -5815,6 +5817,63 @@ func _wants_check_only() -> bool:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	args.append_array(OS.get_cmdline_args())
 	return args.has("--check-only")
+
+
+func _lucky_harvest_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return failed + 1
+	var lucky_bucket: Array[int] = [0, 0]
+	var on_lucky := func(_rid: StringName, bonus: int) -> void:
+		lucky_bucket[0] += 1
+		lucky_bucket[1] += bonus
+	if not game_state.lucky_harvest.is_connected(on_lucky):
+		game_state.lucky_harvest.connect(on_lucky)
+	game_state.call("reset_for_new_game")
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	game_state.set("harvest_accum", {})
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	var grant_always: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_always: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(
+		grant_always == 1 and wood_always == 2 and lucky_bucket[0] == 1 and lucky_bucket[1] == 1,
+		"chance 1.0 doubles keeper harvest",
+	)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	var grant_never: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_never: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(grant_never == 1 and wood_never == 1 and lucky_bucket[0] == 0, "chance 0.0 never lucky-drops")
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.call("accumulate_wisp_harvest", &"wood", 20.0)
+	failed += _assert(lucky_bucket[0] == 0, "wisp harvest never emits lucky_harvest")
+	game_state.call("apply_offline_keeper_harvest", 60.0, &"wood", 1.0)
+	failed += _assert(lucky_bucket[0] == 0, "offline keeper harvest never emits lucky_harvest")
+	params["LUCKY_HARVEST_CHANCE"] = 0.04
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	for _i: int in range(10000):
+		game_state.call("set_resource", &"wood", 0)
+		game_state.set("harvest_accum", {})
+		game_state.call("apply_harvest_pulse", &"wood")
+	print("LUCKY_HARVEST_ROLLS_10K: %d" % lucky_bucket[0])
+	failed += _assert(lucky_bucket[0] > 0, "0.04 chance produces some drops in 10k rolls")
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
+	game_state.lucky_harvest.disconnect(on_lucky)
+	return failed
 
 
 func _check_only_load() -> int:
