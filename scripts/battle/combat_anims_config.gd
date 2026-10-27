@@ -6,6 +6,10 @@ const HAND_ANCHORS_PATH: String = "res://assets/library/combat_2026-10-27/hand_a
 const GRIP_OFFSETS_PATH: String = "res://assets/art/battle/weapons/rot/grip_offsets.json"
 const MODULAR_BODY_PATH: String = "res://assets/art/battle/modular/%s/%s/frame_%04d.png"
 const WEAPON_ROT_PATH: String = "res://assets/art/battle/weapons/rot/%s_r%d.png"
+const WAND_SPARK_PATH: String = "res://assets/art/battle/fx/wand_cast_spark_strip.png"
+const ARROW_SPRITE_PATH: String = "res://assets/art/battle/weapons/wpn_arrow_t0.png"
+const ARROW_NOCK: Vector2 = Vector2(1.0, 1.0)
+const BOW_ARROW_FLIGHT_SEC: float = 0.12
 const KEEPER_ATTACK_ROT_SEQUENCE: Array[int] = [5, 6, 7, 1, 1, 1, 0, 0]
 const FIGHTER_SOLE: Vector2 = Vector2(64.0, 123.0)
 const BODY_FRAME: Vector2 = Vector2(128.0, 128.0)
@@ -13,13 +17,13 @@ const CONTACT_CELL_MARGIN: int = 36
 
 const WEAPON_FAMILY_GRIP: Dictionary = {
 	"sword": Vector2(0.0, 4.0),
-	"wand": Vector2(2.0, 7.0),
-	"bow": Vector2(1.0, 11.0),
+	"wand": Vector2(4.0, 12.0),
+	"bow": Vector2(4.0, 20.0),
 }
 const WEAPON_FAMILY_SIZE: Dictionary = {
 	"sword": Vector2(28.0, 10.0),
-	"wand": Vector2(5.0, 24.0),
-	"bow": Vector2(14.0, 24.0),
+	"wand": Vector2(9.0, 36.0),
+	"bow": Vector2(22.0, 42.0),
 }
 
 static var _data: Dictionary = {}
@@ -101,7 +105,97 @@ static func display_logical_frame(logical: int, speed: int, hit_frame: int, fram
 
 
 static func uses_one_to_one_art(actor: String, clip: String) -> bool:
-	return actor == "keeper" and clip == "attack"
+	return actor == "keeper" and clip in ["attack", "attack_wand", "attack_bow"]
+
+
+static func strike_clip_for_weapon_family(family: String) -> String:
+	match family:
+		"wand":
+			return "attack_wand"
+		"bow":
+			return "attack_bow"
+		_:
+			return "attack"
+
+
+static func strike_clip_for_sprite(sprite_id: String) -> String:
+	return strike_clip_for_weapon_family(weapon_family_from_sprite(sprite_id))
+
+
+static func resolve_playback_clip(actor: String, clip: String, weapon_sprite_id: String) -> String:
+	var norm: String = clip_for_pose(clip)
+	if actor == "keeper" and norm == "attack" and weapon_sprite_id != "":
+		var family_clip: String = strike_clip_for_sprite(weapon_sprite_id)
+		if has_modular_body(actor, family_clip):
+			return family_clip
+	return norm
+
+
+static func weapon_rot_degrees(rot_index: int) -> float:
+	return float(rot_index) * 45.0 - 270.0
+
+
+static func rotate_local_offset(ox: float, oy: float, rot_index: int) -> Vector2:
+	var rad: float = deg_to_rad(weapon_rot_degrees(rot_index))
+	var c: float = cos(rad)
+	var s: float = sin(rad)
+	return Vector2(ox * c - oy * s, ox * s + oy * c)
+
+
+static func wand_tip_in_body_texture(anchor: Dictionary) -> Vector2:
+	var hx: float = float(anchor.get("hand_x", 0))
+	var hy: float = float(anchor.get("hand_y", 0))
+	var rot_i: int = int(anchor.get("rot_index", 0))
+	var tip: Vector2 = rotate_local_offset(
+		float(anchor.get("tip_ox", 0)),
+		float(anchor.get("tip_oy", -9)),
+		rot_i,
+	)
+	return Vector2(hx, hy) + tip
+
+
+static func wand_spark_visible(clip: String, art_frame: int) -> bool:
+	return clip == "attack_wand" and art_frame >= 2 and art_frame <= 5
+
+
+static func bow_arrow_nocked_visible(clip: String, art_frame: int) -> bool:
+	return clip == "attack_bow" and art_frame >= 0 and art_frame <= 5
+
+
+static func bow_string_points_in_body(
+	hand_x: int,
+	hand_y: int,
+	hand2_x: int,
+	hand2_y: int,
+	sprite_id: String,
+	rot_index: int,
+	string_draw: float,
+) -> PackedVector2Array:
+	var w_top: Vector2 = weapon_top_left_in_body_texture(hand_x, hand_y, sprite_id, rot_index)
+	var pivot: Vector2 = weapon_pivot_for_rot(sprite_id, rot_index)
+	var size: Vector2 = weapon_size_for_rot(sprite_id, rot_index)
+	var grip: Vector2 = w_top + pivot
+	var limb_x: float = w_top.x + pivot.x
+	var upper: Vector2 = Vector2(limb_x, w_top.y)
+	var lower: Vector2 = Vector2(limb_x, w_top.y + size.y - 1.0)
+	var rest_mid: Vector2 = grip + Vector2(-8.0, 0.0)
+	var hand2: Vector2 = Vector2(float(hand2_x), float(hand2_y))
+	var mid: Vector2 = rest_mid.lerp(hand2, clampf(string_draw, 0.0, 1.0))
+	if string_draw <= 0.001:
+		return PackedVector2Array([upper, lower])
+	return PackedVector2Array([upper, mid, lower])
+
+
+static func arrow_angle_rad(hand_x: int, hand_y: int, hand2_x: int, hand2_y: int) -> float:
+	var grip: Vector2 = Vector2(float(hand_x), float(hand_y))
+	var nock: Vector2 = Vector2(float(hand2_x), float(hand2_y))
+	return atan2(grip.y - nock.y, grip.x - nock.x)
+
+
+static func arrow_top_left_in_body(hand2_x: int, hand2_y: int, angle_rad: float) -> Vector2:
+	var nock: Vector2 = Vector2(float(hand2_x), float(hand2_y))
+	var pivot_world: Vector2 = ARROW_NOCK.rotated(angle_rad)
+	return nock - pivot_world
 
 
 static func weapon_sprite_id_for_item(item_id: String) -> String:
@@ -215,14 +309,19 @@ static func craft_weapon_rows_for_contact() -> Array[Dictionary]:
 	return [
 		_row_for_item("stone_sword", "Flintblade"),
 		_row_for_item("rootsteel_edge", "Rootsteel"),
-		_row_for_item("thornbow", "Thornbow"),
 		_row_for_item("heartwand", "Heartwand"),
+		_row_for_item("thornbow", "Thornbow"),
 	]
 
 
 static func _row_for_item(item_id: String, label: String) -> Dictionary:
 	var sprite_id: String = weapon_sprite_id_for_item(item_id)
-	return {"label": label, "item_id": item_id, "sprite_id": sprite_id}
+	return {
+		"label": label,
+		"item_id": item_id,
+		"sprite_id": sprite_id,
+		"clip": strike_clip_for_sprite(sprite_id),
+	}
 
 
 static func modular_body_path(actor: String, clip: String, art_frame: int) -> String:
@@ -291,8 +390,7 @@ static func sprite_file_bytes(path: String) -> PackedByteArray:
 
 
 static func clips_with_weapon_overlay(actor: String) -> Array[String]:
-	var out: Array[String] = ["attack", "cast"]
-	return out
+	return ["attack", "attack_wand", "attack_bow", "cast"]
 
 
 static func uses_weapon_overlay(actor: String, clip: String) -> bool:

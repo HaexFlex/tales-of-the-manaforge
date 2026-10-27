@@ -26801,12 +26801,20 @@ func _combat_anims_r6_ok() -> int:
 		"sword family grip 0,4",
 	)
 	failed += _assert(
-		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["wand"] == Vector2(2.0, 7.0),
-		"wand family grip 2,7",
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["wand"] == Vector2(4.0, 12.0),
+		"wand family grip 4,12",
 	)
 	failed += _assert(
-		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["bow"] == Vector2(1.0, 11.0),
-		"bow family grip 1,11",
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["bow"] == Vector2(4.0, 20.0),
+		"bow family grip 4,20",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_SIZE["wand"] == Vector2(9.0, 36.0),
+		"wand native size 9x36",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_SIZE["bow"] == Vector2(22.0, 42.0),
+		"bow native size 22x42",
 	)
 	failed += _assert(
 		CombatAnimsConfigScript.WEAPON_FAMILY_SIZE["sword"] == Vector2(28.0, 10.0),
@@ -26866,4 +26874,71 @@ func _combat_anims_r6_ok() -> int:
 				CombatAnimsConfigScript.weapon_grip_matches_hand_exact(hx, hy, sprite_id, rot_i),
 				"grip on hand frame %d %s rot %d" % [frame_i, sprite_id, rot_i],
 			)
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("keeper", "attack_wand"), "keeper attack_wand modular")
+	failed += _assert(CombatAnimsConfigScript.has_modular_body("keeper", "attack_bow"), "keeper attack_bow modular")
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_count("keeper", "attack_wand") == 8,
+		"keeper attack_wand 8 frames",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_count("keeper", "attack_bow") == 10,
+		"keeper attack_bow 10 frames",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.strike_clip_for_sprite("wpn_wand_t2") == "attack_wand",
+		"wand uses attack_wand clip",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.strike_clip_for_sprite("wpn_bow_t1") == "attack_bow",
+		"bow uses attack_bow clip",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.strike_clip_for_sprite("wpn_sword_t1") == "attack",
+		"sword uses attack clip",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.resolve_playback_clip("keeper", "attack", "wpn_wand_t0") == "attack_wand",
+		"weapon rod playback resolves attack_wand",
+	)
+	var wand_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack_wand")
+	failed += _assert(int(wand_timing.get("hit_ms", -1)) == 500, "attack_wand hit_ms 500")
+	failed += _assert(int(wand_timing.get("hit_frame", -1)) == 4, "attack_wand hit_frame 4")
+	var bow_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack_bow")
+	failed += _assert(int(bow_timing.get("frames", -1)) == 10, "attack_bow 10 frames timing")
+	failed += _assert(
+		ResourceLoader.exists(CombatAnimsConfigScript.WAND_SPARK_PATH),
+		"wand spark strip art",
+	)
+	failed += _assert(
+		ResourceLoader.exists(CombatAnimsConfigScript.ARROW_SPRITE_PATH),
+		"wpn_arrow_t0 art",
+	)
+	for frame_i: int in range(8):
+		var anchor_w: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack_wand", frame_i)
+		var hx_w: int = int(anchor_w.get("hand_x", -1))
+		var hy_w: int = int(anchor_w.get("hand_y", -1))
+		var rot_w: int = int(anchor_w.get("rot_index", -1))
+		for sprite_id: String in ["wpn_wand_t0", "wpn_wand_t1", "wpn_wand_t2"]:
+			failed += _assert(
+				CombatAnimsConfigScript.weapon_grip_matches_hand_exact(hx_w, hy_w, sprite_id, rot_w),
+				"wand grip frame %d %s" % [frame_i, sprite_id],
+			)
+		var spark_on: bool = CombatAnimsConfigScript.wand_spark_visible("attack_wand", frame_i)
+		var expect_spark: bool = frame_i >= 2 and frame_i <= 5
+		failed += _assert(spark_on == expect_spark, "wand spark visibility frame %d" % frame_i)
+	for frame_i: int in range(10):
+		var anchor_b: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack_bow", frame_i)
+		failed += _assert(not anchor_b.is_empty(), "attack_bow anchor frame %d" % frame_i)
+		var hx_b: int = int(anchor_b.get("hand_x", -1))
+		var hy_b: int = int(anchor_b.get("hand_y", -1))
+		var rot_b: int = int(anchor_b.get("rot_index", -1))
+		for sprite_id: String in ["wpn_bow_t0", "wpn_bow_t1", "wpn_bow_t2"]:
+			failed += _assert(
+				CombatAnimsConfigScript.weapon_grip_matches_hand_exact(hx_b, hy_b, sprite_id, rot_b),
+				"bow grip frame %d %s" % [frame_i, sprite_id],
+			)
+		var arrow_on: bool = CombatAnimsConfigScript.bow_arrow_nocked_visible("attack_bow", frame_i)
+		var expect_arrow: bool = frame_i <= 5
+		failed += _assert(arrow_on == expect_arrow, "bow arrow nocked frame %d" % frame_i)
+		failed += _assert(anchor_b.has("hand2_x") and anchor_b.has("string_draw"), "bow schema frame %d" % frame_i)
 	return failed

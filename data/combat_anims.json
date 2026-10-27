@@ -74,7 +74,10 @@
     "weapon_attach": "overlay_on_attack_cast_frames"
   },
   "actors_party": {
-    "keeper": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": ["idle", "attack", "brace", "hurt", "ko"] },
+    "keeper": {
+      "anims": ["attack", "attack_wand", "attack_bow", "hit", "brace", "cast", "spare"],
+      "live_stills": ["idle", "attack", "brace", "hurt", "ko"]
+    },
     "elaia": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": ["idle", "attack", "brace", "hurt", "ko"] },
     "puff": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": [], "note": "not on main; R5 companion" },
     "moss_tortoise": { "anims": ["attack", "hit", "brace", "cast", "spare"], "live_stills": [], "note": "not on main; R5 Echo 4" },
@@ -97,6 +100,26 @@
   "timings_1x": {
     "party": {
       "attack": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 3, "hit_ms": 400, "maps_event": "strike" },
+      "attack_wand": {
+        "frames": 8,
+        "ms_per_frame": 125,
+        "total_ms": 1000,
+        "hit_frame": 4,
+        "hit_ms": 500,
+        "maps_event": "strike",
+        "note": "PLACEHOLDER. Decision 41 impact at 500ms (frame 4); gameplay float still REACT_SEC 0.4."
+      },
+      "attack_bow": {
+        "frames": 10,
+        "ms_per_frame": 100,
+        "total_ms": 1000,
+        "hit_frame": 6,
+        "hit_ms": 600,
+        "maps_event": "strike",
+        "arrow_release_frame": 6,
+        "arrow_flight_sec": 0.12,
+        "note": "PLACEHOLDER. Nocked arrow frames 0-5; release frame 6; visual impact when flight lands."
+      },
       "hit": { "frames": 4, "ms_per_frame": 100, "total_ms": 400, "hit_frame": 1, "hit_ms": 0, "maps_event": "react/hurt" },
       "brace": { "frames": 6, "ms_per_frame": 100, "total_ms": 600, "hit_frame": 2, "hit_ms": 200, "maps_event": "brace" },
       "cast": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 5, "hit_ms": 500, "maps_event": "item/ability" },

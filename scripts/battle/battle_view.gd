@@ -732,6 +732,54 @@ func _hide_weapon_sprite(root: Control) -> void:
 		weapon.texture = null
 
 
+func _hide_combat_overlay_sprites(root: Control) -> void:
+	_hide_weapon_sprite(root)
+	var spark: TextureRect = root.get_node_or_null("WandSparkSprite") as TextureRect
+	if spark != null:
+		spark.texture = null
+		spark.visible = false
+	var arrow: TextureRect = root.get_node_or_null("BowArrowSprite") as TextureRect
+	if arrow != null:
+		arrow.texture = null
+		arrow.visible = false
+	var string_line: Line2D = root.get_node_or_null("BowStringLine") as Line2D
+	if string_line != null:
+		string_line.visible = false
+		string_line.points = PackedVector2Array()
+
+
+func _ensure_overlay_sprite(root: Control, node_name: String) -> TextureRect:
+	var existing: Node = root.get_node_or_null(node_name)
+	if existing is TextureRect:
+		return existing as TextureRect
+	var node := TextureRect.new()
+	node.name = node_name
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	root.add_child(node)
+	return node
+
+
+func _ensure_bow_string_line(root: Control) -> Line2D:
+	var existing: Node = root.get_node_or_null("BowStringLine")
+	if existing is Line2D:
+		return existing as Line2D
+	var line := Line2D.new()
+	line.name = "BowStringLine"
+	line.width = 1.0
+	line.default_color = Color(0.55, 0.42, 0.28, 1.0)
+	line.antialiased = false
+	line.joint_mode = Line2D.LINE_JOINT_SHARP
+	line.begin_cap_mode = Line2D.LINE_CAP_BOX
+	line.end_cap_mode = Line2D.LINE_CAP_BOX
+	root.add_child(line)
+	return line
+
+
+func _body_local_from_texture(root: Control, body_point: Vector2) -> Vector2:
+	return body_point + CombatAnimsConfig.body_sprite_offset_in_root()
+
+
 func _apply_modular_frame(
 	root: Control,
 	actor: String,
@@ -785,13 +833,146 @@ func _apply_modular_frame(
 					root.move_child(weapon, sprite_idx)
 				elif z == "front" and weapon.get_index() < sprite_idx:
 					root.move_child(weapon, sprite_idx + 1)
+				_apply_wand_spark_overlay(root, clip, art_frame, anchor, sprite_idx)
+				_apply_bow_string_and_arrow(
+					root, clip, art_frame, anchor, weapon_sprite_id, hx, hy, sprite_idx,
+				)
 			else:
-				_hide_weapon_sprite(root)
+				_hide_combat_overlay_sprites(root)
 		else:
-			_hide_weapon_sprite(root)
+			_hide_combat_overlay_sprites(root)
 	else:
-		_hide_weapon_sprite(root)
+		_hide_combat_overlay_sprites(root)
 	return true
+
+
+func _apply_wand_spark_overlay(
+	root: Control,
+	clip: String,
+	art_frame: int,
+	anchor: Dictionary,
+	sprite_idx: int,
+) -> void:
+	var spark: TextureRect = _ensure_overlay_sprite(root, "WandSparkSprite")
+	if not CombatAnimsConfig.wand_spark_visible(clip, art_frame):
+		spark.texture = null
+		spark.visible = false
+		return
+	if not ResourceLoader.exists(CombatAnimsConfig.WAND_SPARK_PATH):
+		spark.visible = false
+		return
+	var strip: Texture2D = load(CombatAnimsConfig.WAND_SPARK_PATH) as Texture2D
+	if strip == null:
+		spark.visible = false
+		return
+	var atlas := AtlasTexture.new()
+	atlas.atlas = strip
+	atlas.region = Rect2((art_frame - 2) % 4 * 8, 0, 8, 8)
+	spark.texture = atlas
+	spark.size = Vector2(8, 8)
+	var tip_body: Vector2 = CombatAnimsConfig.wand_tip_in_body_texture(anchor)
+	spark.position = _body_local_from_texture(root, tip_body) - Vector2(4, 4)
+	spark.visible = true
+	if spark.get_index() <= sprite_idx:
+		root.move_child(spark, sprite_idx + 1)
+
+
+func _apply_bow_string_and_arrow(
+	root: Control,
+	clip: String,
+	art_frame: int,
+	anchor: Dictionary,
+	weapon_sprite_id: String,
+	hand_x: int,
+	hand_y: int,
+	sprite_idx: int,
+) -> void:
+	var string_line: Line2D = _ensure_bow_string_line(root)
+	var arrow: TextureRect = _ensure_overlay_sprite(root, "BowArrowSprite")
+	if clip != "attack_bow":
+		string_line.visible = false
+		arrow.visible = false
+		return
+	var rot_index: int = int(anchor.get("rot_index", 0))
+	var hand2_x: int = int(anchor.get("hand2_x", hand_x))
+	var hand2_y: int = int(anchor.get("hand2_y", hand_y))
+	var string_draw: float = float(anchor.get("string_draw", 0.0))
+	var body_pts: PackedVector2Array = CombatAnimsConfig.bow_string_points_in_body(
+		hand_x, hand_y, hand2_x, hand2_y, weapon_sprite_id, rot_index, string_draw,
+	)
+	var local_pts: PackedVector2Array = PackedVector2Array()
+	for pt: Vector2 in body_pts:
+		local_pts.append(_body_local_from_texture(root, pt))
+	string_line.points = local_pts
+	string_line.visible = local_pts.size() >= 2
+	if string_line.get_index() <= sprite_idx:
+		root.move_child(string_line, sprite_idx)
+	if CombatAnimsConfig.bow_arrow_nocked_visible(clip, art_frame):
+		if ResourceLoader.exists(CombatAnimsConfig.ARROW_SPRITE_PATH):
+			arrow.texture = load(CombatAnimsConfig.ARROW_SPRITE_PATH) as Texture2D
+			var angle: float = CombatAnimsConfig.arrow_angle_rad(hand_x, hand_y, hand2_x, hand2_y)
+			arrow.pivot_offset = CombatAnimsConfig.ARROW_NOCK
+			arrow.rotation = angle
+			arrow.position = _body_local_from_texture(
+				root,
+				CombatAnimsConfig.arrow_top_left_in_body(hand2_x, hand2_y, angle),
+			)
+			if arrow.texture != null:
+				arrow.size = arrow.texture.get_size()
+			arrow.visible = true
+			if arrow.get_index() <= sprite_idx:
+				root.move_child(arrow, sprite_idx + 1)
+		else:
+			arrow.visible = false
+	else:
+		arrow.texture = null
+		arrow.visible = false
+		if art_frame >= 6:
+			root.set_meta("combat_bow_release_at", Time.get_ticks_msec())
+
+
+func _tick_bow_arrow_flight(
+	root: Control,
+	actor: String,
+	clip: String,
+	logical: int,
+	elapsed: float,
+	speed: int,
+) -> void:
+	if clip != "attack_bow":
+		return
+	var timing: Dictionary = CombatAnimsConfig.timing("party", clip)
+	var base_ms: int = int(timing.get("ms_per_frame", 100))
+	var release_frame: int = int(timing.get("arrow_release_frame", 6))
+	var release_t: float = CombatAnimsConfig.wall_sec_for_frame_index(speed, base_ms, release_frame)
+	var flight_sec: float = float(timing.get("arrow_flight_sec", CombatAnimsConfig.BOW_ARROW_FLIGHT_SEC))
+	var local_t: float = elapsed - release_t
+	if local_t < 0.0:
+		return
+	var arrow: TextureRect = _ensure_overlay_sprite(root, "BowArrowSprite")
+	if not ResourceLoader.exists(CombatAnimsConfig.ARROW_SPRITE_PATH):
+		return
+	var anchor: Dictionary = CombatAnimsConfig.hand_anchor(actor, clip, release_frame)
+	var hand2_x: int = int(anchor.get("hand2_x", 0))
+	var hand2_y: int = int(anchor.get("hand2_y", 0))
+	var hand_x: int = int(anchor.get("hand_x", 0))
+	var hand_y: int = int(anchor.get("hand_y", 0))
+	var angle: float = CombatAnimsConfig.arrow_angle_rad(hand_x, hand_y, hand2_x, hand2_y)
+	var toward: float = 1.0 if str(root.get_meta("side", "")) == "party" else -1.0
+	var progress: float = clampf(local_t / maxf(0.001, flight_sec / float(maxi(1, speed))), 0.0, 1.0)
+	var start: Vector2 = Vector2(float(hand2_x), float(hand2_y))
+	var end: Vector2 = start + Vector2(72.0 * toward, 0.0)
+	var nock_body: Vector2 = start.lerp(end, progress)
+	arrow.texture = load(CombatAnimsConfig.ARROW_SPRITE_PATH) as Texture2D
+	arrow.pivot_offset = CombatAnimsConfig.ARROW_NOCK
+	arrow.rotation = angle
+	arrow.position = _body_local_from_texture(
+		root,
+		CombatAnimsConfig.arrow_top_left_in_body(int(nock_body.x), int(nock_body.y), angle),
+	)
+	if arrow.texture != null:
+		arrow.size = arrow.texture.get_size()
+	arrow.visible = progress < 1.0
 
 
 func playback_stop_combat_anim(fighter_id: String) -> void:
@@ -814,10 +995,10 @@ func playback_start_combat_anim(fighter_id: String, clip: String, speed: int) ->
 	if root == null:
 		return false
 	var actor: String = _modular_actor_for_root(root)
-	var norm_clip: String = CombatAnimsConfig.clip_for_pose(clip)
+	var weapon_id: String = _weapon_sprite_for_root(root) if str(root.get_meta("side", "")) == "party" else ""
+	var norm_clip: String = CombatAnimsConfig.resolve_playback_clip(actor, clip, weapon_id)
 	if not CombatAnimsConfig.has_modular_body(actor, norm_clip):
 		return false
-	var weapon_id: String = _weapon_sprite_for_root(root) if str(root.get_meta("side", "")) == "party" else ""
 	root.set_meta("combat_anim_clip", norm_clip)
 	root.set_meta("combat_anim_elapsed", 0.0)
 	root.set_meta("combat_anim_speed", speed)
@@ -854,6 +1035,8 @@ func playback_tick_combat_anims(dt: float) -> void:
 			root.set_meta("combat_anim_last_logical", logical)
 			var weapon_id: String = str(root.get_meta("combat_anim_weapon", ""))
 			_apply_modular_frame(root, actor, clip, logical, speed, weapon_id)
+		if clip == "attack_bow" and logical >= 6:
+			_tick_bow_arrow_flight(root, actor, clip, logical, elapsed, speed)
 
 
 func playback_begin_hit_react(fighter_id: String, speed: int) -> void:
