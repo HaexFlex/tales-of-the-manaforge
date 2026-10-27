@@ -502,8 +502,9 @@ func _on_viewport_resized() -> void:
 
 
 func _handle_zoom_input(event: InputEvent) -> bool:
+	var photo: bool = PhotoMode.is_active()
 	if event is InputEventMagnifyGesture:
-		if world_input_blocked() or _gui_blocks_drag():
+		if not photo and (world_input_blocked() or _gui_blocks_drag()):
 			return true
 		var mag := event as InputEventMagnifyGesture
 		_pinch_accum *= mag.factor
@@ -520,7 +521,7 @@ func _handle_zoom_input(event: InputEvent) -> bool:
 	var mb := event as InputEventMouseButton
 	if mb.button_index != MOUSE_BUTTON_WHEEL_UP and mb.button_index != MOUSE_BUTTON_WHEEL_DOWN:
 		return false
-	if not mb.pressed or world_input_blocked() or _gui_blocks_drag() or _drag_active:
+	if not mb.pressed or (not photo and (world_input_blocked() or _gui_blocks_drag() or _drag_active)):
 		get_viewport().set_input_as_handled()
 		return true
 	var notch := mb.factor if absf(mb.factor) > 0.01 else 1.0
@@ -549,7 +550,7 @@ func pan_camera(delta: Vector2) -> void:
 func _process(delta: float) -> void:
 	if camera == null:
 		return
-	if world_input_blocked():
+	if world_input_blocked() and not PhotoMode.is_active():
 		return
 	var dir := Vector2.ZERO
 	if Input.is_action_pressed("ui_left"):
@@ -951,6 +952,8 @@ func _landmark_radius(index: int) -> float:
 
 func world_input_blocked() -> bool:
 	## The arena overlay sits above the clearing. Clicks and world hotkeys stop here.
+	if PhotoMode.is_active():
+		return true
 	if BattleView.is_open():
 		return true
 	if hud == null or pause_menu == null:
