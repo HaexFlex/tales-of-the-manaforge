@@ -2020,8 +2020,9 @@ func _refresh_actions() -> void:
 	_offer_slot(_spare, actions.has("spare"), ContentStrings.get_text("battle_spare"))
 	_offer_slot(_brace_btn, actions.has("brace"), "Brace")
 	if _ability_btn:
-		_ability_btn.visible = true
-		_ability_btn.disabled = not BattleView.keeper_abilities_exist()
+		var spare_only: bool = _battle.spare_window and _battle.outcome == ""
+		_ability_btn.visible = not spare_only
+		_ability_btn.disabled = spare_only or not BattleView.keeper_abilities_exist()
 		_paint_slot_dim(_ability_btn, _ability_btn.disabled)
 		_ability_btn.text = "Ability"
 	if _salve_btn:

@@ -1520,8 +1520,20 @@ func _battle_view() -> int:
 			if child is Button and child.has_meta("echo_slot"):
 				slot_names.append(str(child.name))
 	failed += _check(",".join(slot_names) == "StrikeButton,AbilityButton,SalveButton,BraceButton,FleeButton,SpareButton", "Strike / Ability / Items / Brace / Flee / Spare")
+	var gear: Node = root.get_node_or_null("Equipment")
+	var had_weapon: String = ""
+	if gear != null:
+		had_weapon = str(gear.call("equipped_id", "weapon"))
+		gear.call("grant_item", "stone_sword")
+		gear.call("try_equip", "stone_sword")
+	view.call("_refresh_actions")
 	var ability_btn: Button = view.get_node_or_null("EchoActionMenu/AbilityButton") as Button
-	failed += _check(ability_btn != null and ability_btn.disabled and not BattleView.keeper_abilities_exist(), "Ability stays disabled")
+	failed += _check(
+		ability_btn != null and not ability_btn.disabled and BattleView.keeper_abilities_exist(),
+		"Ability is enabled with Flintblade equipped",
+	)
+	if gear != null and had_weapon != "" and had_weapon != "stone_sword":
+		gear.call("try_equip", had_weapon)
 	var spare_btn: Button = view.get_node_or_null("EchoActionMenu/SpareButton") as Button
 	failed += _check(spare_btn != null and spare_btn.disabled, "Spare disabled until the falter")
 	var bar: Control = view.get_node_or_null("EchoActionMenu/EchoBottomBar") as Control

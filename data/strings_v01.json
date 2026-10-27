@@ -812,6 +812,7 @@
   "adv_item_count": "{item} ×{count}",
   "adv_item_none_packed": "None packed",
   "adv_ability_empty_tip": "Abilities draw on Weave. You have none yet.",
+  "adv_ability_sweeping_arc_tip": "Sweeping Arc (10 Weave): strike up to two reachable foes for ×0.75 damage each.",
   "adv_loadout_title": "Item loadout",
   "adv_loadout_hint": "{slots} slots, up to {max} of one item each. Fights only use what is packed, and leftovers come home.",
   "adv_loadout_empty_slot": "Empty slot",

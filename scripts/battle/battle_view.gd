@@ -2470,6 +2470,8 @@ func _build_fight_hud() -> void:
 		ab.name = "AbilityButton%d" % (n + 1)
 		ab.disabled = true
 		ab.tooltip_text = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
+		if not ab.pressed.is_connected(_on_ability_slot_pressed):
+			ab.pressed.connect(_on_ability_slot_pressed.bind(n))
 		_ability_buttons.append(ab)
 	_side_actions = VBoxContainer.new()
 	_side_actions.name = "SideActions"
@@ -2890,6 +2892,7 @@ func _show_action_menu(actor_id: String) -> void:
 		return
 	_action_menu.visible = true
 	_update_salve_button()
+	_sync_ability_row(actor_id)
 	var choosing: bool = _target_mode == ""
 	for button: Button in [_strike_button, _ability_button, _salve_button, _brace_button, _flee_button]:
 		if button != null:
@@ -2919,18 +2922,69 @@ func _show_action_menu(actor_id: String) -> void:
 
 
 static func keeper_abilities_exist() -> bool:
-	## No abilities exist yet, in the arena or in an Echo. One gate for both menus.
+	## True when the Keeper's equipped weapon lists at least one ability.
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return false
+	var gear: Node = tree.root.get_node_or_null("Equipment")
+	if gear == null:
+		return false
+	var weapon_id: String = str(gear.call("equipped_id_for", "keeper", "weapon"))
+	if weapon_id == "":
+		return false
+	var item_def: Dictionary = gear.call("get_item_def", weapon_id) as Dictionary
+	var abilities_v: Variant = item_def.get("abilities", [])
+	if abilities_v is Array:
+		return (abilities_v as Array).size() > 0
 	return false
 
 
 func _has_abilities() -> bool:
-	## No abilities exist yet: every slot is a disabled "—". The picker stays shut until one is real.
 	if not keeper_abilities_exist():
 		return false
 	for ab: Button in _ability_buttons:
 		if not ab.disabled:
 			return true
 	return false
+
+
+func _sync_ability_row(actor_id: String) -> void:
+	if _ability_row == null or _fight == null:
+		return
+	var arc_tip: String = _text(
+		"adv_ability_sweeping_arc_tip",
+		"Sweeping Arc (10 Weave): strike up to two reachable foes for ×0.75 damage each.",
+	)
+	var empty_tip: String = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
+	for n: int in _ability_buttons.size():
+		var ab: Button = _ability_buttons[n]
+		ab.disabled = true
+		ab.text = "—"
+		ab.tooltip_text = empty_tip
+		if n == 0 and actor_id != "" and _fight.can_sweeping_arc(actor_id):
+			ab.disabled = false
+			ab.text = "Arc"
+			ab.tooltip_text = arc_tip
+
+
+func _on_ability_slot_pressed(slot: int) -> void:
+	if _fight == null or slot != 0:
+		return
+	var actor_id: String = _fight.current_actor()
+	if actor_id == "" or not _fight.can_sweeping_arc(actor_id):
+		return
+	if _playback != null:
+		_playback.play_battle_confirm()
+	if _ability_row != null:
+		_ability_row.visible = false
+	var packet: Dictionary = _fight.step({
+		"kind": "ability",
+		"ability": String(WeaponAbilities.SWEEPING_ARC),
+		"targets": _fight.sweeping_arc_targets(actor_id),
+	})
+	_note_reach_fight_action()
+	_enqueue_step(packet)
+	_advance()
 
 
 func _strike_for_me_party_step(actor_id: String) -> void:
