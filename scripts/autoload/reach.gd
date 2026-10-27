@@ -1137,16 +1137,29 @@ func _clean_party(raw: Variant) -> Array[Dictionary]:
 		if typeof(stats_v) == TYPE_DICTIONARY:
 			for key_v: Variant in (stats_v as Dictionary).keys():
 				var key: String = str(key_v)
+				var stat_v: Variant = (stats_v as Dictionary)[key_v]
 				if key == "attack":
-					stats[key] = str((stats_v as Dictionary)[key_v])
+					stats[key] = str(stat_v)
+				elif key == "weapon_abilities":
+					if stat_v is Array:
+						stats[key] = (stat_v as Array).duplicate()
 				else:
-					stats[key] = int((stats_v as Dictionary)[key_v])
+					stats[key] = _party_stat_int(stat_v, key)
 		out.append({
 			"member": str(entry.get("member", "")),
 			"row": "back" if str(entry.get("row", "")) == "back" else "front",
 			"stats": stats,
 		})
 	return out
+
+
+static func _party_stat_int(raw: Variant, key: String, default_v: int = 5) -> int:
+	if raw is int:
+		return raw
+	if raw is float:
+		return int(raw)
+	push_warning("Reach: party stat %s had non-numeric value %s; using %d" % [key, str(raw), default_v])
+	return default_v
 
 
 func _clean_boss_paid(raw: Variant) -> Array[int]:
