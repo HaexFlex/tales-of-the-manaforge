@@ -1,0 +1,254 @@
+[
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 0,
+    "hand_x": 108,
+    "hand_y": 64,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 1,
+    "hand_x": 110,
+    "hand_y": 64,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 2,
+    "hand_x": 112,
+    "hand_y": 63,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "attack",
+    "frame": 3,
+    "hand_x": 109,
+    "hand_y": 64,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "hit",
+    "frame": 0,
+    "hand_x": 70,
+    "hand_y": 78,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "hit",
+    "frame": 1,
+    "hand_x": 70,
+    "hand_y": 79,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "hit",
+    "frame": 2,
+    "hand_x": 70,
+    "hand_y": 78,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "hit",
+    "frame": 3,
+    "hand_x": 70,
+    "hand_y": 77,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "brace",
+    "frame": 0,
+    "hand_x": 72,
+    "hand_y": 76,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "brace",
+    "frame": 1,
+    "hand_x": 72,
+    "hand_y": 77,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "brace",
+    "frame": 2,
+    "hand_x": 72,
+    "hand_y": 76,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "brace",
+    "frame": 3,
+    "hand_x": 72,
+    "hand_y": 76,
+    "rot_index": 0,
+    "z": "behind"
+  },
+  {
+    "actor": "keeper",
+    "clip": "cast",
+    "frame": 0,
+    "hand_x": 82,
+    "hand_y": 70,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "cast",
+    "frame": 1,
+    "hand_x": 84,
+    "hand_y": 68,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "cast",
+    "frame": 2,
+    "hand_x": 82,
+    "hand_y": 70,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "cast",
+    "frame": 3,
+    "hand_x": 78,
+    "hand_y": 78,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "spare",
+    "frame": 0,
+    "hand_x": 78,
+    "hand_y": 78,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "spare",
+    "frame": 1,
+    "hand_x": 78,
+    "hand_y": 79,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "spare",
+    "frame": 2,
+    "hand_x": 76,
+    "hand_y": 78,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "keeper",
+    "clip": "spare",
+    "frame": 3,
+    "hand_x": 78,
+    "hand_y": 78,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "attack",
+    "frame": 0,
+    "hand_x": 100,
+    "hand_y": 66,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "attack",
+    "frame": 1,
+    "hand_x": 101,
+    "hand_y": 66,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "attack",
+    "frame": 2,
+    "hand_x": 102,
+    "hand_y": 66,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "attack",
+    "frame": 3,
+    "hand_x": 103,
+    "hand_y": 66,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "cast",
+    "frame": 0,
+    "hand_x": 85,
+    "hand_y": 72,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "cast",
+    "frame": 1,
+    "hand_x": 85,
+    "hand_y": 72,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "cast",
+    "frame": 2,
+    "hand_x": 85,
+    "hand_y": 72,
+    "rot_index": 0,
+    "z": "front"
+  },
+  {
+    "actor": "elaia",
+    "clip": "cast",
+    "frame": 3,
+    "hand_x": 85,
+    "hand_y": 72,
+    "rot_index": 0,
+    "z": "front"
+  }
+]
