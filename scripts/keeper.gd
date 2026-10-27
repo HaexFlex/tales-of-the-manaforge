@@ -6,6 +6,9 @@ class_name Keeper
 signal arrived
 signal interaction_finished(target: Node)
 signal channel_changed(kind: StringName, active: bool)
+## Bench idle sit: sit_down finished, or stand_up finished / sit cancelled at the bench.
+signal keeper_bench_sat
+signal keeper_bench_stood
 
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var label: Label = $Label
@@ -86,6 +89,7 @@ var _idle_moment_kind: int = IdleMomentKind.NONE
 var _idle_moment_left: float = 0.0
 var _idle_moment_face: String = ""
 var _idle_moment_sit_phase: int = IdleMomentSitPhase.NONE
+var _idle_moment_bench: Node2D = null
 var _idle_stand_accum: float = 0.0
 var _idle_moment_wait_sec: float = -1.0
 
@@ -1238,10 +1242,32 @@ func _idle_moment_clips_ready() -> bool:
 	return sprite != null and sprite.sprite_frames != null and sprite.sprite_frames.has_animation(&"idle_stretch_south")
 
 
+func _bench_for_idle_sit() -> Node2D:
+	if not is_inside_tree():
+		return null
+	var bench: Node2D = get_tree().get_first_node_in_group("keepers_bench") as Node2D
+	if bench == null or not bench.has_method("keeper_at_stand") or not bench.has_method("seat_global"):
+		return null
+	if not bool(bench.call("keeper_at_stand")):
+		return null
+	return bench
+
+
+func _snap_bench_idle_seat(bench: Node2D) -> void:
+	global_position = bench.call("seat_global")
+	_target = global_position
+
+
+func _release_bench_idle_seat(bench: Node2D) -> void:
+	global_position = bench.call("stand_global")
+	_target = global_position
+
+
 func _start_idle_moment(kind: int) -> void:
 	_idle_moment_kind = kind
 	_idle_moment_face = ""
 	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
+	_idle_moment_bench = null
 	if _idle_moment_clips_ready():
 		_facing = "south"
 	match kind:
@@ -1255,6 +1281,10 @@ func _start_idle_moment(kind: int) -> void:
 			_idle_moment_left = IDLE_MOMENT_SIT_SEC
 			if _idle_moment_clips_ready():
 				_idle_moment_sit_phase = IdleMomentSitPhase.DOWN
+				var bench_sit: Node2D = _bench_for_idle_sit()
+				if bench_sit != null:
+					_idle_moment_bench = bench_sit
+					_snap_bench_idle_seat(bench_sit)
 		_:
 			_idle_moment_kind = IdleMomentKind.NONE
 			_idle_moment_left = 0.0
@@ -1330,6 +1360,7 @@ func _clear_idle_moment_state() -> void:
 	_idle_moment_left = 0.0
 	_idle_moment_face = ""
 	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
+	_idle_moment_bench = null
 	if sprite != null:
 		sprite.flip_h = false
 		sprite.speed_scale = 1.0
@@ -1354,17 +1385,33 @@ func _on_idle_moment_animation_finished() -> void:
 		return
 	match _idle_moment_sit_phase:
 		IdleMomentSitPhase.DOWN:
+			if _idle_moment_bench != null:
+				keeper_bench_sat.emit()
 			_idle_moment_sit_phase = IdleMomentSitPhase.BREATHE
 			_apply_idle_moment_visual()
 		IdleMomentSitPhase.STAND_UP:
+			_finish_bench_idle_sit()
 			_clear_idle_moment_state()
 			_update_anim(Vector2.ZERO)
+
+
+func _finish_bench_idle_sit() -> void:
+	var bench: Node2D = _idle_moment_bench
+	if bench == null:
+		return
+	keeper_bench_stood.emit()
+	_release_bench_idle_seat(bench)
 
 
 func _cancel_idle_moment() -> void:
 	if _idle_moment_kind == IdleMomentKind.NONE:
 		return
+	var bench_sit: bool = _idle_moment_kind == IdleMomentKind.SIT and _idle_moment_bench != null
+	var bench: Node2D = _idle_moment_bench
 	_clear_idle_moment_state()
+	if bench_sit and bench != null:
+		keeper_bench_stood.emit()
+		_release_bench_idle_seat(bench)
 
 
 func _tick_idle_moments(delta: float) -> void:

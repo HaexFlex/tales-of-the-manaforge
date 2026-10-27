@@ -242,8 +242,18 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BENCH_SEAT") == "1":
+		var bench_seat_only: int = await _bench_seat_ok(tree_root)
+		if bench_seat_only > 0:
+			print("BENCH_SEAT_FAIL: %d" % bench_seat_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
+		failed += await _bench_seat_ok(tree_root)
 		if failed > 0:
 			print("CHECK_ONLY_FAIL: %d" % failed)
 			quit(1)
@@ -4037,6 +4047,7 @@ func _run() -> void:
 	failed += await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_migration(tree_root, game_state, save_service, backpack)
 	failed += _no_old_keeper_idle()
+	failed += await _bench_seat_ok(tree_root)
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
@@ -6878,6 +6889,12 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
 		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 48)) < 0.5, "bench stand is just south of the tabletop")
+		var seat: Node2D = bench.get_node_or_null("KeeperSeat") as Node2D
+		failed += _assert(seat != null and seat.position.distance_to(Vector2(0, -3)) < 0.5, "bench seat top marker on the apron")
+		failed += _assert(bench.has_method("seat_global"), "bench exposes seat_global")
+		var bench_script: Script = bench.get_script()
+		var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+		failed += _assert(is_equal_approx(feet_below, 23.0), "bench seat feet offset const")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -6944,6 +6961,87 @@ func _duration_sum(sframes: SpriteFrames, anim: StringName) -> float:
 	for i: int in range(sframes.get_frame_count(anim)):
 		total += sframes.get_frame_duration(anim, i)
 	return total
+
+
+func _bench_seat_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	if save_service:
+		save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return _assert(false, "bench seat hub loads")
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(bench != null and keeper != null, "bench seat hub actors")
+	if bench == null or keeper == null:
+		live.free()
+		if save_service:
+			save_service.call("note_session_ended")
+			save_service.set("boot_intent", "auto")
+		return failed + 1
+	var seat_top: Marker2D = bench.get_node_or_null("KeeperSeat") as Marker2D
+	failed += _assert(seat_top != null, "bench seat top marker")
+	var bench_script: Script = bench.get_script()
+	var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+	var stand_pos: Vector2 = bench.call("stand_global")
+	var seat_pos: Vector2 = bench.call("seat_global")
+	var feet_from_top: Vector2 = seat_pos - seat_top.global_position
+	failed += _assert(
+		is_equal_approx(feet_from_top.x, 0.0) and is_equal_approx(feet_from_top.y, feet_below),
+		"seat_global places feet below the seat top"
+	)
+	failed += _assert(stand_pos.distance_to(seat_pos) > 4.0, "seat is not the stand spot")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	failed += _assert(bool(bench.call("keeper_at_stand")), "keeper at the bench stand")
+	var sit_kind: int = 3
+	var sat_hits: Array[int] = [0]
+	var stood_hits: Array[int] = [0]
+	failed += _assert(keeper.has_signal("keeper_bench_sat") and keeper.has_signal("keeper_bench_stood"), "keeper bench sit signals exist")
+	keeper.connect("keeper_bench_sat", func() -> void: sat_hits[0] += 1)
+	keeper.connect("keeper_bench_stood", func() -> void: stood_hits[0] += 1)
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(seat_pos) < 0.5, "bench sit snaps to the seat feet spot")
+	var sprite: AnimatedSprite2D = keeper.get_node_or_null("Sprite") as AnimatedSprite2D
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_down_south", "bench sit starts sit_down")
+	keeper.call("_on_idle_moment_animation_finished")
+	failed += _assert(sat_hits[0] == 1, "keeper_bench_sat after sit_down")
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_breathe_south", "bench sit breathes at the seat")
+	var away: Vector2 = stand_pos + Vector2(240, 0)
+	keeper.call("halt")
+	keeper.global_position = away
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(away) < 0.5, "away from the bench sit does not move the keeper")
+	keeper.call("_on_idle_moment_animation_finished")
+	failed += _assert(sat_hits[0] == 0 and stood_hits[0] == 0, "away from the bench emits no bench sit signals")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	keeper.call("_on_idle_moment_animation_finished")
+	keeper.call("move_to", away)
+	failed += _assert(stood_hits[0] == 1, "cancel at the bench emits keeper_bench_stood")
+	failed += _assert(sprite != null and sprite.animation != &"idle_stand_up_south", "cancel skips stand_up")
+	failed += _assert(keeper.global_position.distance_to(stand_pos) < 0.5, "cancel returns the keeper to the stand before walking away")
+	await process_frame
+	live.free()
+	if save_service:
+		save_service.call("note_session_ended")
+		save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("BENCH_SEAT_OK")
+	return failed
 
 
 func _no_old_keeper_idle() -> int:
