@@ -3,8 +3,8 @@
 Gentle, never violent. Body frames are weaponless; attach sword/bow/wand at the hand anchor.
 
 ## Keeper body — `assets/art/battle/modular/keeper/<clip>/frame_0000..0003.png`
-Clips: **attack, hit, brace, cast, spare** (4 frames each, 128², sole ~123, east-facing).
-~100–120 ms/frame. Derived from live battle stills (open-hand attack already weaponless).
+Clips: **attack** (8f from Imagine video — see below), **hit, brace, cast, spare** (4 frames each). 128², sole ~123, east-facing.
+~100–120 ms/frame. Bodies weaponless; attach `wpn_*` at hand anchors.
 
 ## Weapons — `assets/art/battle/modular/weapons/`
 - `sword.png` (14×6), `bow.png` (8×12), `wand.png` (3×12)
@@ -15,10 +15,7 @@ Columns: actor, clip, frame, hand_x, hand_y, rot_index (0 = tip east / no rot), 
 Place weapon so its **grip pixel** sits on (hand_x, hand_y).
 
 actor,clip,frame,hand_x,hand_y,rot_index,z
-keeper,attack,0,108,64,0,front
-keeper,attack,1,110,64,0,front
-keeper,attack,2,112,63,0,front
-keeper,attack,3,109,64,0,front
+# keeper attack 0..7 → see "Keeper attack from Imagine video" + hand_anchors.json (video-derived)
 keeper,hit,0,70,78,0,behind
 keeper,hit,1,70,79,0,behind
 keeper,hit,2,70,78,0,behind
@@ -86,7 +83,37 @@ Code should either:
 1. **Preferred:** load `rot/{sprite_id}_r{rot_index}.png` and set `weapon.rotation = 0`, or
 2. Keep base `{sprite_id}.png` and set `weapon_rotation_rad(i) = i * TAU/8` with **nearest** filtering (TextureFilter.NEAREST). Soft/linear rotation will smear pixels.
 
-Attack frames use rot_index 6→7→0→0→1→1→0→7 (windup up, swing through, recover).
+Attack frames use rot_index 6→6→7→1→1→1→0→0 (overhead wind-up → SE impact → east recover).
 
 ## Keeper attack 8 frames
 `assets/art/battle/modular/keeper/attack/frame_0000..0007.png` (was 4). Matches `timings_1x.party.attack.frames = 8`. Anchors updated in `hand_anchors.json`.
+
+## Keeper attack from Imagine video (2026-10-27)
+Source: `/workspace/combat_imagine/keeper_attack/v2.mp4` (preferred; overhead wind-up → swing to low front-right → recover).
+Backup unused: `v1.mp4`.
+
+**Source frame indices** (0-based in the 145-frame extract, ffmpeg `f_NNNN` = index+1):
+| art frame | phase | src index | role |
+|---|---|---|---|
+| 0 | windup1 | 18 | raise |
+| 1 | windup2 | 42 | overhead peak |
+| 2 | swing | 63 | descending |
+| 3 | **impact** | 78 | **IMPACT (index 3)** |
+| 4 | follow1 | 84 | low extension |
+| 5 | follow2 | 96 | coat flare hold |
+| 6 | recover1 | 117 | rising |
+| 7 | recover2 | 132 | settle |
+
+Body is weapon-free (sword painted out, fist filled). Overlay `wpn_sword_t*` at hand anchors.
+Procedural stand-ins moved to `assets/library/legacy/keeper_attack_procedural_2026-10-27/`.
+
+### Attack anchors (from video sword → nearest rot_index)
+frame,phase,hand_x,hand_y,rot_index,z,src_frame
+0,windup1,98,40,6,behind,18
+1,windup2,95,24,6,behind,42
+2,swing,105,50,7,front,63
+3,impact,124,94,1,front,78
+4,follow1,114,93,1,front,84
+5,follow2,112,96,1,front,96
+6,recover1,123,86,0,front,117
+7,recover2,122,61,0,front,132
