@@ -129,6 +129,17 @@ func _ready() -> void:
 	hud.maybe_show_welcome()
 	if hud.has_method("maybe_show_elaia_join"):
 		hud.call("maybe_show_elaia_join")
+	_ensure_glade_fireflies()
+
+
+func _ensure_glade_fireflies() -> void:
+	if get_node_or_null("GladeFireflies") != null:
+		return
+	var fx := GladeFireflies.new()
+	fx.name = "GladeFireflies"
+	fx.z_index = 2
+	add_child(fx)
+	fx.setup(glade)
 
 
 func _load_hub_map() -> void:
