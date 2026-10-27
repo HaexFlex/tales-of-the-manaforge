@@ -90,45 +90,40 @@ Code should either:
 1. **Preferred:** load `rot/{sprite_id}_r{rot_index}.png` and set `weapon.rotation = 0`, or
 2. Keep base `{sprite_id}.png` and set `weapon_rotation_rad(i) = i * TAU/8` with **nearest** filtering (TextureFilter.NEAREST). Soft/linear rotation will smear pixels.
 
-Attack frames use rot_index 6→6→7→1→1→1→0→0 (overhead wind-up → SE impact → east recover).
+Attack frames use rot_index 6→6→7→1→1→1→0→0 (overhead wind-up → SE impact → east recover). See v3 anchors below.
 
 ## Keeper attack 8 frames
 `assets/art/battle/modular/keeper/attack/frame_0000..0007.png` (was 4). Matches `timings_1x.party.attack.frames = 8`. Anchors updated in `hand_anchors.json`.
 
-## Keeper attack from Imagine video (2026-10-27)
-Source: `/workspace/combat_imagine/keeper_attack/v2.mp4` (preferred; overhead wind-up → swing to low front-right → recover).
-Backup unused: `v1.mp4`.
+## Keeper attack from Imagine video v3 (2026-10-27)
+Source body: `/workspace/combat_imagine/keeper_attack/v3a_try2.mp4` (empty fist; overhead raise → crouch low forward swing → recover).
+Anchor assist: `v3b_try2.mp4` (same swing, cyan #00FFFF sword for tip angle). Fist from v3a body; rot_index from v3b cyan, cross-checked to v2 pattern.
+Backup unused: `v3a_try1.mp4`, `v3b_try1.mp4`. Prior dagger-erased interim → `assets/library/legacy/keeper_attack_erased_2026-10-27/`.
 
 **Source frame indices** (0-based in the 145-frame extract, ffmpeg `f_NNNN` = index+1):
 | art frame | phase | src index | role |
 |---|---|---|---|
-| 0 | windup1 | 18 | raise |
-| 1 | windup2 | 42 | overhead peak |
-| 2 | swing | 63 | descending |
-| 3 | **impact** | 78 | **IMPACT (index 3)** |
-| 4 | follow1 | 84 | low extension |
-| 5 | follow2 | 96 | coat flare hold |
+| 0 | windup1 | 24 | raise to shoulder |
+| 1 | windup2 | 42 | chamber peak |
+| 2 | swing | 60 | descending / high forward |
+| 3 | **impact** | 66 | **IMPACT (index 3)** |
+| 4 | follow1 | 78 | low extension |
+| 5 | follow2 | 96 | hold |
 | 6 | recover1 | 117 | rising |
 | 7 | recover2 | 132 | settle |
 
-Body is weapon-free (sword painted out, fist filled). Overlay `wpn_sword_t*` at hand anchors.
-Procedural stand-ins moved to `assets/library/legacy/keeper_attack_procedural_2026-10-27/`.
+Body is empty-fist (no weapon erase). Overlay `wpn_*` v2 at hand anchors. Nearest downscale, sole 123, live Keeper height 116, palette-snapped, hard alpha.
 
-### Attack anchors (from video sword → nearest rot_index)
+### Attack anchors
 frame,phase,hand_x,hand_y,rot_index,z,src_frame
-0,windup1,96,32,6,behind,18
-1,windup2,88,28,6,behind,42
-2,swing,100,46,7,front,63
-3,impact,102,94,1,front,78
-4,follow1,100,95,1,front,84
-5,follow2,100,97,1,front,96
-6,recover1,102,86,0,front,117
-7,recover2,99,70,0,front,132
+0,windup1,86,66,6,behind,24
+1,windup2,85,55,6,behind,42
+2,swing,97,36,7,front,60
+3,impact,102,82,1,front,66
+4,follow1,97,102,1,front,78
+5,follow2,97,102,1,front,96
+6,recover1,95,85,0,front,117
+7,recover2,84,52,0,front,132
 
-Pre-rotated grips: `weapons/rot/grip_offsets.json`.
-Video dagger hand-erased (tan/brown blade). Dilated source-mask check clean.
-
-### Size note for Director (do not auto-resize)
-Video sword tip↔hand on battle canvas (128², sole 123): f0≈19px, f1≈18px, f2≈30px, f3≈14px.
-`wpn_sword_t0/t1/t2` tip↔grip ≈13px on a 14×6 base (~⅓–½ the longest video blade on f2).
-Overlay reads short vs Imagine dagger. Confirm whether t0–t2 sizes are final or placeholders before scaling.
+Pre-rotated grips: `weapons/rot/grip_offsets.json` (swords 28×10 tip↔grip 26, grip family (0,4); wand 5×24 (2,7); bow 14×24 (1,11)).
+Review: `assets/library/combat_2026-10-27/keeper_attack_v3_contact_1x.png` + `/workspace/sprint_art/previews/keeper_attack_v3_contact_{1x,4x}.png` + flintblade GIF.

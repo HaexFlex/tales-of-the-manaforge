@@ -1,0 +1,81 @@
+{
+  "source": "v3a_try2.mp4",
+  "anchor_source": "v3b_try2.mp4 cyan + v3a fist",
+  "scale": 0.11693548387096774,
+  "live_h": 116,
+  "sole_row": 123,
+  "picks": [
+    {
+      "art": 0,
+      "src": 24,
+      "phase": "windup1",
+      "hand_x": 86,
+      "hand_y": 66,
+      "rot_index": 6,
+      "z": "behind"
+    },
+    {
+      "art": 1,
+      "src": 42,
+      "phase": "windup2",
+      "hand_x": 85,
+      "hand_y": 55,
+      "rot_index": 6,
+      "z": "behind"
+    },
+    {
+      "art": 2,
+      "src": 60,
+      "phase": "swing",
+      "hand_x": 97,
+      "hand_y": 36,
+      "rot_index": 7,
+      "z": "front"
+    },
+    {
+      "art": 3,
+      "src": 66,
+      "phase": "impact",
+      "hand_x": 102,
+      "hand_y": 82,
+      "rot_index": 1,
+      "z": "front"
+    },
+    {
+      "art": 4,
+      "src": 78,
+      "phase": "follow1",
+      "hand_x": 97,
+      "hand_y": 102,
+      "rot_index": 1,
+      "z": "front"
+    },
+    {
+      "art": 5,
+      "src": 96,
+      "phase": "follow2",
+      "hand_x": 97,
+      "hand_y": 102,
+      "rot_index": 1,
+      "z": "front"
+    },
+    {
+      "art": 6,
+      "src": 117,
+      "phase": "recover1",
+      "hand_x": 95,
+      "hand_y": 85,
+      "rot_index": 0,
+      "z": "front"
+    },
+    {
+      "art": 7,
+      "src": 132,
+      "phase": "recover2",
+      "hand_x": 84,
+      "hand_y": 52,
+      "rot_index": 0,
+      "z": "front"
+    }
+  ]
+}
