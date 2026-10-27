@@ -131,6 +131,7 @@ func _ready() -> void:
 		hud.call("maybe_show_elaia_join")
 	_attach_hub_day_night()
 	_ensure_glade_fireflies()
+	_ensure_glade_weather_fx()
 
 
 func _attach_hub_day_night() -> void:
@@ -148,6 +149,15 @@ func _ensure_glade_fireflies() -> void:
 	fx.z_index = 2
 	add_child(fx)
 	fx.setup(glade)
+
+
+func _ensure_glade_weather_fx() -> void:
+	if world == null or world.get_node_or_null("GladeWeatherFx") != null:
+		return
+	var wx := GladeWeatherFx.new()
+	wx.name = "GladeWeatherFx"
+	world.add_child(wx)
+	wx.setup(play_size)
 
 
 func _on_hub_dusk_ground_changed(use_dusk: bool) -> void:

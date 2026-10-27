@@ -36,6 +36,7 @@ AnimPreviewHotkey="*res://scripts/autoload/anim_preview_hotkey.gd"
 GameTheme="*res://scripts/autoload/game_theme.gd"
 GameInput="*res://scripts/autoload/game_input.gd"
 MinigameHost="*res://scripts/minigames/minigame_host.gd"
+HubWeather="*res://scripts/autoload/hub_weather.gd"
 
 [input_devices]
 

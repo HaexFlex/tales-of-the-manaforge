@@ -243,6 +243,7 @@ func _process(delta: float) -> void:
 
 	var is_sel: bool = GameState.is_wisp_selected(wisp_id)
 	_apply_outline(is_sel)
+	_apply_mist_glow()
 	if assigned_node != "":
 		_tick_node_orbit(assigned_node, delta)
 		_play_anim(&"node_orbit")
@@ -477,6 +478,15 @@ func _refresh_label() -> void:
 	else:
 		label.text = ContentStrings.get_text("wisp_idle_hud")
 	label.visible = false
+
+
+func _apply_mist_glow() -> void:
+	if sprite == null:
+		return
+	var add: float = 0.0
+	if has_node("/root/HubWeather"):
+		add = HubWeather.wisp_glow_add()
+	sprite.modulate = Color(1.0 + add, 1.0 + add, 1.0 + add, 1.0)
 
 
 func _apply_outline(show_outline: bool) -> void:
