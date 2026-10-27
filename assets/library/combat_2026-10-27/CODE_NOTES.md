@@ -109,14 +109,19 @@ Procedural stand-ins moved to `assets/library/legacy/keeper_attack_procedural_20
 
 ### Attack anchors (from video sword → nearest rot_index)
 frame,phase,hand_x,hand_y,rot_index,z,src_frame
-0,windup1,96,33,6,behind,18
-1,windup2,96,30,6,behind,42
-2,swing,102,47,7,front,63
-3,impact,107,90,1,front,78
-4,follow1,104,94,1,front,84
-5,follow2,104,96,1,front,96
-6,recover1,107,86,0,front,117
-7,recover2,107,72,0,front,132
+0,windup1,96,32,6,behind,18
+1,windup2,88,28,6,behind,42
+2,swing,100,46,7,front,63
+3,impact,102,94,1,front,78
+4,follow1,100,95,1,front,84
+5,follow2,100,97,1,front,96
+6,recover1,102,86,0,front,117
+7,recover2,99,70,0,front,132
 
-Pre-rotated sword grips: `assets/art/battle/weapons/rot/grip_offsets.json` (place at hand_x-gx, hand_y-gy).
-Weapon-free bodies: video dagger erased via per-frame boxes; overlay wpn_sword_t* at anchors.
+Pre-rotated grips: `weapons/rot/grip_offsets.json`.
+Video dagger hand-erased (tan/brown blade). Dilated source-mask check clean.
+
+### Size note for Director (do not auto-resize)
+Video sword tip↔hand on battle canvas (128², sole 123): f0≈19px, f1≈18px, f2≈30px, f3≈14px.
+`wpn_sword_t0/t1/t2` tip↔grip ≈13px on a 14×6 base (~⅓–½ the longest video blade on f2).
+Overlay reads short vs Imagine dagger. Confirm whether t0–t2 sizes are final or placeholders before scaling.

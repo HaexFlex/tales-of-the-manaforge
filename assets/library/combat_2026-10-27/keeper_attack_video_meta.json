@@ -4,87 +4,71 @@
     "clip": "attack",
     "frame": 0,
     "hand_x": 96,
-    "hand_y": 33,
+    "hand_y": 32,
     "rot_index": 6,
-    "z": "behind",
-    "phase": "windup1",
-    "src_frame": 18
+    "z": "behind"
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 1,
-    "hand_x": 96,
-    "hand_y": 30,
+    "hand_x": 88,
+    "hand_y": 28,
     "rot_index": 6,
-    "z": "behind",
-    "phase": "windup2",
-    "src_frame": 42
+    "z": "behind"
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 2,
-    "hand_x": 102,
-    "hand_y": 47,
+    "hand_x": 100,
+    "hand_y": 46,
     "rot_index": 7,
-    "z": "front",
-    "phase": "swing",
-    "src_frame": 63
+    "z": "front"
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 3,
-    "hand_x": 107,
-    "hand_y": 90,
+    "hand_x": 102,
+    "hand_y": 94,
     "rot_index": 1,
-    "z": "front",
-    "phase": "impact",
-    "src_frame": 78
+    "z": "front"
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 4,
-    "hand_x": 104,
-    "hand_y": 94,
+    "hand_x": 100,
+    "hand_y": 95,
     "rot_index": 1,
-    "z": "front",
-    "phase": "follow1",
-    "src_frame": 84
+    "z": "front"
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 5,
-    "hand_x": 104,
-    "hand_y": 96,
+    "hand_x": 100,
+    "hand_y": 97,
     "rot_index": 1,
-    "z": "front",
-    "phase": "follow2",
-    "src_frame": 96
+    "z": "front"
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 6,
-    "hand_x": 107,
+    "hand_x": 102,
     "hand_y": 86,
     "rot_index": 0,
-    "z": "front",
-    "phase": "recover1",
-    "src_frame": 117
+    "z": "front"
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 7,
-    "hand_x": 107,
-    "hand_y": 72,
+    "hand_x": 99,
+    "hand_y": 70,
     "rot_index": 0,
-    "z": "front",
-    "phase": "recover2",
-    "src_frame": 132
+    "z": "front"
   }
 ]
