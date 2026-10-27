@@ -1,18 +1,19 @@
 {
-  "source": "wand_try1.mp4",
-  "still": "v3_still.jpg",
+  "source": "wand_try2.mp4",
+  "still": "live attack frame_0007 (still-only)",
+  "replaces": "5ae70a7 try1 (long-hair FAIL)",
   "live_h": 116,
   "sole": 123,
   "feet_x": 63.5,
   "src_indices": [
-    22,
-    34,
-    52,
-    64,
-    82,
-    94,
-    114,
-    130
+    12,
+    24,
+    48,
+    84,
+    120,
+    126,
+    138,
+    144
   ],
   "ms_per_frame": 125,
   "grip": {
@@ -31,52 +32,52 @@
       "clip": "attack_wand",
       "frame": 0,
       "phase": "raise",
-      "hand_x": 88,
-      "hand_y": 52,
+      "hand_x": 82,
+      "hand_y": 32,
       "rot_index": 7,
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 22
+      "src_frame": 12
     },
     {
       "actor": "keeper",
       "clip": "attack_wand",
       "frame": 1,
       "phase": "raise",
-      "hand_x": 90,
-      "hand_y": 48,
-      "rot_index": 7,
+      "hand_x": 70,
+      "hand_y": 22,
+      "rot_index": 6,
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 34
+      "src_frame": 24
     },
     {
       "actor": "keeper",
       "clip": "attack_wand",
       "frame": 2,
       "phase": "gather",
-      "hand_x": 90,
-      "hand_y": 46,
-      "rot_index": 7,
+      "hand_x": 74,
+      "hand_y": 26,
+      "rot_index": 6,
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 52
+      "src_frame": 48
     },
     {
       "actor": "keeper",
       "clip": "attack_wand",
       "frame": 3,
       "phase": "gather",
-      "hand_x": 94,
-      "hand_y": 42,
-      "rot_index": 0,
+      "hand_x": 74,
+      "hand_y": 27,
+      "rot_index": 6,
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 64
+      "src_frame": 84
     },
     {
       "actor": "keeper",
@@ -89,47 +90,47 @@
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 82
+      "src_frame": 120
     },
     {
       "actor": "keeper",
       "clip": "attack_wand",
       "frame": 5,
       "phase": "release",
-      "hand_x": 98,
-      "hand_y": 58,
+      "hand_x": 100,
+      "hand_y": 52,
       "rot_index": 0,
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 94
+      "src_frame": 126
     },
     {
       "actor": "keeper",
       "clip": "attack_wand",
       "frame": 6,
       "phase": "recover",
-      "hand_x": 78,
-      "hand_y": 72,
+      "hand_x": 80,
+      "hand_y": 58,
       "rot_index": 0,
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 114
+      "src_frame": 138
     },
     {
       "actor": "keeper",
       "clip": "attack_wand",
       "frame": 7,
       "phase": "recover",
-      "hand_x": 76,
-      "hand_y": 70,
+      "hand_x": 82,
+      "hand_y": 56,
       "rot_index": 1,
       "z": "front",
       "tip_ox": 0,
       "tip_oy": -9,
-      "src_frame": 130
+      "src_frame": 144
     }
   ],
-  "note": "still-only Imagine body; empty-hand cast; wand overlay via anchors"
+  "note": "still-only from sword body; short spiky hair; no FX; fist light painted out"
 }
