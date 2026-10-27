@@ -328,7 +328,10 @@ func _process(delta: float) -> void:
 		return
 
 	_at_assigned_orbit = false
-	_tick_keeper_orbit(delta)
+	if GameState.wisp_is_napping(wisp_id):
+		_tick_nap_at_roots(delta)
+	else:
+		_tick_keeper_orbit(delta)
 	_refresh_label()
 	_sync_wisp_hum()
 
@@ -385,6 +388,19 @@ func _sync_wisp_hum() -> void:
 		_hum_player.play()
 	elif not should_play and _hum_player.playing:
 		_hum_player.stop()
+
+
+func _tick_nap_at_roots(_delta: float) -> void:
+	var roots: Vector2 = global_position
+	if has_node("/root/ForgeJobs"):
+		roots = ForgeJobs.manatree_origin() + Vector2(0, 10)
+	var slot: float = TAU * float(wisp_id) / float(maxi(1, GameState.wisp_count))
+	roots += Vector2(cos(slot) * 22.0, sin(slot) * 8.0)
+	global_position = roots
+	sprite.flip_h = false
+	_play_anim(&"orbit")
+	var bob: float = sin(_bob_t * 1.4 + float(wisp_id)) * 2.0
+	global_position.y += bob * 0.15
 
 
 func _tick_keeper_orbit(_delta: float) -> void:

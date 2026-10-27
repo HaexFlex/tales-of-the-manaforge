@@ -364,6 +364,12 @@
       "path": "res://assets/audio/sfx_firefly_twinkle_3.ogg",
       "volume_db": -6.0
     },
+    "sfx_firefly_catch": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_firefly_catch.ogg",
+      "volume_db": -6.0
+    },
     "sfx_brew_bubble": {
       "bus": "SFX_World",
       "loop": false,

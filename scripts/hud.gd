@@ -71,6 +71,9 @@ var _forge_popup_body: Label
 @onready var fruit_confirm_body: Label = $FruitConfirmPanel/ConfirmBody
 @onready var fruit_confirm_yes: Button = $FruitConfirmPanel/ConfirmYes
 @onready var fruit_confirm_no: Button = $FruitConfirmPanel/ConfirmNo
+var _seed_tint_panel: Panel
+var _seed_tint_title: Label
+var _seed_tint_body: Label
 @onready var shop_dim: ColorRect = $ShopDim
 @onready var ascension_panel: Panel = $AscensionPanel
 @onready var prestige_panel: Panel = $AscensionPanel
@@ -296,6 +299,7 @@ func _ready() -> void:
 	ascension_reopen_button.pressed.connect(show_ascension_shop)
 	harvest_fruit_button.pressed.connect(open_fruit_confirm)
 	fruit_confirm_yes.pressed.connect(confirm_fruit_step)
+	_ensure_seed_tint_panel()
 	fruit_confirm_no.pressed.connect(cancel_fruit_confirm)
 	ascend_button.pressed.connect(_on_ascend)
 	close_button.pressed.connect(_on_shop_close)
@@ -2764,9 +2768,49 @@ func open_fruit_confirm() -> void:
 
 
 func confirm_fruit_step() -> void:
-	## One box. Yes harvests. There is no second prompt.
 	if _fruit_confirm_step != 1:
 		return
+	_show_seed_tint_picker()
+
+
+func _ensure_seed_tint_panel() -> void:
+	if _seed_tint_panel != null:
+		return
+	_seed_tint_panel = Panel.new()
+	_seed_tint_panel.name = "SeedTintPanel"
+	_seed_tint_panel.visible = false
+	add_child(_seed_tint_panel)
+	_seed_tint_title = Label.new()
+	_seed_tint_title.name = "Title"
+	_seed_tint_panel.add_child(_seed_tint_title)
+	_seed_tint_body = Label.new()
+	_seed_tint_body.name = "Body"
+	_seed_tint_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_seed_tint_panel.add_child(_seed_tint_body)
+	var row := HBoxContainer.new()
+	row.name = "Choices"
+	_seed_tint_panel.add_child(row)
+	var keys: PackedStringArray = ["seed_swap_default", "seed_swap_blossom", "seed_swap_autumn"]
+	for i: int in range(3):
+		var btn := Button.new()
+		btn.text = ContentStrings.get_text(keys[i])
+		btn.pressed.connect(_on_seed_tint_picked.bind(i))
+		row.add_child(btn)
+
+
+func _show_seed_tint_picker() -> void:
+	_ensure_seed_tint_panel()
+	fruit_confirm_panel.visible = false
+	_seed_tint_panel.visible = true
+	_seed_tint_title.text = ContentStrings.get_text("seed_swap_title")
+	_seed_tint_body.text = ContentStrings.get_text("seed_swap_body")
+	_refresh_dim()
+
+
+func _on_seed_tint_picked(index: int) -> void:
+	GameState.pick_manatree_tint(index)
+	if _seed_tint_panel:
+		_seed_tint_panel.visible = false
 	_commit_primordial_fruit()
 
 
@@ -2780,6 +2824,8 @@ func cancel_fruit_confirm() -> void:
 
 func hide_fruit_confirm() -> void:
 	fruit_confirm_panel.visible = false
+	if _seed_tint_panel:
+		_seed_tint_panel.visible = false
 	_fruit_confirm_step = 0
 	_refresh_dim()
 

@@ -25,6 +25,7 @@ var _bars: BatchWorldBars
 var _dusk_cup: Sprite2D
 var _dusk_steam: AnimatedSprite2D
 var _dusk_blanket: Sprite2D
+var _firefly_jar: Sprite2D
 
 
 func _ready() -> void:
@@ -47,7 +48,12 @@ func _ready() -> void:
 	mouse_exited.connect(_on_title_hover.bind(false))
 	call_deferred("_bind_keeper")
 	_setup_dusk_props()
+	_setup_firefly_jar()
 	_apply_walk_box()
+	if not GameState.echo_flags_changed.is_connected(_on_firefly_jar_flags):
+		GameState.echo_flags_changed.connect(_on_firefly_jar_flags)
+	if not GameState.load_completed.is_connected(_refresh_firefly_jar):
+		GameState.load_completed.connect(_refresh_firefly_jar)
 
 
 func _apply_walk_box() -> void:
@@ -181,6 +187,29 @@ func _setup_dusk_props() -> void:
 		_dusk_steam.animation = &"steam"
 		_dusk_steam.play(&"steam")
 	add_child(_dusk_steam)
+
+
+func _setup_firefly_jar() -> void:
+	_firefly_jar = Sprite2D.new()
+	_firefly_jar.name = "FireflyJar"
+	_firefly_jar.position = Vector2(58.0, -102.0)
+	_firefly_jar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_firefly_jar.centered = false
+	_firefly_jar.z_index = 1
+	add_child(_firefly_jar)
+	_refresh_firefly_jar()
+
+
+func _on_firefly_jar_flags() -> void:
+	_refresh_firefly_jar()
+
+
+func _refresh_firefly_jar() -> void:
+	if _firefly_jar == null:
+		return
+	var tex: Texture2D = FireflyJarArt.texture_for_count(GameState.firefly_jar_count)
+	_firefly_jar.texture = tex
+	_firefly_jar.visible = tex != null
 
 
 func _bind_keeper() -> void:

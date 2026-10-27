@@ -1,8 +1,13 @@
 extends Node2D
-## Catchable fireflies at dusk/night on the forest ring. Jar count on KeepersBench.
+## Catchable fireflies at dusk/night on the forest edge. Jar count on KeepersBench.
+
+const WARM_STRIP: String = "res://assets/art/fx/fireflies/firefly_warm_strip_8x8x4.png"
+const GLADE_RECT: Rect2 = Rect2(760, 820, 1680, 1360)
+const CATCH_THROTTLE_MSEC: int = 500
 
 var _spawn_accum: float = 0.0
 var _active: Array[Area2D] = []
+static var _last_catch_msec: int = -1000000
 
 
 func _ready() -> void:
@@ -14,6 +19,8 @@ func _process(delta: float) -> void:
 	if not has_node("/root/HubTimePhase"):
 		return
 	var phase: float = HubTimePhase.sample_phase01()
+	if not HubTimePhase.is_dusk_or_night():
+		return
 	var strength: float = HubTimePhase.firefly_strength(phase)
 	if strength <= 0.0:
 		return
@@ -45,25 +52,44 @@ func _spawn_mote(strength: float) -> void:
 	circle.radius = 10.0
 	shape.shape = circle
 	mote.add_child(shape)
-	var dot := ColorRect.new()
-	dot.size = Vector2(8, 8)
-	dot.position = Vector2(-4, -4)
-	dot.color = Color(1.0, 0.95, 0.5, 0.9 * strength)
-	mote.add_child(dot)
-	mote.global_position = _ring_point()
+	var sprite := AnimatedSprite2D.new()
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.centered = true
+	sprite.scale = Vector2.ONE
+	var frames := SpriteFrames.new()
+	var tex: Texture2D = load(WARM_STRIP) as Texture2D
+	if tex != null:
+		frames.add_animation(&"mote")
+		frames.set_animation_loop(&"mote", true)
+		frames.set_animation_speed(&"mote", 4.0)
+		for i: int in range(4):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = tex
+			atlas.region = Rect2(float(i * 8), 0.0, 8.0, 8.0)
+			frames.add_frame(&"mote", atlas)
+		sprite.sprite_frames = frames
+		sprite.play(&"mote")
+	sprite.modulate = Color(1.0, 0.95, 0.5, 0.9 * strength)
+	mote.add_child(sprite)
+	mote.global_position = _forest_edge_point()
 	mote.input_event.connect(_on_mote_click.bind(mote))
 	add_child(mote)
 	_active.append(mote)
 
 
-func _ring_point() -> Vector2:
-	var center: Vector2 = Vector2(2160, 2025)
-	if has_node("/root/ForgeJobs"):
-		center = ForgeJobs.manatree_origin() + Vector2(0, -80)
-	var angle: float = randf() * TAU
-	var rx: float = 1500.0
-	var ry: float = 1200.0
-	return center + Vector2(cos(angle) * rx, sin(angle) * ry)
+func _forest_edge_point() -> Vector2:
+	var r: Rect2 = GLADE_RECT
+	var side: int = randi() % 4
+	var t: float = randf()
+	match side:
+		0:
+			return Vector2(lerpf(r.position.x, r.end.x, t), r.position.y)
+		1:
+			return Vector2(r.end.x, lerpf(r.position.y, r.end.y, t))
+		2:
+			return Vector2(lerpf(r.position.x, r.end.x, t), r.end.y)
+		_:
+			return Vector2(r.position.x, lerpf(r.position.y, r.end.y, t))
 
 
 func _on_mote_click(_viewport: Node, event: InputEvent, _idx: int, mote: Area2D) -> void:
@@ -74,5 +100,13 @@ func _on_mote_click(_viewport: Node, event: InputEvent, _idx: int, mote: Area2D)
 		return
 	GameState.firefly_jar_count += 1
 	GameState.echo_flags_changed.emit()
+	var now: int = Time.get_ticks_msec()
+	if now - _last_catch_msec >= CATCH_THROTTLE_MSEC and has_node("/root/GameAudio"):
+		_last_catch_msec = now
+		GameAudio.play(&"sfx_firefly_catch")
 	mote.queue_free()
 	_active.erase(mote)
+
+
+static func catch_throttle_msec() -> int:
+	return CATCH_THROTTLE_MSEC

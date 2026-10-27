@@ -284,6 +284,9 @@ func _run() -> void:
 			print("BREWING_OK")
 			print("MOSS_TONIC_OK")
 			print("MOSS_TORTOISE_OK")
+			print("MOSS_TORTOISE_WALK_OK")
+			print("BREWING_STAND_OK")
+			print("PUFF_WALK_OK")
 			print("FIREFLY_JAR_OK")
 			print("SEED_SWAP_OK")
 			print("WISP_NAP_OK")
@@ -26688,13 +26691,108 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 	game_state.set("moss_tortoise_in_party", true)
 	game_state.set("moss_tortoise_join_seen", true)
 	failed += _assert(bool(game_state.call("moss_tortoise_joined")), "tortoise joined")
+	var firefly_failed: int = 0
+	firefly_failed += _assert(R5Constants.FIREFLY_MAX_ACTIVE == 3, "firefly max 3")
+	firefly_failed += _assert(is_equal_approx(R5Constants.FIREFLY_SPAWN_SEC, 20.0), "firefly spawn 20s")
+	firefly_failed += _assert(FileAccess.file_exists(FireflyJarArt.PATH_EMPTY), "jar empty art")
+	firefly_failed += _assert(FileAccess.file_exists(FireflyJarArt.PATH_50), "jar 50 art")
+	firefly_failed += _assert(HubTimePhase.firefly_strength(0.40) > 0.0, "dusk spawns")
+	firefly_failed += _assert(HubTimePhase.firefly_strength(0.10) <= 0.0, "day no spawn")
+	firefly_failed += _assert(int(load("res://scripts/hub/firefly_ring.gd").call("catch_throttle_msec")) == 500, "catch throttle")
+	var cues_ff: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cue_ff: Dictionary = (cues_ff as Dictionary).get("cues", {}) if typeof(cues_ff) == TYPE_DICTIONARY else {}
+	firefly_failed += _assert(cue_ff.has("sfx_firefly_catch"), "firefly catch cue")
+	firefly_failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_firefly_catch.ogg"), "firefly catch ogg")
+	game_state.set("firefly_jar_count", 0)
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(0) != null, "jar tex 0")
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(1) != null, "jar tex 1")
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(9) != null, "jar tex 9")
+	firefly_failed += _assert(FireflyJarArt.texture_for_count(49) != null, "jar tex 49")
 	game_state.set("firefly_jar_count", 12)
-	failed += _assert(int(game_state.get("firefly_jar_count")) == 12, "firefly count")
-	game_state.set("manatree_tint", 2)
-	failed += _assert(int(game_state.get("manatree_tint")) == 2, "seed tint")
-	game_state.call("_tick_wisp_nap_idle", 400.0)
+	firefly_failed += _assert(int(game_state.get("firefly_jar_count")) == 12, "firefly count save field")
+	game_state.set("firefly_jar_count", 7)
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	firefly_failed += _assert(int(game_state.get("firefly_jar_count")) == 7, "firefly survives ascend")
+	failed += firefly_failed
+	if firefly_failed == 0:
+		print("FIREFLY_JAR_OK")
+	var seed_failed: int = 0
+	seed_failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/tints/canopy_tint_lut.json"), "tint lut")
+	for stage_name: String in ["sapling", "young", "mature", "elder", "ancient"]:
+		for folder: String in ["default", "blossom", "autumn"]:
+			var p: String = "res://assets/art/manatree/native/tints/%s/manatree_%s.png" % [folder, stage_name]
+			seed_failed += _assert(FileAccess.file_exists(p), "tint png %s" % p)
+	game_state.call("pick_manatree_tint", 2)
+	seed_failed += _assert(int(game_state.get("manatree_tint")) == 2, "seed tint pick")
+	var autumn_mature: String = "res://assets/art/manatree/native/tints/autumn/manatree_mature.png"
+	seed_failed += _assert(FileAccess.file_exists(autumn_mature), "tint applies autumn mature png")
+	game_state.set("manatree_tint", 1)
+	var blob_tint: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob_tint)
+	seed_failed += _assert(int(game_state.get("manatree_tint")) == 1, "tint save round-trip")
+	failed += seed_failed
+	if seed_failed == 0:
+		print("SEED_SWAP_OK")
+	var nap_failed: int = 0
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.set("wisp_assignments", {"0": ""})
+	nap_failed += _assert(not bool(game_state.call("wisp_is_napping", 0)), "not napping yet")
+	game_state.call("_tick_wisp_nap_idle", R5Constants.WISP_NAP_AFTER_SEC + 1.0)
+	nap_failed += _assert(bool(game_state.call("wisp_is_napping", 0)), "nap after 300s idle")
+	var burst_before: int = int(game_state.get("_wisp_nap_burst_until").get("0", 0))
 	game_state.call("try_assign_wisp", 0, "harvest_tree")
-	failed += _assert(float(game_state.call("wisp_nap_burst_mult", "0")) >= 1.0, "wisp nap burst")
+	nap_failed += _assert(not bool(game_state.call("wisp_is_napping", 0)), "assign ends nap")
+	nap_failed += _assert(float(game_state.call("wisp_nap_burst_mult", "0")) >= R5Constants.WISP_NAP_BURST_MULT, "burst mult")
+	var burst_until: int = int(game_state.get("_wisp_nap_burst_until").get("0", 0))
+	game_state.call("try_assign_wisp", 0, "harvest_stone")
+	var burst_until2: int = int(game_state.get("_wisp_nap_burst_until").get("0", 0))
+	nap_failed += _assert(burst_until2 <= burst_until + 50, "burst does not stack extend")
+	game_state.call("unassign_wisp", 0)
+	game_state.call("_tick_wisp_nap_idle", R5Constants.WISP_NAP_AFTER_SEC + 1.0)
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.set("fruit_committed", true)
+	var tick_while_frozen: int = int(game_state.get("_wisp_idle_accum").get("0", 0))
+	game_state.call("_tick_wisp_nap_idle", 400.0)
+	nap_failed += _assert(int(game_state.get("_wisp_idle_accum").get("0", tick_while_frozen)) == tick_while_frozen, "nap idle no tick while fruit committed")
+	failed += nap_failed
+	if nap_failed == 0:
+		print("WISP_NAP_OK")
+	var walk_tortoise_failed: int = 0
+	for dir: String in ["east", "north", "south", "west"]:
+		for i: int in range(8):
+			var wp: String = "res://assets/art/moss_tortoise/anim/walk8/%s/frame_%04d.png" % [dir, i]
+			walk_tortoise_failed += _assert(FileAccess.file_exists(wp), "tortoise walk8 %s" % wp)
+	walk_tortoise_failed += _assert(load("res://scripts/moss_tortoise.gd") != null, "moss tortoise script")
+	walk_tortoise_failed += _assert(not FileAccess.file_exists("res://assets/art/moss_tortoise/anim/walk8/east/frame_0008.png"), "walk9 unwired")
+	failed += walk_tortoise_failed
+	if walk_tortoise_failed == 0:
+		print("MOSS_TORTOISE_WALK_OK")
+	var brew_vis_failed: int = 0
+	brew_vis_failed += _assert(FileAccess.file_exists("res://assets/art/props/brewing_stand.png"), "brew stand png")
+	brew_vis_failed += _assert(FileAccess.file_exists("res://assets/art/fx/brewing/brew_bubbles_strip_24x32x6.png"), "brew bubbles")
+	brew_vis_failed += _assert(load("res://scenes/brewing_stand.tscn") != null, "brew scene")
+	var brew_stand: Node = (load("res://scripts/hub/brewing_stand.gd") as Script).new()
+	brew_vis_failed += _assert(brew_stand != null, "brew stand script")
+	if brew_stand != null:
+		brew_stand.free()
+	failed += brew_vis_failed
+	if brew_vis_failed == 0:
+		print("BREWING_STAND_OK")
+	var puff_walk_failed: int = 0
+	for dir: String in ["east", "north", "south", "west"]:
+		for i: int in range(8):
+			var pp: String = "res://assets/art/puff/anim/walk/%s/frame_%04d.png" % [dir, i]
+			puff_walk_failed += _assert(FileAccess.file_exists(pp), "puff walk %s" % pp)
+	puff_walk_failed += _assert(FileAccess.file_exists("res://assets/art/puff/battle_puff_idle.png"), "puff battle")
+	puff_walk_failed += _assert(FileAccess.file_exists("res://assets/art/puff/puff_portrait.png"), "puff portrait")
+	puff_walk_failed += _assert(load("res://scripts/puff.gd") != null, "puff script")
+	failed += puff_walk_failed
+	if puff_walk_failed == 0:
+		print("PUFF_WALK_OK")
 	return failed
 
 

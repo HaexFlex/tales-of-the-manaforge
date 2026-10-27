@@ -82,6 +82,12 @@ var regrowth_defeat_mult: float = 1.0
 ## Track 4 surprises (persist through Ascend where noted).
 var firefly_jar_count: int = 0
 var manatree_tint: int = 0
+var puff_has_pos: bool = false
+var puff_pos: Vector2 = Vector2.ZERO
+var puff_facing: String = "south"
+var moss_tortoise_has_pos: bool = false
+var moss_tortoise_pos: Vector2 = Vector2.ZERO
+var moss_tortoise_facing: String = "south"
 var moss_tonic_until_ms: int = 0
 ## Wisp nap (session-only; not saved).
 var _wisp_idle_accum: Dictionary = {}
@@ -825,6 +831,8 @@ func apply_wisp_pulses(delta: float) -> void:
 
 
 func _tick_wisp_nap_idle(delta: float) -> void:
+	if fruit_committed or delta <= 0.0:
+		return
 	for i: int in range(wisp_count):
 		var key: String = str(i)
 		if str(wisp_assignments.get(key, "")) != "":
@@ -2093,8 +2101,12 @@ func harvest_fruit() -> int:
 	fruit_ready = false
 	_set_fruit_committed(true)
 	fruit_ready_changed.emit(false)
-	manatree_tint = clampi(manatree_tint, 0, 2)
 	return 1
+
+
+func pick_manatree_tint(index: int) -> void:
+	manatree_tint = clampi(index, 0, 2)
+	echo_flags_changed.emit()
 
 
 func can_ascend() -> bool:

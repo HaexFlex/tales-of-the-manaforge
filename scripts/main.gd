@@ -154,6 +154,23 @@ func _setup_r5_hub() -> void:
 		var ring := preload("res://scripts/hub/firefly_ring.gd").new()
 		ring.name = "FireflyRing"
 		add_child(ring)
+	_ensure_r5_companion_bodies()
+
+
+func _ensure_r5_companion_bodies() -> void:
+	if world == null:
+		return
+	var keeper_scene: PackedScene = preload("res://scenes/keeper.tscn")
+	if world.get_node_or_null("Puff") == null:
+		var puff: CharacterBody2D = keeper_scene.instantiate() as CharacterBody2D
+		puff.name = "Puff"
+		puff.set_script(preload("res://scripts/puff.gd"))
+		world.add_child(puff)
+	if world.get_node_or_null("MossTortoise") == null:
+		var tortoise: CharacterBody2D = keeper_scene.instantiate() as CharacterBody2D
+		tortoise.name = "MossTortoise"
+		tortoise.set_script(preload("res://scripts/moss_tortoise.gd"))
+		world.add_child(tortoise)
 
 
 func _ensure_glade_fireflies() -> void:
