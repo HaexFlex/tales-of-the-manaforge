@@ -28,3 +28,10 @@ Brief asked 9×100 ms walk. Live Keeper/Elaia walk is **8 frames** with `WALK_MS
 - Imagine grit: softer than hand-pixel Keeper/Elaia; some frame-to-frame silhouette wobble in walk strips.
 - Idle breathe is a light synthetic bob, not a reshot Imagine settle.
 - East/west side views are shorter (target_h 90) to keep the long shell readable; south/north use 96.
+
+
+## Walk8 (live Keeper WALK_MS) — additive
+Also at `anim/walk8/<dir>/frame_0000..0007.png` (8 frames).
+Retimed from the 9×100 set by dropping the middle frame (indices 0,1,2,3,5,6,7,8).
+Use with Keeper/Elaia `WALK_MS = [120,125,130,125,120,125,130,125]` (1000 ms loop).
+Keep `anim/walk/` (9×100) until Code picks one.
