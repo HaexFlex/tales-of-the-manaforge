@@ -2,15 +2,14 @@ extends SceneTree
 ## Headless weather ring captures for Art review.
 ## godot --headless --path . -s res://tools/capture_r6_weather_views.gd
 
-const OUT_DIR: String = "/opt/cursor/artifacts/weather_r6"
-const WEATHER_STATES: Array[StringName] = [&"soft_rain", &"mist", &"light_snow"]
-const VIEW_NAMES: Array[String] = [
-	"clearing_center",
-	"corner_nw",
-	"corner_ne",
-	"corner_sw",
-	"corner_se",
+const OUT_DIRS: Array[String] = [
+	"/cursor/stores/self/caps",
+	"/opt/cursor/artifacts/weather_r6",
 ]
+const WEATHER_STATES: Array[StringName] = [
+	&"clear", &"soft_rain", &"mist", &"light_snow", &"blossom_fall",
+]
+const VIEW_NAMES: Array[String] = ["center", "ne", "nw", "se", "sw"]
 
 
 func _initialize() -> void:
@@ -18,7 +17,12 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	DirAccess.make_dir_recursive_absolute(OUT_DIR)
+	for dir: String in OUT_DIRS:
+		DirAccess.make_dir_recursive_absolute(dir)
+	var gs: Node = root.get_node_or_null("GameState")
+	if gs != null:
+		gs.set("welcome_shown", true)
+		gs.set("welcome_presented", true)
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
 	if packed == null:
 		print("CAPTURE_FAIL main scene")
@@ -29,9 +33,10 @@ func _run() -> void:
 	current_scene = hub
 	if not hub.is_in_group("main_root"):
 		hub.add_to_group("main_root")
-	var hud: CanvasItem = hub.get_node_or_null("%HUD") as CanvasItem
-	if hud:
-		hud.visible = false
+	await process_frame
+	var hud: Node = hub.get_node_or_null("%HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
 	var pause: CanvasItem = hub.get_node_or_null("%PauseMenu") as CanvasItem
 	if pause:
 		pause.visible = false
@@ -51,35 +56,34 @@ func _run() -> void:
 		hub_weather.call("force_state_for_debug", weather)
 		for view_name: String in VIEW_NAMES:
 			cam.position = _camera_pos_for(hub, view_name)
-			for _f: int in 8:
+			for _f: int in 10:
 				await process_frame
 			var fname: String = "%s_%s.png" % [String(weather), view_name]
-			var path: String = "%s/%s" % [OUT_DIR, fname]
-			if not _save_viewport_png(path):
-				print("CAPTURE_FAIL %s" % path)
-				quit(1)
-				return
-			print("CAPTURE_OK %s" % path)
+			for dir: String in OUT_DIRS:
+				var path: String = "%s/%s" % [dir, fname]
+				if not _save_viewport_png(path):
+					print("CAPTURE_FAIL %s" % path)
+					quit(1)
+					return
+			print("CAPTURE_OK %s" % fname)
 	print("CAPTURE_ALL_OK")
 	quit(0)
 
 
 func _camera_pos_for(hub: Node, view_name: String) -> Vector2:
-	if hub.has_method("get_play_size"):
-		pass
 	var center: Vector2 = hub.clearing_center if "clearing_center" in hub else Vector2(2160, 2025)
-	if view_name == "clearing_center":
+	if view_name == "center":
 		return center
 	var lo: Vector2 = hub.call("camera_min") if hub.has_method("camera_min") else Vector2(600, 400)
 	var hi: Vector2 = hub.call("camera_max") if hub.has_method("camera_max") else Vector2(3600, 3200)
 	match view_name:
-		"corner_nw":
+		"nw":
 			return Vector2(lo.x, lo.y)
-		"corner_ne":
+		"ne":
 			return Vector2(hi.x, lo.y)
-		"corner_sw":
+		"sw":
 			return Vector2(lo.x, hi.y)
-		"corner_se":
+		"se":
 			return Vector2(hi.x, hi.y)
 		_:
 			return center

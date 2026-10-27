@@ -157,7 +157,7 @@ func _ensure_glade_weather_fx() -> void:
 	var wx := GladeWeatherFx.new()
 	wx.name = "GladeWeatherFx"
 	world.add_child(wx)
-	wx.setup(play_size)
+	wx.setup(play_size, clearing_center, clearing_rx, clearing_ry)
 
 
 func _on_hub_dusk_ground_changed(use_dusk: bool) -> void:

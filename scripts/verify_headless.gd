@@ -5861,6 +5861,11 @@ func _weather_r6(tree_root: Window, game_state: Node) -> int:
 	var new_dur: float = float(hub_weather.get("weather_duration_sec"))
 	var new_bounds: Vector2 = hub_weather.call("duration_bounds", hub_weather.get("weather_state"))
 	failed += _assert(new_dur >= new_bounds.x and new_dur <= new_bounds.y, "load reroll duration")
+	var emit_stats: Dictionary = GladeWeatherFx.emit_map_stats(Vector2(4320, 3780))
+	var emit_n: int = int(emit_stats.get("count", 0))
+	var center_n: int = int(emit_stats.get("center_count", 0))
+	failed += _assert(emit_n >= 600 and emit_n <= 680, "emit map ring points %d" % emit_n)
+	failed += _assert(center_n == 0, "emit map empty center %d" % center_n)
 	return failed
 
 
