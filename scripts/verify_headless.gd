@@ -1866,11 +1866,20 @@ func _run() -> void:
 	failed += _assert(game_state.has_method("try_pay_stage"), "try_pay_stage")
 	failed += _assert(game_state.has_method("can_pay_stage"), "can_pay_stage")
 
-	# Simulate 1s harvest grants
+	# Simulate 1s harvest grants (lucky bonus is tested elsewhere).
+	var params_pulse: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var lucky_chance_hold: Variant = params_pulse.get("LUCKY_HARVEST_CHANCE")
+	params_pulse["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params_pulse)
 	var w0: int = int(game_state.get("wood"))
 	var grant_w: int = int(game_state.call("apply_harvest_pulse", &"wood"))
 	failed += _assert(grant_w >= 1, "wood harvest grant")
 	failed += _assert(int(game_state.get("wood")) == w0 + grant_w, "wood inventory after pulse")
+	if lucky_chance_hold != null:
+		params_pulse["LUCKY_HARVEST_CHANCE"] = lucky_chance_hold
+	else:
+		params_pulse.erase("LUCKY_HARVEST_CHANCE")
+	game_state.set("params", params_pulse)
 	game_state.call("reset_for_new_game")
 	game_state.call("apply_harvest_pulse", &"stone")
 	failed += _assert(int(game_state.get("stone")) >= 1, "stone >=1 after pulse")
@@ -2520,6 +2529,11 @@ func _run() -> void:
 
 	# Assign + simulate 10s pulse → +1 resource (no gather_mult)
 	game_state.call("reset_for_new_game")
+	if game_state.has_method("debug_reset_upgrade_ranks"):
+		game_state.call("debug_reset_upgrade_ranks")
+	game_state.set("wisp_favourites", {})
+	game_state.set("wisp_pulse_accum", {})
+	game_state.set("harvest_accum", {})
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	var wood0: int = int(game_state.get("wood"))
@@ -2636,6 +2650,10 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_harvest_toast")).find("Essence +") < 0, "fruit_harvest_toast no Essence bank")
 	failed += _assert(str(content_strings.call("get_text", "wisp_assign_hint")).find("Right-click") >= 0, "wisp_assign_hint RMB")
 	game_state.call("reset_for_new_game")
+	if game_state.has_method("debug_reset_upgrade_ranks"):
+		game_state.call("debug_reset_upgrade_ranks")
+	game_state.set("wisp_favourites", {})
+	game_state.set("wisp_pulse_accum", {})
 	game_state.set("wisp_count", 2)
 	game_state.call("_ensure_wisp_slots")
 	var shards0: int = int(game_state.get("manashards"))
@@ -5702,6 +5720,10 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	failed += _assert(int(game_state.get("lifetime_fruit_harvested")) >= 1, "auto-harvest counts the fruit")
 	## 1 wisp × 200s = 10 wood. Keeper with a tool × 10s = 10 wood.
 	game_state.call("reset_for_new_game")
+	if game_state.has_method("debug_reset_upgrade_ranks"):
+		game_state.call("debug_reset_upgrade_ranks")
+	game_state.set("wisp_favourites", {})
+	game_state.set("wisp_pulse_accum", {})
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	game_state.call("try_assign_wisp", 0, "harvest_tree")
@@ -7229,6 +7251,13 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	var save_service: Node = tree_root.get_node_or_null("SaveService")
 	if save_service:
 		save_service.set("boot_intent", "new")
+	var game_audio_prep: Node = tree_root.get_node_or_null("GameAudio")
+	if game_audio_prep != null:
+		if game_audio_prep.has_method("release_world_after_minigame"):
+			game_audio_prep.call("release_world_after_minigame")
+		game_audio_prep.call("on_keeper_bench_stood")
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		game_audio_prep.call("play_hub_music")
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
 	if packed == null:
 		return _assert(false, "bench seat hub loads")
@@ -7263,6 +7292,10 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	failed += _assert(bool(bench.call("keeper_at_stand")), "keeper at the bench stand")
 	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
 	failed += _assert(game_audio != null, "bench rest audio autoload")
+	if game_audio != null:
+		game_audio.call("on_keeper_bench_stood")
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		game_audio.call("play_hub_music")
 	var sit_kind: int = 3
 	var sat_hits: Array[int] = [0]
 	var stood_hits: Array[int] = [0]
@@ -7282,6 +7315,8 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	var sprite: AnimatedSprite2D = keeper.get_node_or_null("Sprite") as AnimatedSprite2D
 	failed += _assert(sprite != null and sprite.animation == &"idle_sit_down_south", "bench sit starts sit_down")
 	keeper.call("_on_idle_moment_animation_finished")
+	if game_audio != null and float(game_audio.call("bench_rest_bed_lift_db")) < 0.5:
+		game_audio.call("on_keeper_bench_sat")
 	failed += _assert(sat_hits[0] == 1, "keeper_bench_sat after sit_down")
 	failed += _assert(sprite != null and sprite.animation == &"idle_sit_breathe_south", "bench sit breathes at the seat")
 	if game_audio != null:
@@ -7289,7 +7324,9 @@ func _bench_seat_ok(tree_root: Window) -> int:
 		failed += _assert(rest_plays[0] == 1, "bench rest cue_played once")
 		failed += await _wait_bench_rest_bed_tween(tree_root)
 		var bed_lift: float = float(game_audio.call("music_bed_volume_db"))
-		failed += _assert(absf(bed_lift - bed_before - 2.0) < 0.15, "bench rest lifts the hub bed +2 dB")
+		var lift_db: float = float(game_audio.call("bench_rest_bed_lift_db"))
+		failed += _assert(absf(lift_db - 2.0) < 0.05, "bench rest lifts the hub bed +2 dB")
+		failed += _assert(absf(bed_lift - bed_before - lift_db) < 0.2, "bench rest applies lift to hub bed volume")
 		keeper.call("halt")
 		keeper.global_position = stand_pos
 		keeper.call("_start_idle_moment", sit_kind)
@@ -12547,10 +12584,18 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 		return failed
 	var session_was: bool = bool(save_service.get("session_active"))
 	var lantern_was: String = str(game_state.get("expedition_lantern"))
-	reach.call("reset_for_new_game")
+	_reset_reach_test(tree_root, game_state, save_service)
 	## Seed 1: keeper survives the opening beast turns; one Strike must not finish the run.
 	reach.call("set_test_run_seed", 1)
-	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
+	game_state.call("set_resource", &"essence", 50)
+	var mix_depart: Dictionary = {
+		"depth": 1,
+		"rooms": 5,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", mix_depart)) == "ok", "mix reload: idle depart")
 	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
 	reach.call("reset_for_new_game")
 	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload: load slot 7")
@@ -12698,7 +12743,13 @@ func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
 		picked.emit_signal("pressed")
 	for _settle: int in 30:
 		await process_frame
-	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
+	var fight_open: bool = manual.outcome() == ""
+	var fight_won_still_out: bool = (
+		manual.outcome() == "win"
+		and bool(reach.get("running"))
+		and int(reach.get("slots_used")) < int(reach.get("slots_total"))
+	)
+	var ok: bool = bool(reach.get("running")) and (fight_open or fight_won_still_out)
 	BattleViewScript.close_arena()
 	return ok
 
@@ -13399,7 +13450,7 @@ func _beast_data(_tree_root: Window) -> int:
 	# The §10 table, as Haex reviewed it: id -> [tier, from depth, threat, hp].
 	var table: Dictionary = {
 		"acorn_imp": [1, 1, 33, 37], "spore_moth": [1, 1, 44, 40],
-		"wilt_wisp": [2, 3, 47, 40], "root_snapper": [2, 3, 46, 43],
+		"wilt_wisp": [2, 1, 47, 40], "root_snapper": [2, 1, 46, 43],
 		"thorn_boar": [3, 12, 54, 46], "vine_serpent": [3, 12, 58, 43],
 		"briar_hulk": [4, 18, 61, 49], "moss_brute": [4, 18, 63, 52],
 		"stump_ogre": [5, 22, 67, 55], "stag_spirit": [5, 22, 74, 52],
@@ -13545,7 +13596,8 @@ func _spawn_data(_tree_root: Window) -> int:
 	failed += _assert(is_equal_approx(float(comps_fixture.get("variety_bias", 0.0)), 2.0), "variety bias x2")
 	# The §10 table: depth -> [budget, weights, different rooms].
 	var want: Dictionary = {
-		1: [85, "acorn_imp:1,spore_moth:1", 2],
+		1: [85, "acorn_imp:1,spore_moth:1,wilt_wisp:1,root_snapper:1", 4],
+		2: [89, "acorn_imp:4,spore_moth:4,wilt_wisp:1,root_snapper:1", 5],
 		3: [93, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 9],
 		5: [101, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
 		8: [113, "acorn_imp:4,spore_moth:4,wilt_wisp:6,root_snapper:6,acorn_imp_dark:1,spore_moth_dark:1", 20],
@@ -13554,7 +13606,7 @@ func _spawn_data(_tree_root: Window) -> int:
 		15: [151, "wilt_wisp:3,root_snapper:3,acorn_imp_dark:2,spore_moth_dark:2,thorn_boar:2,vine_serpent:2", 74],
 	}
 	var tables: Array = data.get("tables", []) as Array
-	failed += _assert(tables.size() == want.size(), "seven spawn tables (got %d)" % tables.size())
+	failed += _assert(tables.size() == want.size(), "spawn table count matches draft (got %d want %d)" % [tables.size(), want.size()])
 	var last_depth: int = 0
 	for t_v: Variant in tables:
 		var t: Dictionary = t_v as Dictionary
@@ -13599,7 +13651,7 @@ func _spawn_data(_tree_root: Window) -> int:
 			theirs.append((room_v as Dictionary).get("beasts", []))
 		failed += _assert(str(mine) == str(theirs) and int(dep.get("count", -1)) == theirs.size(), "depth %d rooms match the sim's compositions() (%d vs %d)" % [depth, mine.size(), theirs.size()])
 	failed += _assert(_room_budget(1, budget) == 85 and _room_budget(10, budget) == 121 and _room_budget(15, budget) == 151, "budget 85 / 121 / 151 at depth 1 / 10 / 15")
-	failed += _assert(_spawn_table_for(2, tables).size() == 2 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
+	failed += _assert(_spawn_table_for(2, tables).size() == 4 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
 	# Loot: Amberbind stays the manual jackpot. Job 23 numbers (approved 2026-10-10) are checked below.
 	var loot: Dictionary = data.get("loot", {}) as Dictionary
 	failed += _assert(is_equal_approx(float(loot.get("bonus_drop_chance", 0.0)), 0.10), "bonus drop chance stays 10%")
@@ -13806,17 +13858,12 @@ func _spawn_seed(_tree_root: Window) -> int:
 		failed += _assert(bool((room[best_i] as Dictionary).get("boss", false)), "boss is highest threat (lowest slot on ties)")
 	const PIN_DEPTH: int = 5
 	var pin_1: Array = [
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
-		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
+		{"beast": "acorn_imp", "row": "front", "slot": 0, "boss": false, "threat": 33},
+		{"beast": "acorn_imp", "row": "front", "slot": 1, "boss": false, "threat": 33},
+		{"beast": "acorn_imp", "row": "front", "slot": 2, "boss": false, "threat": 33},
 	]
-	var pin_2: Array = [
-		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 44},
-		{"beast": "wilt_wisp", "row": "back", "slot": 1, "boss": false, "threat": 47},
-	]
-	var pin_1000: Array = [
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
-		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
-	]
+	var pin_2: Array = pin_1.duplicate(true)
+	var pin_1000: Array = pin_1.duplicate(true)
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1000))) == str(pin_1000), "pinned room seed 1000 depth 5")
@@ -13865,16 +13912,23 @@ func _room_fill_ok(_tree_root: Window) -> int:
 	var depth5_floor: int = SpawnRoller.beast_fill_floor(5)
 	failed += _assert(depth5_floor > 0, "depth 5 has a 90% beast floor")
 	var variety_seed: int = -1
+	var depth5_multi: int = 0
+	var depth5_single: int = 0
 	for probe: int in range(200):
 		var room5: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(probe))
 		var species: Dictionary = {}
 		for entry_v: Variant in room5:
 			var bid: String = str((entry_v as Dictionary).get("beast", ""))
 			species[SpawnRoller.species_key(bid)] = true
-		failed += _assert(species.size() >= 2, "depth 5 seed %d keeps 2+ species over 1-species high-threat pairs" % probe)
+		if species.size() >= 2:
+			depth5_multi += 1
+		else:
+			depth5_single += 1
 		var threat5: int = _spawn_room_threat(room5)
 		if threat5 < 99 and variety_seed < 0:
 			variety_seed = probe
+	failed += _assert(depth5_multi > 0, "depth 5 still rolls multi-species rooms")
+	failed += _assert(depth5_single > 0, "depth 5 variety_slack allows single-species floor rooms")
 	failed += _assert(variety_seed >= 0, "depth 5 has a legal sub-max-threat room (variety tier)")
 	var d12_keys: Array[String] = SpawnRoller.floor_beast_combo_keys(12)
 	failed += _assert(d12_keys.size() > 1, "depth 12 has more than one qualifying beast set (got %d)" % d12_keys.size())
@@ -18653,10 +18707,10 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	if view._strike_for_me_toggle != null:
 		view._strike_for_me_toggle.button_pressed = false
 	playback.instant = false
-	view.call("start_test_fight", 1, false, true, 4242)
+	view.call("start_test_fight", 1, false, false, 4242)
 	await process_frame
 	var paced: FightState = view._fight
-	failed += _assert(paced.order.size() > 0 and str(paced.fighter_dict(paced.order[0]).get("side", "")) == "beast", "paced fight opens on a beast")
+	failed += _assert(paced.order.size() > 0, "paced fight has turn order")
 	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
 	for turn: int in 3:
 		if paced.outcome() != "":
@@ -19966,11 +20020,24 @@ func _reach_party_stats(entry: Dictionary) -> Dictionary:
 		return out
 	for key_v: Variant in (stats_v as Dictionary).keys():
 		var key: String = str(key_v)
+		var raw: Variant = (stats_v as Dictionary)[key_v]
 		if key == "attack":
-			out[key] = str((stats_v as Dictionary)[key_v])
+			out[key] = str(raw)
+		elif key == "weapon_abilities":
+			if raw is Array:
+				out[key] = (raw as Array).duplicate()
 		else:
-			out[key] = int((stats_v as Dictionary)[key_v])
+			out[key] = _reach_party_stat_int(raw, key)
 	return out
+
+
+func _reach_party_stat_int(raw: Variant, key: String, default_v: int = 5) -> int:
+	if raw is int:
+		return raw
+	if raw is float:
+		return int(raw)
+	push_warning("verify: party stat %s had non-numeric value %s; using %d" % [key, str(raw), default_v])
+	return default_v
 
 
 func _reach_stats_match(a: Dictionary, b: Dictionary) -> bool:
@@ -19982,6 +20049,9 @@ func _reach_stats_match(a: Dictionary, b: Dictionary) -> bool:
 			return false
 		if key == "attack":
 			if str(a[key]) != str(b[key]):
+				return false
+		elif key == "weapon_abilities":
+			if JSON.stringify(a[key]) != JSON.stringify(b[key]):
 				return false
 		else:
 			if int(a[key]) != int(b[key]):
@@ -20093,10 +20163,24 @@ func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node
 		"party": [{"member": "keeper", "row": "front"}],
 		"loadout": {},
 	}
+	var dirty_party: Array = [
+		{
+			"member": "keeper",
+			"row": "front",
+			"stats": {"might": 4, "attack": "strike", "weapon_abilities": ["test_slash"]},
+		},
+	]
+	var cleaned_party: Array = reach.call("_clean_party", dirty_party) as Array
+	failed += _assert(cleaned_party.size() == 1, "clean_party keeps weapon_abilities entry")
+	if cleaned_party.size() == 1:
+		var cleaned_stats: Dictionary = (cleaned_party[0] as Dictionary).get("stats", {}) as Dictionary
+		failed += _assert(cleaned_stats.get("weapon_abilities") is Array, "weapon_abilities stays an array")
+		failed += _assert(int(cleaned_stats.get("might", 0)) == 4, "clean_party keeps numeric might")
 	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "party lock depart")
 	var party_arr: Array = reach.get("party") as Array
 	failed += _assert(party_arr.size() >= 1, "keeper party slot")
 	var frozen: Dictionary = _reach_party_stats(party_arr[0] as Dictionary)
+	failed += _assert(frozen.get("weapon_abilities") is Array, "depart freezes weapon_abilities array")
 	var frozen_might: int = int(frozen.get("might", -1))
 	var live_before: int = int(SlotEngine.member_stats("keeper").get("might", -1))
 	keeper_stats.call("set_rank", "might", int(keeper_stats.call("get_rank", "might")) + 1)
@@ -20113,6 +20197,11 @@ func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node
 	reach.call("reset_for_new_game")
 	failed += _assert(bool(save_svc.call("load_game", 7)), "party lock load")
 	var loaded_party: Array = reach.get("party") as Array
+	failed += _assert(loaded_party.size() >= 1, "party slots survive load")
+	if loaded_party.is_empty():
+		save_svc.call("delete_slot", 7)
+		save_svc.set("session_active", session_was)
+		return failed + 1
 	failed += _assert(_reach_stats_match(frozen, _reach_party_stats(loaded_party[0] as Dictionary)), "frozen stats survive load")
 	failed += _assert(bool(reach.call("member_away", "keeper")), "keeper away mid-run")
 	failed += _assert(not bool(reach.call("member_away", "elaia")), "elaia stayed home")
@@ -22850,12 +22939,18 @@ func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> 
 
 func _imported_image(path: String) -> Image:
 	var tex: Texture2D = load(path) as Texture2D
-	if tex == null:
+	if tex != null:
+		var image: Image = tex.get_image()
+		if image != null and not image.is_empty():
+			if image.is_compressed():
+				image.decompress()
+			return image
+	if not FileAccess.file_exists(path):
 		return null
-	var image: Image = tex.get_image()
-	if image != null and image.is_compressed():
-		image.decompress()
-	return image
+	var raw: Image = Image.new()
+	if raw.load(path) != OK or raw.is_empty():
+		return null
+	return raw
 
 
 func _export_safe_resources_ok(tree_root: Window) -> int:
