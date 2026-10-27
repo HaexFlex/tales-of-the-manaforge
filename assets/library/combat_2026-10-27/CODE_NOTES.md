@@ -164,6 +164,11 @@ frame,phase,hand_x,hand_y,rot_index,z,tip_ox,tip_oy,src_frame
 6,recover,80,58,0,front,0,-9,138
 7,recover,82,56,1,front,0,-9,144
 
+
+### Wand contrast pass (2026-10-27)
+Still **9×36**, grip **(4, 12)**. 1 px outline `#2a1c14`, lighter warm-wood shaft + highlight, brighter tip gem (cool crystal / sap green / heart rose — not spark amber). Prior → `assets/library/legacy/weapons_wand_9x36_pre_contrast_2026-10-27/`.
+**Anchors canonical:** library `hand_anchors.json` (`tip_ox`/`tip_oy`); no clip-folder copy.
+
 ### Wand cast spark FX
 `assets/art/battle/fx/wand_cast_spark_strip.png` — 8×8 cells × 4 frames, warm amber, hard alpha.
 On for gather/release frames 2–5; place centred on tip. Off on raise/recover.
@@ -218,6 +223,26 @@ frame,phase,hand_x,hand_y,hand2_x,hand2_y,rot_index,z,string_draw,src_frame
 7,recover,108,26,73,34,7,front,0.0,120
 8,recover,86,49,77,46,7,front,0.0,132
 9,recover,85,49,76,46,7,front,0.0,144
+
+
+### Bow string_tips (native 22×42 tip-up)
+
+In `weapons/rot/grip_offsets.json` → `string_tips.wpn_bow_t{0,1,2}`:
+
+| | x, y (native) |
+|---|---|
+| top (string attach) | `1, 0` |
+| bottom (string attach) | `1, 41` |
+| grip | `4, 20` |
+
+Per-rot tip coords (in that rot sprite’s local px) under `string_tips[id].rots.r{0..7}`.
+Canvas: `(hand_x - gx + tip_x, hand_y - gy + tip_y)` with the matching `wpn_bow_t*_rN` grip offset.
+
+Rotation math (native tip-up → rot_index): `pil_deg = -((rot_index * 45 - 270) % 360)` about grip; upright ≈ **r6**, tip-east = **r0**.
+
+Contrast pass 2026-10-27: dark outline `#2a1c14`, lighter wood. Prior natives → `assets/library/legacy/weapons_bow_22x42_pre_contrast_2026-10-27/`.
+
+**Anchors canonical:** `assets/library/combat_2026-10-27/hand_anchors.json` only. Clip-folder copy legacy’d.
 
 ### Schema brief for Code
 - Select clip by weapon family: sword → `attack`, wand → `attack_wand`, bow → `attack_bow`.
