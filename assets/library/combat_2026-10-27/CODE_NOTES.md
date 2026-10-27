@@ -49,22 +49,29 @@ Gentle lean-poke attack, hurt nudge, calm breathe. From live `battle_acorn_imp_*
 ## Budget note
 Keeper + Imp shipped. Elaia attack/cast partial if present on main. Puff / moss_tortoise combat deferred.
 
-## Weapons t0–t2 (2026-10-27 follow-up)
-Path pattern: `res://assets/art/battle/weapons/{sprite_id}.png` (and `wpn_none.png`, `wpn_bow_t0.png` added).
+## Weapons t0–t2 (2026-10-27) — v2 native size
+Path: `res://assets/art/battle/weapons/{sprite_id}.png`
 
-| sprite_id | display | notes |
-|---|---|---|
-| wpn_sword_t0 | (starter) | wood/stone |
-| wpn_sword_t1 | Flintblade | knapped stone edge |
-| wpn_sword_t2 | Rootsteel | root-veined metal, cyan seam |
-| wpn_wand_t0 | Weapon Rod | |
-| wpn_wand_t1 | Sapstaff | amber sap tip |
-| wpn_wand_t2 | Heartwand | glowing heartwood core |
-| wpn_bow_t0 | (starter bow) | |
-| wpn_bow_t1 | Thornbow | thorny vine limbs |
-| wpn_bow_t2 | Switchshaft | sleek bent-switch, cyan string hint |
+| sprite_id | display | size | tip↔grip | notes |
+|---|---|---|---|---|
+| wpn_sword_t0 | (starter) | 28×10 | 26 | wood/stone |
+| wpn_sword_t1 | Flintblade | 28×10 | 26 | knapped stone edge |
+| wpn_sword_t2 | Rootsteel | 28×10 | 26 | root-veined metal, cyan seam |
+| wpn_wand_t0 | Weapon Rod | 5×24 | ~7 tip / ~15 butt | |
+| wpn_wand_t1 | Sapstaff | 5×24 | ~7 tip / ~15 butt | amber sap tip |
+| wpn_wand_t2 | Heartwand | 5×24 | ~7 tip / ~15 butt | glowing heartwood core |
+| wpn_bow_t0 | (starter bow) | 14×24 | ~12 limb | |
+| wpn_bow_t1 | Thornbow | 14×24 | ~12 limb | thorny vine limbs |
+| wpn_bow_t2 | Switchshaft | 14×24 | ~12 limb | sleek bent-switch, cyan string hint |
+| wpn_none | | 1×1 | — | empty |
 
-**Grip:** pixel `(0, 3)` on every base sprite (= `CombatAnimsConfig.WEAPON_GRIP`). Same grip across tiers so body frames stay valid.
+**Family grips** (shared across tiers of that family):
+- sword: `0, 4`
+- wand: `2, 7`
+- bow: `1, 11`
+
+Place pre-rotated `rot/{sprite_id}_r{rot_index}.png` at `(hand_x - gx, hand_y - gy)` using `rot/grip_offsets.json`.
+Old small weapons archived: `assets/library/legacy/weapons_small_2026-10-27/`.
 
 ## rot_index angle table (Godot 2D, +clockwise)
 | rot_index | degrees | rad (approx) | tip points |
