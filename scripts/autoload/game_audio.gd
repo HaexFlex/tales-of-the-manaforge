@@ -598,6 +598,24 @@ func play_gather(resource_id: StringName) -> void:
 	_last_gather_msec = now
 	var pitch: float = randf_range(_gather_pitch_min, _gather_pitch_max)
 	play(cue, _gather_offset_db, pitch)
+	var chime: StringName = _mana_chime_cue_for_stage()
+	if chime != &"":
+		play(chime, 0.0, 1.0)
+
+
+func _mana_chime_cue_for_stage() -> StringName:
+	if not has_node("/root/GameState"):
+		return &""
+	var stage_num: int = GameState.get_stage_index() + 1
+	match stage_num:
+		1:
+			return &"sfx_mana_chime_1"
+		2:
+			return &"sfx_mana_chime_2"
+		3:
+			return &"sfx_mana_chime_3"
+		_:
+			return &"sfx_mana_chime_4"
 
 
 func _on_keeper_harvested(resource_id: StringName, amount: int) -> void:
