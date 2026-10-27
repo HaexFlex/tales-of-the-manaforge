@@ -7,9 +7,9 @@ const WEATHER_STATES: Array[StringName] = [
 	&"clear", &"soft_rain", &"mist", &"light_snow", &"blossom_fall",
 ]
 const VIEW_NAMES: Array[String] = ["center", "ne", "nw", "se", "sw"]
-const PARTICLE_PREPROCESS_SEC: float = 9.0
+const PARTICLE_PREPROCESS_SEC: float = 12.5
 const CAPTURE_WARMUP_FRAMES: int = 30
-const VIEW_FALL_REALTIME_WARMUP_SEC: float = 9.0
+const VIEW_FALL_REALTIME_WARMUP_SEC: float = 12.5
 const CAPTURE_WIDTH: int = 1280
 const CAPTURE_HEIGHT: int = 720
 const MID_CROP_W: int = 320
