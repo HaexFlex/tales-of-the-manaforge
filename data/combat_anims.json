@@ -54,6 +54,7 @@
     "bow": {
       "damage_kind": "hybrid",
       "items": [
+        { "id": "wpn_bow_t0", "tier": 0, "sprite_id": "wpn_bow_t0", "display": "(starter bow)", "note": "PLACEHOLDER tier art; no craft item yet" },
         { "id": "thornbow", "tier": 1, "sprite_id": "wpn_bow_t1", "display": "Thornbow", "bonuses": { "might": 1, "arcana": 1 } },
         { "id": "switchshaft", "tier": 2, "sprite_id": "wpn_bow_t2", "display": "Switchshaft", "bonuses": { "might": 3, "arcana": 3 } }
       ]

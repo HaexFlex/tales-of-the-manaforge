@@ -1,5 +1,5 @@
 extends SceneTree
-## Keeper attack contact sheet: logical frames 1, 4, 8 (1×) with wpn_sword_t0 vs wpn_sword_t2.
+## Keeper attack frames 1–8: rows sword t0, sword t2, bow t1, wand t1.
 ## godot --headless --path . --script res://tools/r6_combat_contact_sheet.gd
 
 const CombatAnimsConfigScript := preload("res://scripts/battle/combat_anims_config.gd")
@@ -7,15 +7,15 @@ const CombatAnimsConfigScript := preload("res://scripts/battle/combat_anims_conf
 const OUT_PATH: String = "/opt/cursor/artifacts/keeper_attack_weapons_contact.png"
 const ACTOR: String = "keeper"
 const CLIP: String = "attack"
-const LOGICAL_FRAMES_1: Array[int] = [1, 4, 8]
 const LOGICAL_TOTAL: int = 8
-const WEAPON_TIERS: Array[String] = [
-	"res://assets/art/battle/weapons/wpn_sword_t0.png",
-	"res://assets/art/battle/weapons/wpn_sword_t2.png",
+const WEAPON_IDS: Array[String] = [
+	"wpn_sword_t0",
+	"wpn_sword_t2",
+	"wpn_bow_t1",
+	"wpn_wand_t1",
 ]
 const CELL: int = 128
-const PAD: int = 8
-const GRIP: Vector2 = Vector2(0.0, 3.0)
+const PAD: int = 6
 
 
 func _init() -> void:
@@ -24,22 +24,17 @@ func _init() -> void:
 
 func _run() -> void:
 	CombatAnimsConfigScript.reload()
-	var cols: int = LOGICAL_FRAMES_1.size()
-	var rows: int = WEAPON_TIERS.size()
+	var cols: int = LOGICAL_TOTAL
+	var rows: int = WEAPON_IDS.size()
 	var sheet_w: int = cols * CELL + PAD * (cols + 1)
 	var sheet_h: int = rows * CELL + PAD * (rows + 1)
 	var sheet := Image.create(sheet_w, sheet_h, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color(0.08, 0.12, 0.1, 1.0))
-	for tier_i: int in WEAPON_TIERS.size():
-		var weapon: Image = _load_png(WEAPON_TIERS[tier_i])
-		if weapon == null:
-			push_error("missing weapon %s" % WEAPON_TIERS[tier_i])
-			quit(1)
-			return
-		for frame_i: int in LOGICAL_FRAMES_1.size():
-			var logical_1: int = LOGICAL_FRAMES_1[frame_i]
+	for row_i: int in WEAPON_IDS.size():
+		var sprite_id: String = WEAPON_IDS[row_i]
+		for logical_1: int in range(1, LOGICAL_TOTAL + 1):
 			var logical_0: int = logical_1 - 1
-			var art_frame: int = CombatAnimsConfigScript.art_frame_for_logical(
+			var art_frame: int = CombatAnimsConfigScript.art_frame_index(
 				ACTOR, CLIP, logical_0, LOGICAL_TOTAL,
 			)
 			var body_path: String = CombatAnimsConfigScript.modular_body_path(ACTOR, CLIP, art_frame)
@@ -49,8 +44,15 @@ func _run() -> void:
 				quit(1)
 				return
 			var anchor: Dictionary = CombatAnimsConfigScript.hand_anchor(ACTOR, CLIP, art_frame)
-			var ox: int = PAD + frame_i * (CELL + PAD)
-			var oy: int = PAD + tier_i * (CELL + PAD)
+			var rot_index: int = int(anchor.get("rot_index", 0))
+			var weapon_path: String = CombatAnimsConfigScript.weapon_texture_for_rot(sprite_id, rot_index)
+			var weapon: Image = _load_png(weapon_path)
+			if weapon == null:
+				push_error("missing weapon %s" % weapon_path)
+				quit(1)
+				return
+			var ox: int = PAD + logical_0 * (CELL + PAD)
+			var oy: int = PAD + row_i * (CELL + PAD)
 			_blit_frame(sheet, body, weapon, anchor, ox, oy)
 	DirAccess.make_dir_recursive_absolute("/opt/cursor/artifacts")
 	if sheet.save_png(OUT_PATH) != OK:
@@ -77,20 +79,13 @@ func _blit_frame(sheet: Image, body: Image, weapon: Image, anchor: Dictionary, o
 				sheet.set_pixel(ox + x, oy + y, body.get_pixel(x, y))
 	var hx: int = int(anchor.get("hand_x", 0))
 	var hy: int = int(anchor.get("hand_y", 0))
-	var rot_index: int = int(anchor.get("rot_index", 0))
-	var rot: float = CombatAnimsConfigScript.weapon_rotation_rad(rot_index)
-	_blit_weapon_rotated(sheet, weapon, ox + hx, oy + hy, rot)
-
-
-func _blit_weapon_rotated(sheet: Image, weapon: Image, hand_x: int, hand_y: int, rot_rad: float) -> void:
-	var grip: Vector2 = GRIP
+	var grip: Vector2 = CombatAnimsConfigScript.WEAPON_GRIP
+	var wx: int = ox + hx - int(grip.x)
+	var wy: int = oy + hy - int(grip.y)
 	for wy_i: int in weapon.get_height():
 		for wx_i: int in weapon.get_width():
-			var local: Vector2 = Vector2(float(wx_i), float(wy_i)) - grip
-			if not is_equal_approx(rot_rad, 0.0):
-				local = local.rotated(rot_rad)
-			var px: int = int(round(hand_x + local.x))
-			var py: int = int(round(hand_y + local.y))
+			var px: int = wx + wx_i
+			var py: int = wy + wy_i
 			if px < 0 or py < 0 or px >= sheet.get_width() or py >= sheet.get_height():
 				continue
 			var c: Color = weapon.get_pixel(wx_i, wy_i)

@@ -749,7 +749,7 @@ func _apply_modular_frame(
 	var display_logical: int = CombatAnimsConfig.display_logical_frame(
 		logical_frame, speed, hit_frame, logical_total,
 	)
-	var art_frame: int = CombatAnimsConfig.art_frame_for_logical(actor, clip, display_logical, logical_total)
+	var art_frame: int = CombatAnimsConfig.art_frame_index(actor, clip, display_logical, logical_total)
 	var path: String = CombatAnimsConfig.modular_body_path(actor, clip, art_frame)
 	var tex: Texture2D = load(path) as Texture2D
 	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
@@ -759,15 +759,15 @@ func _apply_modular_frame(
 	sprite.size = FIGHTER_FRAME
 	sprite.position = -FIGHTER_SOLE
 	if weapon_sprite_id != "" and CombatAnimsConfig.uses_weapon_overlay(actor, clip):
-		var wpath: String = CombatAnimsConfig.weapon_texture_path(weapon_sprite_id)
-		if wpath != "" and ResourceLoader.exists(wpath):
-			var weapon: TextureRect = _ensure_weapon_sprite(root)
-			weapon.texture = load(wpath) as Texture2D
-			var anchor: Dictionary = CombatAnimsConfig.hand_anchor(actor, clip, art_frame)
-			if not anchor.is_empty():
+		var anchor: Dictionary = CombatAnimsConfig.hand_anchor(actor, clip, art_frame)
+		if not anchor.is_empty():
+			var rot_index: int = int(anchor.get("rot_index", 0))
+			var wpath: String = CombatAnimsConfig.weapon_texture_for_rot(weapon_sprite_id, rot_index)
+			if wpath != "" and ResourceLoader.exists(wpath):
+				var weapon: TextureRect = _ensure_weapon_sprite(root)
+				weapon.texture = load(wpath) as Texture2D
 				var hx: float = float(anchor.get("hand_x", 0.0))
 				var hy: float = float(anchor.get("hand_y", 0.0))
-				var rot_index: int = int(anchor.get("rot_index", 0))
 				if weapon.texture != null:
 					weapon.size = weapon.texture.get_size()
 				weapon.pivot_offset = CombatAnimsConfig.WEAPON_GRIP
@@ -779,6 +779,8 @@ func _apply_modular_frame(
 					root.move_child(weapon, sprite_idx)
 				elif z == "front" and weapon.get_index() < sprite_idx:
 					root.move_child(weapon, sprite_idx + 1)
+			else:
+				_hide_weapon_sprite(root)
 		else:
 			_hide_weapon_sprite(root)
 	else:

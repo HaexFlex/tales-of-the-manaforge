@@ -5,6 +5,8 @@ const DATA_PATH: String = "res://data/combat_anims.json"
 const HAND_ANCHORS_PATH: String = "res://assets/library/combat_2026-10-27/hand_anchors.json"
 const MODULAR_BODY_PATH: String = "res://assets/art/battle/modular/%s/%s/frame_%04d.png"
 const WEAPON_GRIP: Vector2 = Vector2(0.0, 3.0)
+const WEAPON_ROT_PATH: String = "res://assets/art/battle/weapons/rot/%s_r%d.png"
+const KEEPER_ATTACK_ROT_SEQUENCE: Array[int] = [6, 7, 0, 0, 1, 1, 0, 7]
 
 static var _data: Dictionary = {}
 static var _anchors: Array = []
@@ -80,6 +82,10 @@ static func display_logical_frame(logical: int, speed: int, hit_frame: int, fram
 	return frame_count - 1
 
 
+static func uses_one_to_one_art(actor: String, clip: String) -> bool:
+	return actor == "keeper" and clip == "attack"
+
+
 static func weapon_sprite_id_for_item(item_id: String) -> String:
 	_ensure_loaded()
 	if item_id == "":
@@ -95,6 +101,22 @@ static func weapon_texture_path(sprite_id: String) -> String:
 		return ""
 	var pattern: String = str((_data.get("sheet_layout", {}) as Dictionary).get("path_pattern_weapon", ""))
 	return pattern.replace("{sprite_id}", sprite_id)
+
+
+static func weapon_rot_texture_path(sprite_id: String, rot_index: int) -> String:
+	return WEAPON_ROT_PATH % [sprite_id, rot_index]
+
+
+static func weapon_texture_for_rot(sprite_id: String, rot_index: int) -> String:
+	var rot_path: String = weapon_rot_texture_path(sprite_id, rot_index)
+	if rot_path != "" and ResourceLoader.exists(rot_path):
+		return rot_path
+	return weapon_texture_path(sprite_id)
+
+
+## Pre-rotated sprites: node rotation stays 0 (CODE_NOTES.md).
+static func weapon_rotation_rad(_rot_index: int) -> float:
+	return 0.0
 
 
 static func modular_body_path(actor: String, clip: String, art_frame: int) -> String:
@@ -126,26 +148,40 @@ static func art_frame_for_logical(actor: String, clip: String, logical: int, log
 	return clampi((logical * art_count) / logical_total, 0, art_count - 1)
 
 
+static func art_frame_index(actor: String, clip: String, display_logical: int, logical_total: int) -> int:
+	if uses_one_to_one_art(actor, clip):
+		var count: int = art_frame_count(actor, clip)
+		return clampi(display_logical, 0, maxi(0, count - 1))
+	return art_frame_for_logical(actor, clip, display_logical, logical_total)
+
+
 static func hand_anchor(actor: String, clip: String, art_frame: int) -> Dictionary:
 	_ensure_loaded()
 	for row_v: Variant in _anchors:
 		if not row_v is Dictionary:
 			continue
 		var row: Dictionary = row_v as Dictionary
-		if str(row.get("actor", "")) == actor and str(row.get("clip", "")) == clip and int(row.get("frame", -1)) == art_frame:
+		if (
+			str(row.get("actor", "")) == actor
+			and str(row.get("clip", "")) == clip
+			and int(row.get("frame", -1)) == art_frame
+		):
 			return row
 	return {}
 
 
-## CODE_NOTES.md: rot_index 0 = tip east / no rot. No other indices are defined in art notes.
-static func weapon_rotation_rad(rot_index: int) -> float:
-	if rot_index == 0:
-		return 0.0
-	return 0.0
+static func keeper_attack_rot_indices_from_anchors() -> Array[int]:
+	var out: Array[int] = []
+	for frame: int in range(8):
+		var row: Dictionary = hand_anchor("keeper", "attack", frame)
+		out.append(int(row.get("rot_index", -1)))
+	return out
 
 
-static func weapon_rot_index_documented(rot_index: int) -> bool:
-	return rot_index == 0
+static func sprite_file_bytes(path: String) -> PackedByteArray:
+	if not FileAccess.file_exists(path):
+		return PackedByteArray()
+	return FileAccess.get_file_as_bytes(path)
 
 
 static func clips_with_weapon_overlay(actor: String) -> Array[String]:

@@ -26732,6 +26732,15 @@ func _combat_anims_r6_ok() -> int:
 		"hand_anchors.json present",
 	)
 	failed += _assert(CombatAnimsConfigScript.has_modular_body("keeper", "attack"), "keeper attack modular art")
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_count("keeper", "attack") == 8,
+		"keeper attack has 8 art frames",
+	)
+	failed += _assert(CombatAnimsConfigScript.uses_one_to_one_art("keeper", "attack"), "keeper attack 1:1 art")
+	failed += _assert(
+		CombatAnimsConfigScript.art_frame_index("keeper", "attack", 5, 8) == 5,
+		"keeper attack logical frame maps 1:1 to art",
+	)
 	failed += _assert(CombatAnimsConfigScript.has_modular_body("acorn_imp", "calm"), "acorn imp calm modular art")
 	var attack_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack")
 	failed += _assert(int(attack_timing.get("hit_ms", -1)) == 400, "attack hit_ms 400 at 1x")
@@ -26777,22 +26786,44 @@ func _combat_anims_r6_ok() -> int:
 		"wpn_wand_t0 art",
 	)
 	failed += _assert(
-		is_equal_approx(CombatAnimsConfigScript.weapon_rotation_rad(0), 0.0),
-		"rot_index 0 is no rotation per CODE_NOTES",
+		is_equal_approx(CombatAnimsConfigScript.weapon_rotation_rad(3), 0.0),
+		"pre-rotated weapons use node rotation 0",
 	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_GRIP == Vector2(0.0, 3.0),
+		"weapon grip pixel 0,3",
+	)
+	var rot_seq: Array[int] = CombatAnimsConfigScript.keeper_attack_rot_indices_from_anchors()
+	failed += _assert(rot_seq.size() == 8, "keeper attack rot sequence length")
+	for i: int in range(8):
+		failed += _assert(
+			rot_seq[i] == CombatAnimsConfigScript.KEEPER_ATTACK_ROT_SEQUENCE[i],
+			"keeper attack rot_index frame %d" % i,
+		)
+	var rot_sprite: String = CombatAnimsConfigScript.weapon_texture_for_rot("wpn_sword_t0", 6)
+	failed += _assert(rot_sprite.ends_with("wpn_sword_t0_r6.png"), "rot sprite path for index 6")
+	failed += _assert(ResourceLoader.exists(rot_sprite), "rot sprite file exists")
 	failed += _assert(
 		CombatAnimsConfigScript.weapon_sprite_id_for_item("rootsteel_edge") == "wpn_sword_t2",
 		"rootsteel edge tier sprite",
 	)
 	var t0_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t0")
+	var t1_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t1")
 	var t2_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_sword_t2")
-	failed += _assert(t0_path != t2_path, "weapon tier paths differ")
+	var bow_t0_path: String = CombatAnimsConfigScript.weapon_texture_path("wpn_bow_t0")
 	failed += _assert(ResourceLoader.exists(t0_path), "wpn_sword_t0 art")
+	failed += _assert(ResourceLoader.exists(t1_path), "wpn_sword_t1 art")
 	failed += _assert(ResourceLoader.exists(t2_path), "wpn_sword_t2 art")
+	failed += _assert(ResourceLoader.exists(bow_t0_path), "wpn_bow_t0 art")
+	var t0_bytes: PackedByteArray = CombatAnimsConfigScript.sprite_file_bytes(t0_path)
+	var t1_bytes: PackedByteArray = CombatAnimsConfigScript.sprite_file_bytes(t1_path)
+	var t2_bytes: PackedByteArray = CombatAnimsConfigScript.sprite_file_bytes(t2_path)
+	failed += _assert(t0_bytes != t1_bytes and t1_bytes != t2_bytes and t0_bytes != t2_bytes, "sword tiers differ")
 	failed += _assert(
 		not CombatAnimsConfigScript.has_modular_body("stump_ogre", "attack"),
 		"stump_ogre uses hit flash fallback",
 	)
 	var anchor: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 0)
-	failed += _assert(int(anchor.get("hand_x", -1)) == 108, "keeper attack hand anchor")
+	failed += _assert(int(anchor.get("hand_x", -1)) == 106, "keeper attack frame 0 hand anchor")
+	failed += _assert(int(anchor.get("rot_index", -1)) == 6, "keeper attack frame 0 rot_index")
 	return failed

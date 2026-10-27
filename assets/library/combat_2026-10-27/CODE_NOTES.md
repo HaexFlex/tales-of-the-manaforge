@@ -51,3 +51,42 @@ Gentle lean-poke attack, hurt nudge, calm breathe. From live `battle_acorn_imp_*
 
 ## Budget note
 Keeper + Imp shipped. Elaia attack/cast partial if present on main. Puff / moss_tortoise combat deferred.
+
+## Weapons t0–t2 (2026-10-27 follow-up)
+Path pattern: `res://assets/art/battle/weapons/{sprite_id}.png` (and `wpn_none.png`, `wpn_bow_t0.png` added).
+
+| sprite_id | display | notes |
+|---|---|---|
+| wpn_sword_t0 | (starter) | wood/stone |
+| wpn_sword_t1 | Flintblade | knapped stone edge |
+| wpn_sword_t2 | Rootsteel | root-veined metal, cyan seam |
+| wpn_wand_t0 | Weapon Rod | |
+| wpn_wand_t1 | Sapstaff | amber sap tip |
+| wpn_wand_t2 | Heartwand | glowing heartwood core |
+| wpn_bow_t0 | (starter bow) | |
+| wpn_bow_t1 | Thornbow | thorny vine limbs |
+| wpn_bow_t2 | Switchshaft | sleek bent-switch, cyan string hint |
+
+**Grip:** pixel `(0, 3)` on every base sprite (= `CombatAnimsConfig.WEAPON_GRIP`). Same grip across tiers so body frames stay valid.
+
+## rot_index angle table (Godot 2D, +clockwise)
+| rot_index | degrees | rad (approx) | tip points |
+|---|---|---|---|
+| 0 | 0° | 0 | east (default) |
+| 1 | 45° | π/4 | south-east |
+| 2 | 90° | π/2 | south |
+| 3 | 135° | 3π/4 | south-west |
+| 4 | 180° | π | west |
+| 5 | 225° | 5π/4 | north-west |
+| 6 | 270° | 3π/2 | north |
+| 7 | 315° | 7π/4 | north-east |
+
+**Pre-rotated (preferred, no engine smear):** `assets/art/battle/weapons/rot/{sprite_id}_r{rot_index}.png`
+Code should either:
+1. **Preferred:** load `rot/{sprite_id}_r{rot_index}.png` and set `weapon.rotation = 0`, or
+2. Keep base `{sprite_id}.png` and set `weapon_rotation_rad(i) = i * TAU/8` with **nearest** filtering (TextureFilter.NEAREST). Soft/linear rotation will smear pixels.
+
+Attack frames use rot_index 6→7→0→0→1→1→0→7 (windup up, swing through, recover).
+
+## Keeper attack 8 frames
+`assets/art/battle/modular/keeper/attack/frame_0000..0007.png` (was 4). Matches `timings_1x.party.attack.frames = 8`. Anchors updated in `hand_anchors.json`.
