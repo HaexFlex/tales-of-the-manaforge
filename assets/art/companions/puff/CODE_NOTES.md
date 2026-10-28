@@ -147,3 +147,8 @@ Contacts: `assets/library/companions_r7_2026-10-28/puff_work_brew_contact_{1x,4x
 
 Root cause: `battle_idle` / `idle_*` were already noisy (1000–3000 colours) on art-r5 source branches; `b1b6695` copied them. Bad copies → `assets/library/legacy/companions_bad_refs_2026-10-28/`.
 New refs derived from clean walk9 `walk_{dir}/frame_0000` (22 colours, hard alpha, sole 123).
+
+
+## True-size fix (2026-10-28)
+
+battle_attack/hit/work_brew true-size fix 2026-10-28: gated vs walk (hist≥0.80, ≤64 colours, no clip, west/east). See legacy/companions_bad_clips_2026-10-28/.
