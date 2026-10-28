@@ -53,6 +53,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | Token | What it guards |
 | --- | --- |
 | `VERIFY_OK` | The whole default suite passed. |
+| `HUB_WEATHER_AUDIO_OK` | Rain and mist beds play only in their weather and crossfade over 2 s. The hub-bed bus effect matches the weather row (clear is silent). A chore payout plays that node's gather cue at -6 dB on SFX_World, at most once every 2 s per companion, and offline catch-up stays silent. `MANAFORGE_HUB_LIFE=1` runs it with the hub-life group. |
 | `SCENE_TRANSITIONS_OK` | Hub and Forge hops (nav, Escape, door, portraits, footsteps, `exit_forge`), solo and with Elaia, stay off the title screen and keep wood and positions. A bare launch still opens the title. The export strip still ships the play scenes. |
 | `WORKBENCH_REACH_OK` | Keeper and Elaia can stand just north of the bench, facing south, inside the click area and clear of the legs. |
 | `WORKBENCH_NORTH_ROUTE_OK` | Walking to the bench from the north or sides uses flank waypoints instead of a straight line through the legs. `MANAFORGE_WORKBENCH_ROUTE=1` runs it alone. |

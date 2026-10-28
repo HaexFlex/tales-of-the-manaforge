@@ -1278,14 +1278,15 @@ func try_morning_gift(resource_id: StringName) -> int:
 	return gift
 
 
-func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0) -> int:
+func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0, announce: bool = true) -> int:
 	if fruit_committed or ancient_frozen or delta <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
 	var interval: float = maxf(get_keeper_harvest_pulse_sec(resource_id), 0.05)
 	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor() * rate
 	var grant: int = accumulate_harvest(resource_id, units)
 	if grant > 0:
-		keeper_harvested.emit(resource_id, grant)
+		if announce:
+			keeper_harvested.emit(resource_id, grant)
 		_apply_lucky_harvest_bonus(resource_id, grant)
 		_roll_frostberry(resource_id, grant)
 	return grant

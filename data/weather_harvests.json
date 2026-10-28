@@ -16,5 +16,19 @@
   },
   "blossom": {
     "water_essence_mult": 1.1
+  },
+  "audio": {
+    "crossfade_sec": 2.0,
+    "beds": {
+      "soft_rain": "sfx_weather_rain_bed",
+      "mist": "sfx_weather_mist_bed"
+    },
+    "hub_bed": {
+      "clear": {},
+      "soft_rain": {"lowpass_hz": 3000, "gain_db": -3},
+      "mist": {"lowpass_hz": 2500, "gain_db": -2},
+      "snow": {"reverb_room": 0.35, "reverb_wet": 0.12, "reverb_damp": 0.6},
+      "blossom": {"reverb_room": 0.35, "reverb_wet": 0.12, "reverb_damp": 0.6}
+    }
   }
 }

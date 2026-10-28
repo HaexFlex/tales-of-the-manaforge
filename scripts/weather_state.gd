@@ -69,6 +69,12 @@ static func get_state() -> String:
 	return state
 
 
+static func audio_block() -> Dictionary:
+	_ensure()
+	var raw: Variant = _data.get("audio", {})
+	return raw if typeof(raw) == TYPE_DICTIONARY else {}
+
+
 static func label_key() -> String:
 	return "weather_%s" % get_state()
 

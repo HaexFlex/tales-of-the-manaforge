@@ -178,6 +178,20 @@ static func work_type_for(node_id: String) -> String:
 	return String(resource_for(node_id))
 
 
+static func payout_audio(node_id: String) -> Dictionary:
+	_ensure()
+	var raw: Variant = _data.get("payout_audio", {})
+	var block: Dictionary = raw if typeof(raw) == TYPE_DICTIONARY else {}
+	var by_v: Variant = block.get("by_node", {})
+	var by: Dictionary = by_v if typeof(by_v) == TYPE_DICTIONARY else {}
+	return {
+		"cue": str(by.get(node_id, "")),
+		"offset_db": float(block.get("offset_db", -6.0)),
+		"gap_sec": float(block.get("gap_sec", 2.0)),
+		"bus": str(block.get("bus", "SFX_World")),
+	}
+
+
 static func is_around(companion_id: String) -> bool:
 	if _forced.has(companion_id):
 		return bool(_forced[companion_id])
@@ -263,21 +277,40 @@ static func grant_online_seconds(seconds: float) -> void:
 	for companion_id: String in active_ids():
 		var node_id: String = assignment_of(companion_id)
 		if is_water_node(node_id):
-			_grant_water(gs, seconds, water_mult)
+			_grant_water(gs, seconds, water_mult, companion_id)
 		else:
 			var rid: StringName = resource_for(node_id)
 			if rid != &"":
-				gs.call("accumulate_keeper_harvest", rid, seconds, keeper_rate * rate_mult())
+				var grant: int = int(gs.call("accumulate_keeper_harvest", rid, seconds, keeper_rate * rate_mult(), false))
+				if grant > 0:
+					_play_payout_cue(companion_id, node_id)
 
 
-static func _grant_water(gs: Node, seconds: float, mult: float) -> void:
+static func _grant_water(gs: Node, seconds: float, mult: float, companion_id: String) -> void:
 	var pulse: float = maxf(float(gs.call("get_water_essence_pulse_sec")), 0.05)
 	var left: float = seconds
 	while left >= pulse - 0.00001:
-		gs.call("apply_water_pulse", true, true, mult, "chore")
+		var result: Dictionary = gs.call("apply_water_pulse", true, true, mult, "chore")
+		if int(result.get("shards", 0)) > 0 or int(result.get("essence", 0)) > 0:
+			_play_payout_cue(companion_id, "manatree")
 		left -= pulse
 	if left > 0.0001:
-		gs.call("apply_water_pulse", true, true, mult * (left / pulse), "chore")
+		var partial: Dictionary = gs.call("apply_water_pulse", true, true, mult * (left / pulse), "chore")
+		if int(partial.get("shards", 0)) > 0 or int(partial.get("essence", 0)) > 0:
+			_play_payout_cue(companion_id, "manatree")
+
+
+static func _play_payout_cue(companion_id: String, node_id: String) -> void:
+	## Offline catch-up suspends weather bonuses and must stay silent.
+	if not WeatherState.bonuses_live():
+		return
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var audio: Node = tree.root.get_node_or_null("GameAudio")
+	if audio == null:
+		return
+	audio.call("play_chore_payout", companion_id, node_id)
 
 
 static func apply_offline(eff: float, result: Dictionary) -> void:

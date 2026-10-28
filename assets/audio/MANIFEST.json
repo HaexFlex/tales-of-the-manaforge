@@ -727,6 +727,28 @@
       "play_offset_db": -6.0,
       "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 3 (Eb6). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
     },
+    "sfx_weather_rain_bed": {
+      "file": "sfx_weather_rain_bed.ogg",
+      "path": "res://assets/audio/sfx_weather_rain_bed.ogg",
+      "bus": "SFX_World",
+      "loop": true,
+      "duration_sec": 12.0,
+      "file_peak_dbfs": -14.6,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "SPRINT r6. Loop bed while soft_rain is active; 2 s crossfade with the mist bed. sprint/audio-r6-weather @ 4ef00a4 shipped the ogg only, with no cue-note row and no MANIFEST level, so bus and level follow this file's volume model: SFX_World, base_db 0, play_offset_db 0."
+    },
+    "sfx_weather_mist_bed": {
+      "file": "sfx_weather_mist_bed.ogg",
+      "path": "res://assets/audio/sfx_weather_mist_bed.ogg",
+      "bus": "SFX_World",
+      "loop": true,
+      "duration_sec": 12.0,
+      "file_peak_dbfs": -16.1,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "SPRINT r6. Loop bed while mist is active; 2 s crossfade with the rain bed. sprint/audio-r6-weather @ 4ef00a4 shipped the ogg only, with no cue-note row and no MANIFEST level, so bus and level follow this file's volume model: SFX_World, base_db 0, play_offset_db 0."
+    },
     "sfx_bench_rest": {
       "file": "sfx_bench_rest.ogg",
       "path": "res://assets/audio/sfx_bench_rest.ogg",

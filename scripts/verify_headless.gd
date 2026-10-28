@@ -6091,6 +6091,10 @@ func _check_only_load() -> int:
 		"res://scripts/hub/hub_time_phase.gd",
 		"res://scripts/hub/hub_wisp_phase_greetings.gd",
 		"res://scripts/hub_day_night_cycle.gd",
+		"res://scripts/hub_life.gd",
+		"res://scripts/weather_state.gd",
+		"res://scripts/companion_chores.gd",
+		"res://scripts/hub/companion_schedule.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -26911,6 +26915,7 @@ func _hub_life_checks(tree_root: Window, game_state: Node, save_service: Node, b
 	failed += int(tests.call("chores", tree_root, game_state, save_service))
 	failed += int(await tests.call("schedule", tree_root, game_state, save_service))
 	failed += int(await tests.call("mood", tree_root, game_state))
+	failed += int(tests.call("weather_audio", tree_root, game_state))
 	return failed
 
 

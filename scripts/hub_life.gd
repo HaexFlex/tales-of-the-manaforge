@@ -53,3 +53,15 @@ static func migrate_fields(out: Dictionary) -> void:
 
 static func apply_offline(eff: float, result: Dictionary) -> void:
 	CompanionChores.apply_offline(eff, result)
+
+
+static func weather_state_name() -> String:
+	return WeatherState.get_state()
+
+
+static func weather_audio() -> Dictionary:
+	return WeatherState.audio_block()
+
+
+static func chore_payout_audio(node_id: String) -> Dictionary:
+	return CompanionChores.payout_audio(node_id)
