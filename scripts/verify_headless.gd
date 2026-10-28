@@ -287,6 +287,14 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_COMPANION_JOIN_HOOKS") == "1":
+		var join_hooks_only: int = _companion_join_hooks_checks(tree_root, game_state, save_service)
+		if join_hooks_only > 0:
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_INTEGRATION_R1") == "1":
 		var integration_r1_failed: int = await _integration_r1_ok(tree_root, game_state, game_audio)
 		if integration_r1_failed > 0:
@@ -4249,6 +4257,7 @@ func _run() -> void:
 	failed += await _hub_life_checks(tree_root, game_state, save_service, backpack, content_strings)
 	failed += _roster_generic_checks(tree_root, game_state, save_service)
 	failed += _save_v16_checks(tree_root, game_state, save_service)
+	failed += _companion_join_hooks_checks(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -26924,6 +26933,11 @@ func _roster_generic_checks(tree_root: Window, game_state: Node, save_service: N
 func _save_v16_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var tests: RefCounted = _roster_tests()
 	return int(tests.call("migration", tree_root, game_state, save_service))
+
+
+func _companion_join_hooks_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var tests: RefCounted = _roster_tests()
+	return int(tests.call("join_hooks", tree_root, game_state, save_service))
 
 
 func _roster_tests() -> RefCounted:

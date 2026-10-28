@@ -96,9 +96,10 @@
   },
   "puff": {
     "display_name": "Puff",
-    "portrait_path": "",
-    "portrait_52": "",
-    "portrait_160": "",
+    "portrait_path": "res://assets/art/companions/puff/portrait_52.png",
+    "portrait_52": "res://assets/art/companions/puff/portrait_52.png",
+    "portrait_160": "res://assets/art/companions/puff/portrait_160.png",
+    "sheet_figure": "res://assets/art/companions/puff/idle_s.png",
     "sheet_traits": ["brew"],
     "walk_ref_speed": 80,
     "move_speed_mult": 1.0,
@@ -111,18 +112,38 @@
     "hub_body": true,
     "chore_hook": "puff",
     "schedule_hook": "puff",
-    "join": {"kind": "flag", "default": false},
+    "join": {"type": "manatree_stage", "value": "elder"},
     "art": {
-      "root": "",
-      "battle": {"idle": "", "attack": "", "hit": ""}
+      "battle": {
+        "idle": "res://assets/art/companions/puff/battle_idle.png",
+        "attack": "",
+        "hit": ""
+      }
     },
-    "anim": {"root": "", "idle_hold_ms": 100, "idle": {}, "clips": {}}
+    "anim": {
+      "root": "res://assets/art/companions/puff",
+      "idle_hold_ms": 100,
+      "idle": {
+        "south": "idle_s.png",
+        "north": "idle_n.png",
+        "east": "idle_e.png",
+        "west": "idle_w.png"
+      },
+      "clips": {
+        "walk_south": {"dir": "walk_s", "frame_ms": 100},
+        "walk_north": {"dir": "walk_n", "frame_ms": 100},
+        "walk_east": {"dir": "walk_e", "frame_ms": 100},
+        "walk_west": {"dir": "walk_w", "frame_ms": 100},
+        "walk_front": {"dir": "walk_s", "frame_ms": 100}
+      }
+    }
   },
   "mossback": {
     "display_name": "Mossback",
-    "portrait_path": "",
-    "portrait_52": "",
-    "portrait_160": "",
+    "portrait_path": "res://assets/art/companions/mossback/portrait_52.png",
+    "portrait_52": "res://assets/art/companions/mossback/portrait_52.png",
+    "portrait_160": "res://assets/art/companions/mossback/portrait_160.png",
+    "sheet_figure": "res://assets/art/companions/mossback/idle_s.png",
     "sheet_traits": [],
     "walk_ref_speed": 80,
     "move_speed_mult": 1.0,
@@ -130,16 +151,35 @@
     "reliquary_work_rate": 1.0,
     "water_reward_mult": 1.0,
     "attack": "physical",
-    "mechanic": null,
+    "mechanic": "stone",
     "hub_body": true,
     "chore_hook": "mossback",
     "schedule_hook": "mossback",
-    "join": {"kind": "flag", "default": false},
+    "join": {"type": "reach_cleared", "value": "briarwood", "count": 1},
     "art": {
-      "root": "",
-      "battle": {"idle": "", "attack": "", "hit": ""}
+      "battle": {
+        "idle": "res://assets/art/companions/mossback/battle_idle.png",
+        "attack": "",
+        "hit": ""
+      }
     },
-    "anim": {"root": "", "idle_hold_ms": 100, "idle": {}, "clips": {}}
+    "anim": {
+      "root": "res://assets/art/companions/mossback",
+      "idle_hold_ms": 100,
+      "idle": {
+        "south": "idle_s.png",
+        "north": "idle_n.png",
+        "east": "idle_e.png",
+        "west": "idle_w.png"
+      },
+      "clips": {
+        "walk_south": {"dir": "walk_s", "frame_ms": 100},
+        "walk_north": {"dir": "walk_n", "frame_ms": 100},
+        "walk_east": {"dir": "walk_e", "frame_ms": 100},
+        "walk_west": {"dir": "walk_w", "frame_ms": 100},
+        "walk_front": {"dir": "walk_s", "frame_ms": 100}
+      }
+    }
   },
   "bramble": {
     "display_name_key": "bramble_name",

@@ -164,8 +164,8 @@ func migration(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var gated_chores: Dictionary = gated.get("companion_chores", {})
 	failed += _assert(bool((gated_companions.get("elaia", {}) as Dictionary).get("joined", false)), "spare-and-relic save still joins elaia")
 	failed += _assert(bool((gated_companions.get("bramble", {}) as Dictionary).get("joined", false)), "spare plus 40 clears still joins bramble")
-	failed += _assert(not bool((gated_companions.get("puff", {}) as Dictionary).get("joined", true)), "that save does not join puff")
-	failed += _assert(not bool((gated_companions.get("mossback", {}) as Dictionary).get("joined", true)), "that save does not join mossback")
+	failed += _assert(not bool((gated_companions.get("puff", {}) as Dictionary).get("joined", true)), "that save does not join puff in the blob")
+	failed += _assert(not bool((gated_companions.get("mossback", {}) as Dictionary).get("joined", true)), "migration blob keeps mossback joined false")
 	failed += _assert(not gated_companions.has("tortoise") and not gated_chores.has("tortoise"), "gated migrate keeps tortoise off the live maps")
 	failed += _assert(str((gated_companions.get("mossback", {}) as Dictionary).get("chore", "")) == "harvest_stone", "gated tortoise chore lands on mossback")
 	_quiet_reset(game_state)
@@ -174,6 +174,75 @@ func migration(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	else:
 		print("SAVE_V16_MIGRATION_FAIL: %d" % failed)
 	return failed
+
+
+func join_hooks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	CompanionRoster.reload()
+	_quiet_reset(game_state)
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(not bool(game_state.call("companion_joined", "puff")), "puff waits for Elder")
+	failed += _assert(not bool(game_state.call("companion_joined", "mossback")), "mossback waits for a reach clear")
+	game_state.call("_set_stage", &"elder")
+	failed += _assert(bool(game_state.call("companion_joined", "puff")), "Elder joins puff live")
+	failed += _assert(not bool(game_state.call("companion_joined", "mossback")), "Elder alone does not join mossback")
+	if reach != null:
+		reach.set("reaches_cleared", 1)
+		game_state.call("notify_companion_reach_progress")
+	failed += _assert(bool(game_state.call("companion_joined", "mossback")), "one clear joins mossback live")
+	_quiet_reset(game_state)
+	var past: Dictionary = {
+		"stage_id": "elder",
+		"reach": {"reaches_cleared": 3, "deepest_depth": 0, "running": false},
+		"companions": {
+			"puff": {"joined": false, "level": 1, "chore": "", "gear": {}},
+			"mossback": {"joined": false, "level": 1, "chore": "", "gear": {}},
+		},
+	}
+	game_state.call("apply_save_dict", past)
+	failed += _assert(bool(game_state.call("companion_joined", "puff")), "Elder save joins puff on load")
+	failed += _assert(bool(game_state.call("companion_joined", "mossback")), "cleared save joins mossback on load")
+	failed += _hub_body_frame_ok(tree_root, game_state, "puff")
+	failed += _hub_body_frame_ok(tree_root, game_state, "mossback")
+	_quiet_reset(game_state)
+	if failed == 0:
+		print("COMPANION_JOIN_HOOKS_OK")
+	else:
+		print("COMPANION_JOIN_HOOKS_FAIL: %d" % failed)
+	return failed
+
+
+func _hub_body_frame_ok(tree_root: Window, game_state: Node, actor_id: String) -> int:
+	game_state.call("_set_stage", &"elder")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	if reach != null:
+		reach.set("reaches_cleared", 1)
+	var packed: PackedScene = load("res://scenes/companion.tscn") as PackedScene
+	if packed == null:
+		return _assert(false, "%s hub scene loads" % actor_id)
+	var body: Companion = packed.instantiate() as Companion
+	if body == null:
+		return _assert(false, "%s hub body instantiates" % actor_id)
+	body.companion_id = actor_id
+	tree_root.add_child(body)
+	body.sprite.play(&"idle_south")
+	var tex: Texture2D = body.sprite.sprite_frames.get_frame_texture(&"idle_south", 0) if body.sprite.sprite_frames != null else null
+	var ok: bool = _texture_has_visible_pixels(tex)
+	body.queue_free()
+	return _assert(ok, "%s hub idle_south draws visible pixels" % actor_id)
+
+
+func _texture_has_visible_pixels(tex: Texture2D) -> bool:
+	if tex == null:
+		return false
+	var img: Image = tex.get_image()
+	if img == null or img.is_empty():
+		return false
+	for y: int in img.get_height():
+		for x: int in img.get_width():
+			if img.get_pixel(x, y).a > 0.01:
+				return true
+	return false
 
 
 func _play_snapshot(game_state: Node) -> Dictionary:
@@ -232,7 +301,8 @@ func _join_flags(tree_root: Window, game_state: Node) -> int:
 		reach.set("reaches_cleared", 40)
 	failed += _assert(bool(game_state.call("companion_joined", "elaia")), "the relic gate still joins elaia")
 	failed += _assert(bool(game_state.call("companion_joined", "bramble")), "spare plus 40 clears still joins bramble")
-	failed += _assert(not bool(game_state.call("companion_joined", "puff")) and not bool(game_state.call("companion_joined", "mossback")), "echo spare and reach do not join puff or mossback")
+	failed += _assert(not bool(game_state.call("companion_joined", "puff")), "echo spare and reach do not join puff")
+	failed += _assert(bool(game_state.call("companion_joined", "mossback")), "one reach clear joins mossback")
 	_quiet_reset(game_state)
 	if reach != null and reach.has_method("reset_for_new_game"):
 		reach.call("reset_for_new_game")
@@ -243,16 +313,18 @@ func _join_flags(tree_root: Window, game_state: Node) -> int:
 	CompanionChores.clear_forced()
 	CompanionChores.grant_online_seconds(40.0)
 	failed += _assert(int(game_state.get("food")) == 0 and int(game_state.get("stone")) == 0, "unjoined puff and mossback chores do not pay")
-	game_state.call("set_companion_joined", "puff", true)
-	game_state.call("set_companion_joined", "mossback", true)
+	game_state.call("_set_stage", &"elder")
+	if reach != null:
+		reach.set("reaches_cleared", 1)
 	CompanionChores.grant_online_seconds(40.0)
 	var paid_food: int = int(game_state.get("food"))
 	var paid_stone: int = int(game_state.get("stone"))
-	failed += _assert(paid_food > 0 and paid_stone > 0, "joined flags pay the berry and stone chores (%d food, %d stone)" % [paid_food, paid_stone])
-	game_state.call("set_companion_joined", "puff", false)
-	game_state.call("set_companion_joined", "mossback", false)
+	failed += _assert(paid_food > 0 and paid_stone > 0, "join hooks pay the berry and stone chores (%d food, %d stone)" % [paid_food, paid_stone])
+	game_state.call("_set_stage", &"sapling")
+	if reach != null:
+		reach.set("reaches_cleared", 0)
 	CompanionChores.grant_online_seconds(40.0)
-	failed += _assert(int(game_state.get("food")) == paid_food and int(game_state.get("stone")) == paid_stone, "clearing the join flags stops the payout")
+	failed += _assert(int(game_state.get("food")) == paid_food and int(game_state.get("stone")) == paid_stone, "dropping below the hooks stops chore payout")
 	_quiet_reset(game_state)
 	WeatherState.reset_default()
 	CompanionChores.clear_forced()

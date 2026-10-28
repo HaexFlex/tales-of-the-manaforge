@@ -1035,6 +1035,8 @@ func _apply_win(loot: Dictionary, exp_mult: int, boss: bool) -> void:
 	exp_gained += gained
 	reaches_cleared += 1
 	run_clears += 1
+	if has_node("/root/GameState"):
+		GameState.notify_companion_reach_progress()
 	if depth > deepest_depth:
 		deepest_depth = depth
 	if boss and not boss_paid.has(rooms_attempted):

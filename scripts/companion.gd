@@ -107,10 +107,15 @@ func _build_frames() -> SpriteFrames:
 				continue
 			var folder: String = str((clip as Dictionary).get("dir", ""))
 			var ms_v: Variant = (clip as Dictionary).get("ms", [])
+			var frame_ms: float = float((clip as Dictionary).get("frame_ms", 0.0))
 			var durations: Array[float] = []
 			if typeof(ms_v) == TYPE_ARRAY:
 				for ms: Variant in ms_v as Array:
 					durations.append(float(ms))
+			if frame_ms > 0.0:
+				var disk_ms: Array[float] = _durations_from_disk(root, folder, frame_ms)
+				if not disk_ms.is_empty():
+					durations = disk_ms
 			_add_clip(frames, StringName(clip_name), root, folder, durations)
 	if not frames.has_animation(&"walk_south"):
 		_add_still(frames, &"walk_south", "", 100.0)
@@ -140,6 +145,20 @@ func _add_still(frames: SpriteFrames, anim: StringName, path: String, hold_ms: f
 		if loaded != null:
 			tex = loaded
 	frames.add_frame(anim, tex, hold_ms)
+
+
+func _durations_from_disk(root: String, folder: String, frame_ms: float) -> Array[float]:
+	var out: Array[float] = []
+	if root == "" or folder == "":
+		return out
+	var i: int = 0
+	while true:
+		var path: String = "%s/%s/frame_%04d.png" % [root, folder, i]
+		if not ResourceLoader.exists(path):
+			break
+		out.append(frame_ms)
+		i += 1
+	return out
 
 
 func _add_clip(frames: SpriteFrames, anim: StringName, root: String, folder: String, durations: Array[float]) -> void:

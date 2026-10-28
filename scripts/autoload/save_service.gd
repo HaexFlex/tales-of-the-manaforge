@@ -821,8 +821,9 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 func _migrate_v16(out: Dictionary) -> void:
 	## Per-name fields become companions{id: {joined, level, chore, gear}}.
 	## tortoise is only a save alias for mossback. It is not a roster id.
-	## Puff and Mossback have no join event in this build (no spare, hatch, or
-	## reach gate names them). joined stays false unless the blob already stored it.
+	## Puff and Mossback join from data/companions.json hooks on load when the save
+	## already meets manatree_stage or reach_cleared. joined in the blob may stay false;
+	## companion_joined() evaluates hooks live (no SAVE_VERSION bump).
 	## elaia_* keys stay on the blob. This migration is what copies her join, chore,
 	## and gear into companions{}. Pose, the join dialogue, footsteps, and the water
 	## fraction still live on those keys, so apply_save_dict keeps reading them.

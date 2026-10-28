@@ -912,13 +912,50 @@ func companion_joined(actor: String) -> bool:
 	var id: String = CompanionRoster.canonical_id(actor)
 	if id == "keeper":
 		return true
+	return companion_join_hook_met(id)
+
+
+func companion_join_hook_met(id: String) -> bool:
 	var join_v: Variant = CompanionRoster.row(id).get("join", {})
-	var kind: String = str((join_v as Dictionary).get("kind", "")) if typeof(join_v) == TYPE_DICTIONARY else ""
-	if id == "bramble" or kind == "bramble":
-		return bramble_joined()
-	if kind == "echo_relic":
-		return elaia_in_party()
-	return bool(companion_record(id).get("joined", false))
+	if typeof(join_v) != TYPE_DICTIONARY:
+		return bool(companion_record(id).get("joined", false))
+	var join: Dictionary = join_v
+	var hook_type: String = str(join.get("type", join.get("kind", "")))
+	match hook_type:
+		"echo_relic":
+			return elaia_in_party()
+		"bramble":
+			return bramble_joined()
+		"manatree_stage":
+			var want: String = str(join.get("value", ""))
+			if want == "":
+				return false
+			var need_idx: int = get_stage_index(StringName(want))
+			return need_idx >= 0 and get_stage_index(stage_id) >= need_idx
+		"reach_cleared":
+			return _companion_reach_cleared_met(join)
+		"flag":
+			return bool(companion_record(id).get("joined", bool(join.get("default", false))))
+		_:
+			return bool(companion_record(id).get("joined", false))
+
+
+func _companion_reach_cleared_met(join: Dictionary) -> bool:
+	if not has_node("/root/Reach"):
+		return false
+	var track: String = str(join.get("value", "briarwood"))
+	var need: int = maxi(1, int(join.get("count", 1)))
+	var have: int = 0
+	match track:
+		"briarwood", "":
+			have = int(Reach.reaches_cleared)
+		_:
+			have = int(Reach.reaches_cleared)
+	return have >= need
+
+
+func notify_companion_reach_progress() -> void:
+	echo_flags_changed.emit()
 
 
 func set_companion_joined(actor: String, on: bool) -> void:
@@ -2225,6 +2262,7 @@ func _set_stage(id: StringName) -> void:
 	stage_changed.emit(stage_id)
 	fruit_ready_changed.emit(fruit_ready)
 	needs_changed.emit()
+	echo_flags_changed.emit()
 
 
 func harvest_fruit() -> int:
