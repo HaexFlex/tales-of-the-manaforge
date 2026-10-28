@@ -29,6 +29,7 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 | `battle_idle.png` | 1 | — | 128×128 west-facing |
 | `battle_attack/frame_0000..0007.png` | 8 | 125 each | west; hit_frame=3; Imagine try2 |
 | `battle_hit/frame_0000..0003.png` | 4 | 100 each | west; Imagine try1 |
+| `work_brew/frame_0000..0007.png` | 8 | 100 each | side/east; Imagine try1 |
 | `portrait_52.png` | 1 | — | 52×52 HUD |
 | `portrait_160.png` | 1 | — | 160×160 sheet |
 
@@ -36,7 +37,7 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 
 - ~~`walk_*` 9th frame~~ **SHIPPED** 2026-10-28: 9×100 ms from Imagine treadmill videos (try1 each dir). Old 8f → `assets/library/legacy/puff_walk8_2026-10-28/`.
   Source indices (1-based ffmpeg): s `[4,15,26,37,48,59,70,81,92]`; n/e/w `[7,17,28,38,48,58,68,79,89]`. Anchor sole y=123, feet_x≈63.5.
-- `work_brew` (sheet_traits includes brew; mechanic null) — ~2–3 Imagine runs.
+- ~~`work_brew`~~ **SHIPPED** 2026-10-28.
 - ~~`battle_attack`, `battle_hit`~~ **SHIPPED** 2026-10-28.
 - Animated idle loops (12f) exist in legacy; locked idle is still-only per `companion.gd` `_add_still`.
 
@@ -122,3 +123,22 @@ Contacts: `assets/library/companions_r7_2026-10-28/puff_battle_contact_{1x,4x}.p
 - `battle_hit/frame_0001.png` — 128×128 RGBA
 - `battle_hit/frame_0002.png` — 128×128 RGBA
 - `battle_hit/frame_0003.png` — 128×128 RGBA
+
+## Work ship — work_brew (2026-10-28)
+
+Side view (east, like `idle_e.png`). Stirring-like body motion only.
+
+| clip | frames | ms | source indices | runs | gate |
+|---|---|---|---|---|---|
+| work_brew | 8 | 100 | 7,19,30,42,54,66,77,89 | 1 | PASS hist_mean=0.643 vs clean24(idle_e); h=77; sole=123; clean |
+
+Contacts: `assets/library/companions_r7_2026-10-28/puff_work_brew_contact_{1x,4x}.png`
+
+- `work_brew/frame_0000.png` — 128×128 RGBA
+- `work_brew/frame_0001.png` — 128×128 RGBA
+- `work_brew/frame_0002.png` — 128×128 RGBA
+- `work_brew/frame_0003.png` — 128×128 RGBA
+- `work_brew/frame_0004.png` — 128×128 RGBA
+- `work_brew/frame_0005.png` — 128×128 RGBA
+- `work_brew/frame_0006.png` — 128×128 RGBA
+- `work_brew/frame_0007.png` — 128×128 RGBA
