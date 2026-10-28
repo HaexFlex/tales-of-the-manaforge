@@ -441,6 +441,7 @@ func _load_path(path: String) -> bool:
 	current_save_id = int(root.get("save_id", 0))
 	_apply_loaded_adventure()
 	_apply_offline_catchup(root)
+	WeatherState.on_save_loaded()
 	load_completed.emit(true)
 	return true
 
@@ -801,6 +802,7 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v15(out)
 	_drop_removed_blessings(out)
 	_normalize_stat_ranks(out)
+	CompanionChores.migrate_fields(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
 	return out

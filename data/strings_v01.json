@@ -996,5 +996,19 @@
   "fruit_farewell_08": "Thank you, Keeper. Until the next spring.",
   "wisp_favourite_toast_1": "A Wisp has settled in at {node}.",
   "wisp_favourite_toast_2": "{node} has a Wisp who loves it now.",
-  "wisp_favourite_toast_3": "A Wisp hums happily at {node}. It feels at home."
+  "wisp_favourite_toast_3": "A Wisp hums happily at {node}. It feels at home.",
+  "item_frostberry": "TODO:item_frostberry",
+  "frostberry_tooltip": "TODO:frostberry_tooltip",
+  "weather_clear": "TODO:weather_clear",
+  "weather_soft_rain": "TODO:weather_soft_rain",
+  "weather_mist": "TODO:weather_mist",
+  "weather_snow": "TODO:weather_snow",
+  "weather_blossom": "TODO:weather_blossom",
+  "companion_chore_manatree": "TODO:companion_chore_manatree",
+  "companion_chore_berries": "TODO:companion_chore_berries",
+  "companion_chore_stone": "TODO:companion_chore_stone",
+  "companion_schedule_bench": "TODO:companion_schedule_bench",
+  "companion_schedule_runestone": "TODO:companion_schedule_runestone",
+  "companion_schedule_tree": "TODO:companion_schedule_tree",
+  "companion_schedule_chore": "TODO:companion_schedule_chore"
 }

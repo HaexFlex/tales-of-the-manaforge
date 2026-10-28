@@ -213,6 +213,16 @@
       "unique": false,
       "color": "#8a9a32",
       "art_name": "icon_bile_vial"
+    },
+    {
+      "id": "frostberry",
+      "display_name": "Frostberry",
+      "string_key": "item_frostberry",
+      "kind": "brew_ingredient",
+      "category": "raw",
+      "unique": false,
+      "brew_only": true,
+      "color": "#9ec4e0"
     }
   ],
   "recipes": [

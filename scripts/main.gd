@@ -1189,6 +1189,7 @@ func handle_rmb_ground(world_pos: Vector2) -> void:
 	if GameState.keeper_selected:
 		if keeper.has_method("scene_home") and GameState.keeper_area != keeper.scene_home():
 			return
+		keeper.note_player_order()
 		keeper.move_to(world_pos, null)
 		return
 	if ids.is_empty():

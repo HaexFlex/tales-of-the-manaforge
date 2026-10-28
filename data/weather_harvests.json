@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "default": "clear",
+  "states": ["clear", "soft_rain", "mist", "snow", "blossom"],
+  "soft_rain": {
+    "auto_water": true,
+    "trickle_pulses_per_sec": 0.25
+  },
+  "mist": {
+    "glowcap_weight_mult": 1.5
+  },
+  "snow": {
+    "frostberry_chance": 0.05,
+    "frostberry_bonus": 1,
+    "item_id": "frostberry"
+  },
+  "blossom": {
+    "water_essence_mult": 1.1
+  }
+}

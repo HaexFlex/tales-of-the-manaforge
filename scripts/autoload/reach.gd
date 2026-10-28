@@ -452,9 +452,12 @@ func hand_to_idle() -> String:
 
 func apply_offline_seconds(closed_sec: float) -> void:
 	## Wall-clock seconds only. The play-speed button does not apply.
+	## Weather bonuses stay off for a closed game.
 	if closed_sec <= 0.0 or not running:
 		return
+	WeatherState.push_offline()
 	catch_up(closed_sec, "load")
+	WeatherState.pop_offline()
 
 
 func process_frame_delta(step: float) -> void:
