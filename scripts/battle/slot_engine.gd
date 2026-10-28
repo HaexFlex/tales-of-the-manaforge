@@ -28,12 +28,11 @@ static func build_room(depth: int, room_seed: int, boss: bool) -> Array[Dictiona
 
 
 static func member_stats(member: String) -> Dictionary:
-	if member == "elaia":
-		return _sheet_stats_for("elaia")
-	if member != "keeper":
-		push_error("SlotEngine: unknown member %s" % member)
-		return {}
-	return _sheet_stats_for("keeper")
+	var id: String = CompanionRoster.canonical_id(member)
+	if id == "keeper" or CompanionRoster.has_id(id):
+		return _sheet_stats_for(id)
+	push_error("SlotEngine: unknown member %s" % member)
+	return {}
 
 
 static func _sheet_stats_for(actor: String) -> Dictionary:
@@ -56,7 +55,9 @@ static func _sheet_stats_for(actor: String) -> Dictionary:
 				gear = int(equipment.call("gear_bonus_for", actor, stat_id))
 			value = base + gear
 		stats[stat_id] = value
-	var attack: String = "magic" if actor == "elaia" else "physical"
+	var attack: String = str(CompanionRoster.row(actor).get("attack", "physical"))
+	if attack == "":
+		attack = "physical"
 	var weapon_abilities: Array[String] = []
 	if equipment != null:
 		var weapon_id: String = str(equipment.call("equipped_id_for", actor, "weapon"))

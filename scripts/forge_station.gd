@@ -274,12 +274,13 @@ func _on_right_click() -> void:
 			return
 		GameState.toast_wisp_assign(result, station_id)
 		return
-	if GameState.selected_hero_id() == "elaia":
-		var elaia: Node = get_tree().get_first_node_in_group("elaia")
-		if elaia and elaia.has_method("command_station"):
-			elaia.call("command_station", self)
-		if room and room.has_method("present_elaia_at_station"):
-			room.call("present_elaia_at_station", station_id)
+	var hero_id: String = GameState.selected_hero_id()
+	if hero_id != "" and hero_id != "keeper":
+		var hero: Node = GameState.find_selected_hero()
+		if hero and hero.has_method("command_station"):
+			hero.call("command_station", self)
+		if room and room.has_method("present_companion_at_station"):
+			room.call("present_companion_at_station", hero_id, station_id)
 		return
 	if GameState.keeper_selected:
 		var keeper: Node = get_tree().get_first_node_in_group("keeper")

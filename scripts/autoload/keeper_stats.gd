@@ -205,6 +205,8 @@ func try_buy(stat_id: String) -> String:
 	var cost: int = get_next_cost(stat_id)
 	GameState.add_resource(&"manashards", -cost)
 	set_rank(stat_id, get_rank(stat_id) + 1)
+	if has_node("/root/GameState"):
+		GameState.train_all_companions(stat_id)
 	return "ok"
 
 

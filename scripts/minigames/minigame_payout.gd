@@ -5,7 +5,7 @@ extends RefCounted
 
 
 static func grant(worker: String, game_id: String, target_id: String, k_seconds: float) -> Dictionary:
-	if worker != "keeper" and worker != "elaia":
+	if worker != "keeper" and not CompanionRoster.has_id(worker):
 		return {"ok": false, "reason": "wisp", "applied": 0.0}
 	if k_seconds <= 0.0:
 		return {"ok": false, "reason": "empty", "applied": 0.0}

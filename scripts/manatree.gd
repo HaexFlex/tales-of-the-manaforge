@@ -33,6 +33,9 @@ var _anim_time: float = 0.0
 var _tile_textures: Array[Texture2D] = []
 var _frames_per_tile: int = 1
 var _shown_tile: int = -1
+## Mood idle frames, when art is present. Empty keeps the stage strip.
+var _mood_textures: Array[Texture2D] = []
+var _mood_override: Array[Texture2D] = []
 
 const META_PATH: String = "res://assets/art/manatree/native/manatree_meta.json"
 const BREATH_SHADER: Shader = preload("res://assets/art/manatree/manatree_breath.gdshader")
@@ -211,8 +214,9 @@ func do_water() -> void:
 		fruit_menu_requested.emit()
 		return
 	var hero: Node = null
-	if GameState.selected_hero_id() == "elaia":
-		hero = get_tree().get_first_node_in_group("elaia")
+	var hero_id: String = GameState.selected_hero_id()
+	if hero_id != "" and hero_id != "keeper":
+		hero = GameState.find_selected_hero()
 	if hero == null:
 		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 		if not keepers.is_empty():
@@ -250,15 +254,90 @@ func _on_stage_changed(_id: StringName) -> void:
 	_refresh_visual()
 
 
+func mood_stage_number(stage: StringName = &"") -> int:
+	var id: StringName = stage if stage != &"" else GameState.stage_id
+	var idx: int = GameState.STAGE_ORDER.find(id)
+	return idx + 1 if idx >= 0 else 1
+
+
+func mood_idle_frame_paths(stage_n: int) -> PackedStringArray:
+	## art not delivered. A folder or loose frames named mood_idle_stage{N} turn the loop on.
+	var paths: PackedStringArray = PackedStringArray()
+	var folder: String = "res://assets/art/manatree/mood_idle_stage%d" % stage_n
+	var packed: PackedStringArray = _pngs_in(folder)
+	if not packed.is_empty():
+		return packed
+	var prefix: String = "mood_idle_stage%d" % stage_n
+	for path: String in _pngs_in("res://assets/art/manatree"):
+		var base: String = path.get_file().get_basename()
+		if base == prefix or base.begins_with(prefix + "_"):
+			paths.append(path)
+	paths.sort()
+	return paths
+
+
+func _pngs_in(folder: String) -> PackedStringArray:
+	var paths: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open(folder)
+	if dir == null:
+		return paths
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".png"):
+			paths.append("%s/%s" % [folder, file_name])
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	paths.sort()
+	return paths
+
+
+func using_mood_idle() -> bool:
+	return not _mood_textures.is_empty()
+
+
+func debug_set_mood_frames(frames: Array) -> void:
+	_mood_override.clear()
+	for entry: Variant in frames:
+		if entry is Texture2D:
+			_mood_override.append(entry)
+	_refresh_visual()
+
+
+func _load_mood_textures(stage: StringName) -> void:
+	_mood_textures.clear()
+	if not _mood_override.is_empty():
+		_mood_textures = _mood_override.duplicate()
+		return
+	if Engine.is_editor_hint():
+		return
+	for path: String in mood_idle_frame_paths(mood_stage_number(stage)):
+		var tex: Texture2D = load(path) as Texture2D
+		if tex != null:
+			_mood_textures.append(tex)
+
+
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	_tick_damp_decal(delta)
+	if using_mood_idle() and sprite != null:
+		if _mood_textures.size() <= 1:
+			return
+		_anim_time += delta
+		var frame: int = int(_anim_time * _anim_fps) % _mood_textures.size()
+		var tex: Texture2D = _mood_textures[frame]
+		if sprite.texture != tex:
+			sprite.texture = tex
+			sprite.hframes = 1
+			sprite.vframes = 1
+			sprite.frame = 0
+		return
 	if _anim_frames <= 1 or sprite == null:
 		return
 	_anim_time += delta
-	var frame: int = int(_anim_time * _anim_fps) % _anim_frames
-	_show_frame(frame)
+	var strip_frame: int = int(_anim_time * _anim_fps) % _anim_frames
+	_show_frame(strip_frame)
 
 
 ## One frame of the stage strip. Tiled stages swap a ≤2048-wide texture and use a local hframe.
@@ -418,6 +497,12 @@ func _refresh_visual() -> void:
 		sprite.texture = tex
 		sprite.frame = 0
 	_anim_time = 0.0
+	_load_mood_textures(stage)
+	if using_mood_idle():
+		sprite.texture = _mood_textures[0]
+		sprite.hframes = 1
+		sprite.vframes = 1
+		sprite.frame = 0
 	var scale_v: float = _display_scale(stage)
 	sprite.scale = Vector2(scale_v, scale_v)
 	# Door sill is the world anchor. Offset is in frame pixels; scale grows the crown up from that point.

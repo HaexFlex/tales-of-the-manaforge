@@ -261,6 +261,48 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_HUB_LIFE") == "1":
+		var hub_only: int = await _hub_life_checks(tree_root, game_state, save_service, backpack, content_strings)
+		if hub_only > 0:
+			print("HUB_LIFE_FAIL: %d" % hub_only)
+			quit(1)
+		else:
+			print("HUB_LIFE_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ROSTER_GENERIC") == "1":
+		var roster_only: int = _roster_generic_checks(tree_root, game_state, save_service)
+		if roster_only > 0:
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V16") == "1":
+		var save_v16_only: int = _save_v16_checks(tree_root, game_state, save_service)
+		if save_v16_only > 0:
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_COMPANION_JOIN_HOOKS") == "1":
+		var join_hooks_only: int = _companion_join_hooks_checks(tree_root, game_state, save_service)
+		if join_hooks_only > 0:
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_COMPANION_CLIPS") == "1":
+		var clips_only: int = _companion_clips_checks(tree_root, game_state, save_service)
+		if clips_only > 0:
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_INTEGRATION_R1") == "1":
 		var integration_r1_failed: int = await _integration_r1_ok(tree_root, game_state, game_audio)
 		if integration_r1_failed > 0:
@@ -4220,6 +4262,11 @@ func _run() -> void:
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
 	failed += _sprint_r3_tending_ok(game_state, game_audio)
+	failed += await _hub_life_checks(tree_root, game_state, save_service, backpack, content_strings)
+	failed += _roster_generic_checks(tree_root, game_state, save_service)
+	failed += _save_v16_checks(tree_root, game_state, save_service)
+	failed += _companion_join_hooks_checks(tree_root, game_state, save_service)
+	failed += _companion_clips_checks(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -6080,6 +6127,10 @@ func _check_only_load() -> int:
 		"res://scripts/hub/hub_time_phase.gd",
 		"res://scripts/hub/hub_wisp_phase_greetings.gd",
 		"res://scripts/hub_day_night_cycle.gd",
+		"res://scripts/hub_life.gd",
+		"res://scripts/weather_state.gd",
+		"res://scripts/companion_chores.gd",
+		"res://scripts/hub/companion_schedule.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -26881,3 +26932,55 @@ func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -
 	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "wisp harvest did not steal gift day")
 	game_state.set("_morning_gift_day_override", "")
 	return failed
+
+
+func _roster_generic_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var tests: RefCounted = _roster_tests()
+	return int(tests.call("generic", tree_root, game_state, save_service))
+
+
+func _save_v16_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var tests: RefCounted = _roster_tests()
+	return int(tests.call("migration", tree_root, game_state, save_service))
+
+
+func _companion_join_hooks_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var tests: RefCounted = _roster_tests()
+	return int(tests.call("join_hooks", tree_root, game_state, save_service))
+
+
+func _companion_clips_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var tests: RefCounted = _roster_tests()
+	return int(tests.call("companion_clips", tree_root, game_state, save_service))
+
+
+func _roster_tests() -> RefCounted:
+	var script_name := "roster_tests.gd"
+	var loaded: GDScript = load("res://scripts/%s" % script_name) as GDScript
+	var tests := RefCounted.new()
+	if loaded != null:
+		tests = loaded.new() as RefCounted
+	return tests
+
+
+func _hub_life_tests() -> RefCounted:
+	var script_name := "hub_life_tests.gd"
+	var loaded: GDScript = load("res://scripts/%s" % script_name) as GDScript
+	var tests := RefCounted.new()
+	if loaded != null:
+		tests = loaded.new() as RefCounted
+		tests.set("host", self)
+	return tests
+
+
+func _hub_life_checks(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	var tests: RefCounted = _hub_life_tests()
+	var failed: int = 0
+	failed += int(tests.call("weather", tree_root, game_state, save_service, backpack, content_strings))
+	failed += int(tests.call("chores", tree_root, game_state, save_service))
+	failed += int(await tests.call("schedule", tree_root, game_state, save_service))
+	failed += int(await tests.call("mood", tree_root, game_state))
+	failed += int(tests.call("weather_audio", tree_root, game_state))
+	return failed
+
+

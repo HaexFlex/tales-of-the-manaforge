@@ -17,6 +17,14 @@ const ROOM_SEC: float = 720.0
 const BIG_DELTA_SEC: float = 5.0
 const REST_SEC: float = 1440.0
 const HOURS: Array[int] = [1, 2, 4, 8]
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 
 const PACK_ITEM_IDS: Array[String] = ["briarwood", "herbs", "heart_salve", "bile_vial"]
 
@@ -452,9 +460,12 @@ func hand_to_idle() -> String:
 
 func apply_offline_seconds(closed_sec: float) -> void:
 	## Wall-clock seconds only. The play-speed button does not apply.
+	## Weather bonuses stay off for a closed game.
 	if closed_sec <= 0.0 or not running:
 		return
+	_hub_life().call("push_offline")
 	catch_up(closed_sec, "load")
+	_hub_life().call("pop_offline")
 
 
 func process_frame_delta(step: float) -> void:
@@ -1024,6 +1035,8 @@ func _apply_win(loot: Dictionary, exp_mult: int, boss: bool) -> void:
 	exp_gained += gained
 	reaches_cleared += 1
 	run_clears += 1
+	if has_node("/root/GameState"):
+		GameState.notify_companion_reach_progress()
 	if depth > deepest_depth:
 		deepest_depth = depth
 	if boss and not boss_paid.has(rooms_attempted):

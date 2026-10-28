@@ -154,6 +154,10 @@ var keeper_facing: String = "south"
 var pending_focus_actor: String = ""
 ## Fractional essence from her 0.8 watering gift so the integer grant does not drop to 0.
 var elaia_water_essence_frac: float = 0.0
+## id -> {joined, level, chore, gear, area, pos, has_pos, facing, ranks}
+var companion_records: Dictionary = {}
+## Named essence fractions (chore watering). The empty bank is Elaia's.
+var _water_essence_banks: Dictionary = {}
 var _hero_water_accum: Dictionary = {}
 var _companions: Dictionary = {}
 
@@ -201,6 +205,20 @@ func _process(delta: float) -> void:
 	## Pausable by default — stops when get_tree().paused (pause menu).
 	## A frozen Ancient does not bank run time, so staring at Ascend does not reset the offline curve.
 	advance_open_play(delta)
+	if is_world_frozen():
+		return
+	var play_delta: float = active_play_delta(delta)
+	_hub_life().call("tick_open", play_delta)
+
+
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 
 
 func reset_play_speed() -> void:
@@ -387,13 +405,11 @@ func _load_companions() -> void:
 
 
 func _companion_row(actor: String) -> Dictionary:
-	var found: Variant = _companions.get(actor, {})
-	return found if typeof(found) == TYPE_DICTIONARY else {}
+	return CompanionRoster.row(actor)
 
 
 func actor_walk_ref_speed(actor: String) -> float:
-	var fallback: float = 88.0 if actor == "elaia" else 80.0
-	return float(_companion_row(actor).get("walk_ref_speed", fallback))
+	return float(_companion_row(actor).get("walk_ref_speed", 80.0))
 
 
 func actor_move_mult(actor: String) -> float:
@@ -449,14 +465,19 @@ func actor_portrait_texture(actor: String) -> Texture2D:
 
 func hero_display_name(actor: String) -> String:
 	## Display name from companions.json. "The Keeper" only when that string is missing.
-	var row: Dictionary = _companion_row(actor)
+	var id: String = CompanionRoster.canonical_id(actor)
+	var row: Dictionary = _companion_row(id)
 	var key: String = str(row.get("display_name_key", ""))
-	var fallback: String = "The Keeper" if actor == "keeper" else "Elaia"
+	var fallback: String = str(row.get("display_name", ""))
+	if fallback == "" and id == "keeper":
+		fallback = "The Keeper"
+	elif fallback == "" and id == "elaia":
+		fallback = "Elaia"
 	if key == "":
-		return fallback
+		return fallback if fallback != "" else id
 	var text: String = ContentStrings.get_text(key)
 	if text == "" or text == key:
-		return fallback
+		return fallback if fallback != "" else id
 	return text
 
 
@@ -481,9 +502,9 @@ func _wisp_job_scene(node_id: String) -> String:
 
 
 func selected_hero_id() -> String:
-	## Elaia and the Keeper are exclusive. Wisps are not heroes.
-	if selected_companion_id == "elaia" and elaia_portrait_visible() and not member_away("elaia"):
-		return "elaia"
+	## The selected companion and the Keeper are exclusive. Wisps are not heroes.
+	if selected_companion_id != "" and companion_portrait_visible(selected_companion_id) and not member_away(selected_companion_id):
+		return selected_companion_id
 	if keeper_selected and not member_away("keeper"):
 		return "keeper"
 	return ""
@@ -494,9 +515,9 @@ func find_selected_hero() -> Node:
 	var tree: SceneTree = get_tree()
 	if hero_id == "" or tree == null:
 		return null
-	if hero_id == "elaia":
-		return tree.get_first_node_in_group("elaia")
-	return tree.get_first_node_in_group("keeper")
+	if hero_id == "keeper":
+		return tree.get_first_node_in_group("keeper")
+	return find_companion_body(hero_id)
 
 
 func command_selected_hero(target: Node2D, type_id: String, claim_key: String = "") -> void:
@@ -853,6 +874,254 @@ func elaia_footsteps_pending() -> bool:
 	return echo_01_redeemed and first_relic_crafted and not elaia_join_seen and not elaia_footsteps_seen
 
 
+func _blank_companion_record() -> Dictionary:
+	return {
+		"joined": false,
+		"level": 1,
+		"chore": "",
+		"gear": {},
+		"area": "clearing",
+		"pos": Vector2.ZERO,
+		"has_pos": false,
+		"facing": "south",
+		"ranks": {},
+	}
+
+
+func companion_record(actor: String) -> Dictionary:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if not companion_records.has(id):
+		var rec: Dictionary = _blank_companion_record()
+		var join_v: Variant = CompanionRoster.row(id).get("join", {})
+		if typeof(join_v) == TYPE_DICTIONARY:
+			rec["joined"] = bool((join_v as Dictionary).get("default", false))
+		companion_records[id] = rec
+	return companion_records[id]
+
+
+func companion_gear(actor: String) -> Dictionary:
+	var rec: Dictionary = companion_record(actor)
+	var gear_v: Variant = rec.get("gear", {})
+	if typeof(gear_v) != TYPE_DICTIONARY:
+		rec["gear"] = {}
+		gear_v = rec["gear"]
+	return gear_v
+
+
+func companion_joined(actor: String) -> bool:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "keeper":
+		return true
+	return companion_join_hook_met(id)
+
+
+func companion_join_hook_met(id: String) -> bool:
+	var join_v: Variant = CompanionRoster.row(id).get("join", {})
+	if typeof(join_v) != TYPE_DICTIONARY:
+		return bool(companion_record(id).get("joined", false))
+	var join: Dictionary = join_v
+	var hook_type: String = str(join.get("type", join.get("kind", "")))
+	match hook_type:
+		"echo_relic":
+			return elaia_in_party()
+		"bramble":
+			return bramble_joined()
+		"manatree_stage":
+			var want: String = str(join.get("value", ""))
+			if want == "":
+				return false
+			var need_idx: int = get_stage_index(StringName(want))
+			return need_idx >= 0 and get_stage_index(stage_id) >= need_idx
+		"reach_cleared":
+			return _companion_reach_cleared_met(join)
+		"flag":
+			return bool(companion_record(id).get("joined", bool(join.get("default", false))))
+		_:
+			return bool(companion_record(id).get("joined", false))
+
+
+func _companion_reach_cleared_met(join: Dictionary) -> bool:
+	if not has_node("/root/Reach"):
+		return false
+	var track: String = str(join.get("value", "briarwood"))
+	var need: int = maxi(1, int(join.get("count", 1)))
+	var have: int = 0
+	match track:
+		"briarwood", "":
+			have = int(Reach.reaches_cleared)
+		_:
+			have = int(Reach.reaches_cleared)
+	return have >= need
+
+
+func notify_companion_reach_progress() -> void:
+	echo_flags_changed.emit()
+
+
+func set_companion_joined(actor: String, on: bool) -> void:
+	companion_record(CompanionRoster.canonical_id(actor))["joined"] = on
+	echo_flags_changed.emit()
+
+
+func companion_portrait_visible(actor: String) -> bool:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "keeper":
+		return true
+	if id == "elaia":
+		return elaia_portrait_visible()
+	return companion_joined(id)
+
+
+func companion_body_visible(actor: String) -> bool:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "elaia":
+		return elaia_body_visible()
+	if not CompanionRoster.hub_body(id):
+		return false
+	return companion_joined(id)
+
+
+func companion_area(actor: String) -> String:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "elaia":
+		return elaia_area
+	if id == "keeper":
+		return keeper_area
+	return str(companion_record(id).get("area", "clearing"))
+
+
+func companion_has_pos(actor: String) -> bool:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "elaia":
+		return elaia_has_pos
+	if id == "keeper":
+		return keeper_has_pos
+	return bool(companion_record(id).get("has_pos", false))
+
+
+func companion_pos(actor: String) -> Vector2:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "elaia":
+		return elaia_pos
+	if id == "keeper":
+		return keeper_pos
+	var raw: Variant = companion_record(id).get("pos", Vector2.ZERO)
+	return raw if raw is Vector2 else Vector2.ZERO
+
+
+func companion_facing(actor: String) -> String:
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "elaia":
+		return elaia_facing
+	if id == "keeper":
+		return keeper_facing
+	return str(companion_record(id).get("facing", "south"))
+
+
+func set_companion_pose(actor: String, area: String, pos: Vector2, facing: String, has_pos: bool = true) -> void:
+	var id: String = CompanionRoster.canonical_id(actor)
+	var face: String = facing if facing == "north" or facing == "east" or facing == "west" else "south"
+	var where: String = "forge" if area == "forge" else "clearing"
+	if id == "elaia":
+		elaia_area = where
+		elaia_pos = pos
+		elaia_facing = face
+		elaia_has_pos = has_pos
+	elif id == "keeper":
+		keeper_area = where
+		keeper_pos = pos
+		keeper_facing = face
+		keeper_has_pos = has_pos
+	else:
+		var rec: Dictionary = companion_record(id)
+		rec["area"] = where
+		rec["pos"] = pos
+		rec["facing"] = face
+		rec["has_pos"] = has_pos
+
+
+func find_companion_body(actor: String) -> Node:
+	var id: String = CompanionRoster.canonical_id(actor)
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return null
+	var named: Node = tree.get_first_node_in_group(id)
+	if named != null:
+		return named
+	for node: Node in tree.get_nodes_in_group("companion"):
+		if str(node.get("companion_id")) == id:
+			return node
+	return null
+
+
+func companion_level(actor: String) -> int:
+	return int(companion_record(actor).get("level", 1))
+
+
+func companion_stat_rank(actor: String, stat_id: String) -> int:
+	var ranks_v: Variant = companion_record(actor).get("ranks", {})
+	if typeof(ranks_v) != TYPE_DICTIONARY:
+		return 0
+	return int((ranks_v as Dictionary).get(stat_id, 0))
+
+
+func train_all_companions(stat_id: String) -> void:
+	var copied: int = 0
+	if has_node("/root/KeeperStats"):
+		copied = KeeperStats.get_rank(stat_id)
+	for actor_id: String in CompanionRoster.ids():
+		var rec: Dictionary = companion_record(actor_id)
+		rec["level"] = int(rec.get("level", 1)) + 1
+		var ranks_v: Variant = rec.get("ranks", {})
+		var ranks: Dictionary = ranks_v if typeof(ranks_v) == TYPE_DICTIONARY else {}
+		ranks[stat_id] = copied
+		rec["ranks"] = ranks
+
+
+func companions_to_save() -> Dictionary:
+	var out: Dictionary = {}
+	for actor_id: String in CompanionRoster.ids():
+		var rec: Dictionary = companion_record(actor_id)
+		var gear: Dictionary = {}
+		if actor_id == "elaia" and has_node("/root/Equipment"):
+			gear = Equipment.elaia_equipped_to_save()
+		else:
+			var gear_v: Variant = rec.get("gear", {})
+			gear = (gear_v as Dictionary).duplicate(true) if typeof(gear_v) == TYPE_DICTIONARY else {}
+		var chore: String = ""
+		if actor_id == "elaia" or CompanionRoster.has_id(actor_id):
+			chore = CompanionChores.assignment_of(actor_id)
+		out[actor_id] = {
+			"joined": companion_joined(actor_id),
+			"level": int(rec.get("level", 1)),
+			"chore": chore,
+			"gear": gear,
+		}
+	return out
+
+
+func _apply_companions_block(data: Dictionary) -> void:
+	var raw: Variant = data.get("companions", null)
+	if typeof(raw) != TYPE_DICTIONARY:
+		return
+	for key_v: Variant in (raw as Dictionary).keys():
+		var id: String = CompanionRoster.canonical_id(str(key_v))
+		var block_v: Variant = (raw as Dictionary)[key_v]
+		if typeof(block_v) != TYPE_DICTIONARY:
+			continue
+		var block: Dictionary = block_v
+		var rec: Dictionary = companion_record(id)
+		rec["level"] = maxi(1, int(block.get("level", 1)))
+		var gear_v: Variant = block.get("gear", {})
+		if typeof(gear_v) == TYPE_DICTIONARY and id != "elaia":
+			rec["gear"] = (gear_v as Dictionary).duplicate(true)
+		var ranks_v: Variant = block.get("ranks", {})
+		if typeof(ranks_v) == TYPE_DICTIONARY:
+			rec["ranks"] = (ranks_v as Dictionary).duplicate(true)
+		if id != "elaia" and id != "bramble" and block.has("joined"):
+			rec["joined"] = bool(block.get("joined", false))
+
+
 func note_first_relic_crafted() -> void:
 	if first_relic_crafted:
 		return
@@ -889,14 +1158,16 @@ func begin_elaia_join_clearing() -> void:
 
 
 func select_companion(companion_id: String) -> void:
-	## Portrait or sprite click. Refused until the join dialogue has played.
-	if companion_id != "elaia" or not elaia_portrait_visible():
+	## Portrait or sprite click. Refused until that companion's portrait is up.
+	var actor_id: String = CompanionRoster.canonical_id(companion_id)
+	if not companion_portrait_visible(actor_id):
 		return
-	if member_away("elaia"):
+	if member_away(actor_id):
 		status_message.emit(ContentStrings.get_text("member_away_select", {
-			"name": ContentStrings.get_text("echo_elaia_name"),
+			"name": hero_display_name(actor_id),
 		}))
 		return
+	companion_id = actor_id
 	if selected_companion_id == companion_id and not keeper_selected and selected_wisp_ids.is_empty() and selected_wisp_id < 0:
 		return
 	keeper_selected = false
@@ -1262,15 +1533,17 @@ func try_morning_gift(resource_id: StringName) -> int:
 	return gift
 
 
-func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0) -> int:
+func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0, announce: bool = true) -> int:
 	if fruit_committed or ancient_frozen or delta <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
 	var interval: float = maxf(get_keeper_harvest_pulse_sec(resource_id), 0.05)
 	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor() * rate
 	var grant: int = accumulate_harvest(resource_id, units)
 	if grant > 0:
-		keeper_harvested.emit(resource_id, grant)
+		if announce:
+			keeper_harvested.emit(resource_id, grant)
 		_apply_lucky_harvest_bonus(resource_id, grant)
+		_roll_frostberry(resource_id, grant)
 	return grant
 
 
@@ -1280,7 +1553,9 @@ func accumulate_wisp_harvest(resource_id: StringName, delta: float) -> int:
 	var interval: float = maxf(get_wisp_pulse_sec(), 0.05)
 	var grant_per: float = float(param_int("WISP_PULSE_GRANT", 1))
 	var units: float = (delta / interval) * grant_per * active_harvest_factor()
-	return accumulate_harvest(resource_id, units)
+	var grant: int = accumulate_harvest(resource_id, units)
+	_roll_frostberry(resource_id, grant)
+	return grant
 
 
 func apply_offline_keeper_harvest(eff_sec: float, resource_id: StringName, rate: float = 1.0) -> int:
@@ -1309,6 +1584,7 @@ func apply_harvest_pulse(resource_id: StringName, rate: float = 1.0) -> int:
 	var grant: int = accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor() * rate)
 	if grant > 0:
 		_apply_lucky_harvest_bonus(resource_id, grant)
+		_roll_frostberry(resource_id, grant)
 	return grant
 
 
@@ -1340,7 +1616,7 @@ func get_gather_grant(resource_id: StringName) -> int:
 
 ## Water channel pulse: manashards U{1,3}×can + shard_sight, essence income only (no growth).
 ## At Ancient: still pays shards+essence. Split flags are test-only; Keeper grants both.
-func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, reward_mult: float = 1.0) -> Dictionary:
+func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, reward_mult: float = 1.0, essence_bank: String = "") -> Dictionary:
 	if fruit_committed:
 		return {"ok": false, "reason": "pending_ascend", "shards": 0, "essence": 0}
 	if not grant_shards and not grant_essence:
@@ -1356,14 +1632,16 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, re
 		shards = accumulate_harvest(&"manashards", units)
 		lifetime_shards_from_water += shards
 	if grant_essence:
-		## A 1.0 Keeper pulse stays a whole Essence. Her 0.8 banks the fraction.
-		if is_equal_approx(reward_mult, 1.0):
+		## A 1.0 Keeper pulse stays a whole Essence. Any other mult banks the fraction.
+		## Blossom scales Essence only, and only while the game is open.
+		var ess_mult: float = reward_mult * float(_hub_life().call("water_essence_mult"))
+		if essence_bank == "" and is_equal_approx(ess_mult, 1.0):
 			ess = get_water_essence_amount()
 			add_resource(&"essence", ess)
 		else:
-			elaia_water_essence_frac += float(get_water_essence_amount()) * reward_mult
-			ess = int(floor(elaia_water_essence_frac))
-			elaia_water_essence_frac -= float(ess)
+			var banked: float = _essence_bank_value(essence_bank) + float(get_water_essence_amount()) * ess_mult
+			ess = int(floor(banked))
+			_set_essence_bank(essence_bank, banked - float(ess))
 			if ess > 0:
 				add_resource(&"essence", ess)
 		lifetime_essence_from_water += ess
@@ -1371,10 +1649,44 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, re
 	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess}
 
 
+func _essence_bank_value(bank: String) -> float:
+	if bank == "" or bank == "elaia":
+		return elaia_water_essence_frac
+	return float(_water_essence_banks.get(bank, 0.0))
+
+
+func _set_essence_bank(bank: String, value: float) -> void:
+	if bank == "" or bank == "elaia":
+		elaia_water_essence_frac = value
+		return
+	_water_essence_banks[bank] = value
+
+
+func _roll_frostberry(resource_id: StringName, grant: int) -> void:
+	## One roll per berry harvest that actually yields. Offline harvest does not call this.
+	if grant <= 0 or resource_id != &"food":
+		return
+	var spec_v: Variant = _hub_life().call("frostberry_spec")
+	var spec: Dictionary = spec_v if typeof(spec_v) == TYPE_DICTIONARY else {}
+	if spec.is_empty():
+		return
+	if randf() >= float(spec.get("chance", 0.0)):
+		return
+	var bonus: int = int(spec.get("bonus", 0))
+	if bonus <= 0 or not has_node("/root/Backpack"):
+		return
+	Backpack.add_item(str(spec.get("item_id", "frostberry")), bonus)
+
+
 ## k seconds of this hero's gather yield (tool interval, stage, Forager, work rate).
 ## Fractions stay in harvest_accum. Wisps are not a caller.
+func _play_actor(actor: String) -> bool:
+	var id: String = CompanionRoster.canonical_id(actor)
+	return id == "keeper" or CompanionRoster.has_id(id)
+
+
 func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds: float) -> Dictionary:
-	if actor != "keeper" and actor != "elaia":
+	if not _play_actor(actor):
 		return {"ok": false, "reason": "wisp", "units": 0.0, "granted": 0}
 	if is_world_frozen() or fruit_committed or seconds <= 0.0:
 		return {"ok": false, "reason": "frozen", "units": 0.0, "granted": 0}
@@ -1393,7 +1705,7 @@ func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds
 ## k seconds of this hero's watering income. Whole pulses use the normal roll.
 ## A leftover fraction is banked through the same accumulators as a short pulse.
 func grant_played_water_seconds(actor: String, seconds: float) -> Dictionary:
-	if actor != "keeper" and actor != "elaia":
+	if not _play_actor(actor):
 		return {"ok": false, "reason": "wisp", "shards": 0, "essence": 0}
 	if is_world_frozen() or fruit_committed or seconds <= 0.0:
 		return {"ok": false, "reason": "frozen", "shards": 0, "essence": 0}
@@ -1950,6 +2262,7 @@ func _set_stage(id: StringName) -> void:
 	stage_changed.emit(stage_id)
 	fruit_ready_changed.emit(fruit_ready)
 	needs_changed.emit()
+	echo_flags_changed.emit()
 
 
 func harvest_fruit() -> int:
@@ -2176,6 +2489,7 @@ func to_save_dict() -> Dictionary:
 		"keeper_has_pos": keeper_has_pos,
 		"keeper_facing": keeper_facing,
 		"elaia_water_essence_frac": elaia_water_essence_frac,
+		"companion_chore_water_frac": float(_water_essence_banks.get("chore", 0.0)),
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
 		"echo_02_fee_paid": echo_02_fee_paid,
@@ -2186,9 +2500,10 @@ func to_save_dict() -> Dictionary:
 		"arrow_mode": arrow_mode,
 		"ancient_frozen": ancient_frozen,
 		"forge_visited": forge_visited,
+		"companions": companions_to_save(),
 	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
 		Reach.capture_save_fields() if has_node("/root/Reach") else {}
-	)
+	).merged(_hub_life().call("save_fields") as Dictionary)
 
 
 func apply_save_dict(data: Dictionary) -> void:
@@ -2273,6 +2588,9 @@ func apply_save_dict(data: Dictionary) -> void:
 	keeper_pos = Vector2(float(data.get("keeper_pos_x", 0.0)), float(data.get("keeper_pos_y", 0.0)))
 	keeper_facing = str(data.get("keeper_facing", "south"))
 	elaia_water_essence_frac = maxf(0.0, float(data.get("elaia_water_essence_frac", 0.0)))
+	_water_essence_banks["chore"] = maxf(0.0, float(data.get("companion_chore_water_frac", 0.0)))
+	_hub_life().call("apply_save_dict", data)
+	_apply_companions_block(data)
 	_hero_water_accum.clear()
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
@@ -2475,7 +2793,10 @@ func reset_for_new_game() -> void:
 	elaia_has_pos = false
 	elaia_facing = "south"
 	elaia_water_essence_frac = 0.0
+	companion_records.clear()
+	_water_essence_banks.clear()
 	_hero_water_accum.clear()
+	_hub_life().call("reset_new_game")
 	forge_key = false
 	echo_01_narrator_heard = false
 	echo_02_fee_paid = false

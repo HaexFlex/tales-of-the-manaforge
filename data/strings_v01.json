@@ -996,5 +996,19 @@
   "fruit_farewell_08": "Thank you, Keeper. Until the next spring.",
   "wisp_favourite_toast_1": "A Wisp has settled in at {node}.",
   "wisp_favourite_toast_2": "{node} has a Wisp who loves it now.",
-  "wisp_favourite_toast_3": "A Wisp hums happily at {node}. It feels at home."
+  "wisp_favourite_toast_3": "A Wisp hums happily at {node}. It feels at home.",
+  "item_frostberry": "Frostberry",
+  "frostberry_tooltip": "Frostberry. A snow-kissed berry, kept for brewing.",
+  "weather_clear": "Clear",
+  "weather_soft_rain": "Soft rain",
+  "weather_mist": "Mist",
+  "weather_snow": "Light snow",
+  "weather_blossom": "Blossom fall",
+  "companion_chore_manatree": "{name} tends the Manatree.",
+  "companion_chore_berries": "{name} picks berries.",
+  "companion_chore_stone": "{name} hauls stone.",
+  "companion_schedule_bench": "{name} rests at the Bench.",
+  "companion_schedule_runestone": "{name} sits by the Runestones.",
+  "companion_schedule_tree": "{name} sits beneath the Manatree.",
+  "companion_schedule_chore": "{name} is at work."
 }

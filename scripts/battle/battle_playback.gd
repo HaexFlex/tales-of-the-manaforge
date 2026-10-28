@@ -118,6 +118,8 @@ func _process(delta: float) -> void:
 func _tick(dt: float) -> void:
 	_drain_scheduled_sounds()
 	_tick_floats(dt)
+	if _view != null:
+		_view.call("playback_tick_fighter_clips", dt)
 	if not _active:
 		return
 	var local_t: float = clock_sec - _event_started_at
