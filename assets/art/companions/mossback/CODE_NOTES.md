@@ -134,3 +134,8 @@ Contacts: `assets/library/companions_r7_2026-10-28/mossback_work_stone_contact_{
 
 Root cause: `battle_idle` / `idle_*` were already noisy (1000–3000 colours) on art-r5 source branches; `b1b6695` copied them. Bad copies → `assets/library/legacy/companions_bad_refs_2026-10-28/`.
 New refs derived from legacy `moss_tortoise/anim/walk8/{dir}/frame_0000` (≤40 colours). Locked `walk_*` unchanged.
+
+
+## True-size fix (2026-10-28)
+
+battle_attack/hit/work_stone true-size fix 2026-10-28: gated vs clean walk8-derived battle_idle/idle_e. See legacy/companions_bad_clips_2026-10-28/.
