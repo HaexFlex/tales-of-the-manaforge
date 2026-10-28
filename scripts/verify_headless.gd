@@ -7,6 +7,7 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+const CombatClipsScript := preload("res://scripts/battle/combat_clips.gd")
 const LuckySparkFxScript := preload("res://scripts/fx/lucky_spark_fx.gd")
 ## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
 const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
@@ -1146,6 +1147,15 @@ func _run() -> void:
 		var battle_art_only: int = await _battle_art(tree_root, game_state, save_service)
 		if battle_art_only > 0:
 			print("BATTLE_ART_FAIL: %d" % battle_art_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_COMBAT_WAVE1") == "1":
+		var wave1_only: int = _combat_wave1_clips_ok()
+		if wave1_only > 0:
+			print("COMBAT_WAVE1_CLIPS_FAIL: %d" % wave1_only)
 			quit(1)
 		else:
 			quit(0)
@@ -4135,6 +4145,7 @@ func _run() -> void:
 	failed += await _battle_playback(tree_root, game_state, save_service)
 	failed += await _battle_pose_reset(tree_root, game_state, save_service)
 	failed += _elaia_real_stats_ok(tree_root, game_state)
+	failed += _combat_wave1_clips_ok()
 	failed += await _battle_art(tree_root, game_state, save_service)
 	failed += _battle_audio_sole_caller(tree_root, game_audio)
 	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
@@ -18800,6 +18811,61 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	return failed
 
 
+func _combat_wave1_clips_ok() -> int:
+	## CODE_NOTES wave-1 table: five clips, frame count, ms/frame, hit_frame, unmirrored.
+	var failed: int = 0
+	var want: Array[Dictionary] = [
+		{"id": "elaia_attack", "actor": "elaia", "clip": "attack", "frames": 8, "ms": 125, "hit_frame": 3},
+		{"id": "elaia_hit", "actor": "elaia", "clip": "hit", "frames": 4, "ms": 100, "hit_frame": 1},
+		{"id": "acorn_imp_hit", "actor": "acorn_imp", "clip": "hit", "frames": 4, "ms": 100, "hit_frame": 1},
+		{"id": "acorn_imp_calm", "actor": "acorn_imp", "clip": "calm", "frames": 6, "ms": 100, "hit_frame": 3},
+		{"id": "acorn_imp_attack", "actor": "acorn_imp", "clip": "attack", "frames": 8, "ms": 125, "hit_frame": 3},
+	]
+	failed += _assert(CombatClipsScript.catalog().size() == want.size(), "five wave-1 clips")
+	for row_v: Variant in want:
+		var row: Dictionary = row_v as Dictionary
+		var clip_id: String = str(row.get("id", ""))
+		var spec: Dictionary = CombatClipsScript.find(str(row.get("actor", "")), str(row.get("clip", "")))
+		var frames: int = int(row.get("frames", 0))
+		var ms: int = int(row.get("ms", 0))
+		failed += _assert(not spec.is_empty() and str(spec.get("id", "")) == clip_id, "%s is catalogued" % clip_id)
+		failed += _assert(int(spec.get("frames", -1)) == frames, "%s frame count" % clip_id)
+		failed += _assert(int(spec.get("ms", -1)) == ms, "%s ms per frame" % clip_id)
+		failed += _assert(int(spec.get("hit_frame", -1)) == int(row.get("hit_frame", -2)), "%s hit_frame" % clip_id)
+		failed += _assert(CombatClipsScript.duration_ms(spec) == frames * ms, "%s duration" % clip_id)
+		failed += _assert(not bool(spec.get("mirrored", true)), "%s is not mirrored" % clip_id)
+		var loaded: int = 0
+		for i: int in frames:
+			var tex: Texture2D = CombatClipsScript.texture(spec, i)
+			if tex != null and tex.get_width() == 128 and tex.get_height() == 128:
+				loaded += 1
+		failed += _assert(loaded == frames, "%s frames load 128 (%d/%d)" % [clip_id, loaded, frames])
+	var imp: Dictionary = CombatClipsScript.find("acorn_imp", "attack")
+	failed += _assert(CombatClipsScript.hit_ms(imp) == 375, "imp attack hit at 375 ms")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("beast", "acorn_imp"), 0.375), "imp attack damage react is 375 ms")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("beast", "acorn_imp_dark"), 0.375), "dark imp uses the same attack hit")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("party", "elaia"), 0.375), "elaia attack react is 375 ms")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("party", "keeper"), BattlePlaybackScript.REACT_SEC), "keeper strike keeps the live react")
+	var shown := TextureRect.new()
+	shown.flip_h = true
+	failed += _assert(CombatClipsScript.present(shown, "acorn_imp", "attack", 3) and not shown.flip_h, "imp attack hit frame is not flipped")
+	var atk: Dictionary = CombatClipsScript.find("elaia", "attack")
+	var anchor0: Dictionary = CombatClipsScript.anchor_for(atk, 0)
+	var anchor3: Dictionary = CombatClipsScript.anchor_for(atk, 3)
+	failed += _assert(int(anchor0.get("hand_x", -1)) == 100 and int(anchor0.get("hand_y", -1)) == 66 and int(anchor0.get("rot_index", -1)) == 0 and str(anchor0.get("z", "")) == "front", "elaia attack frame 0 anchor")
+	failed += _assert(int(anchor3.get("hand_x", -1)) == 103 and int(anchor3.get("hand_y", -1)) == 66, "elaia attack frame 3 anchor")
+	failed += _assert(CombatClipsScript.anchor_for(atk, 4).is_empty(), "elaia attack frame 4 has no invented anchor")
+	var bare_ids: PackedStringArray = PackedStringArray(["elaia/hit", "acorn_imp/attack", "acorn_imp/hit", "acorn_imp/calm"])
+	for bare: String in bare_ids:
+		var parts: PackedStringArray = bare.split("/")
+		var bare_spec: Dictionary = CombatClipsScript.find(parts[0], parts[1])
+		failed += _assert(CombatClipsScript.anchor_for(bare_spec, 0).is_empty(), "%s has no invented anchor" % bare)
+	shown.free()
+	if failed == 0:
+		print("COMBAT_WAVE1_CLIPS_OK")
+	return failed
+
+
 func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	## Every art-backed species in beasts.json has idle + hurt (128×128). Dark variants reuse the
 	## base sprite. No species that has BEAST_IDLE falls back to the grey ColorRect placeholder.
@@ -18875,7 +18941,7 @@ func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int
 	playback.advance(0.5)
 	var sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_%s/Sprite" % beast_ids[0]) as TextureRect
 	var hurt_path: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
-	failed += _assert(hurt_path.ends_with("battle_acorn_imp_hurt.png"), "beast hurt")
+	failed += _assert(hurt_path.find("modular/acorn_imp/hit/frame_") >= 0 and sprite != null and not sprite.flip_h, "beast hurt uses the unflipped wave-1 hit clip")
 	playback.advance(0.35)
 	var idle_after: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
 	failed += _assert(idle_after.ends_with("battle_acorn_imp_idle.png"), "beast idle after hurt")

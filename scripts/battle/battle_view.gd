@@ -254,6 +254,8 @@ var _twist_chip: TextureRect = null
 var _action_buttons: Array[Button] = []
 var _log_reveal_count: int = 0
 var _advance_after_playback: bool = false
+## fighter_id -> {actor, clip, spec, origin, pose} for a wave-1 combat clip.
+var _combat_clips: Dictionary = {}
 var _reach_mode: bool = false
 var _reach_outcome_applied: bool = false
 var _end_panel: Panel = null
@@ -703,18 +705,152 @@ func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	if root == null:
 		return false
 	if bool(root.get_meta("swarm", false)):
+		_stop_combat_clip(fighter_id)
 		return _set_swarm_pose(root, fighter_id, pose)
-	var member: String = str(root.get_meta("member", fighter_id))
-	var poses: Dictionary = PARTY_POSES.get(member, {})
-	if not poses.has(pose):
-		return false
-	var tex: Texture2D = load(str(poses[pose])) as Texture2D
 	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
-	if tex == null or sprite == null:
+	if sprite == null:
 		return false
-	sprite.texture = tex
+	var member: String = str(root.get_meta("member", ""))
+	if member != "" and PARTY_POSES.has(member):
+		var clip_name: String = _wave1_clip_for_pose(pose)
+		if clip_name != "" and CombatClips.has_clip(member, clip_name):
+			return _start_combat_clip(root, sprite, member, clip_name, pose)
+		_stop_combat_clip(fighter_id)
+		var poses: Dictionary = PARTY_POSES.get(member, {})
+		if not poses.has(pose):
+			return false
+		var tex: Texture2D = load(str(poses[pose])) as Texture2D
+		if tex == null:
+			return false
+		sprite.texture = tex
+		root.set_meta("pose", pose)
+		return true
+	var base: String = _beast_base_species(str(root.get_meta("species", "")))
+	var beast_clip: String = _wave1_clip_for_pose(pose)
+	if beast_clip != "" and CombatClips.has_clip(base, beast_clip):
+		return _start_combat_clip(root, sprite, base, beast_clip, pose)
+	return false
+
+
+func _wave1_clip_for_pose(pose: String) -> String:
+	if pose == "attack":
+		return "attack"
+	if pose == "hurt":
+		return "hit"
+	return ""
+
+
+func sample_combat_clips() -> void:
+	if _playback != null and _playback.instant:
+		return
+	var now: float = 0.0
+	var spd: int = 1
+	if _playback != null:
+		now = _playback.clock_sec
+		spd = _playback.speed
+	for key_v: Variant in _combat_clips.keys():
+		_apply_combat_clip_frame(str(key_v), now, spd)
+
+
+func _start_combat_clip(root: Node, sprite: TextureRect, actor: String, clip: String, pose: String) -> bool:
+	var spec: Dictionary = CombatClips.find(actor, clip)
+	if spec.is_empty() or sprite == null:
+		return false
+	if CombatClips.texture(spec, 0) == null:
+		return false
+	var root_name: String = str(root.name)
+	if not root_name.begins_with("Fighter_"):
+		return false
+	var fighter_id: String = root_name.substr("Fighter_".length())
+	var origin: float = 0.0
+	var spd: int = 1
+	if _playback != null:
+		origin = _playback.clip_origin_sec(pose)
+		spd = _playback.speed
+	_combat_clips[fighter_id] = {
+		"actor": actor,
+		"clip": clip,
+		"spec": spec,
+		"origin": origin,
+		"pose": pose,
+	}
 	root.set_meta("pose", pose)
+	sprite.flip_h = false
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.size = FIGHTER_FRAME
+	sprite.position = -FIGHTER_SOLE
+	_apply_combat_clip_frame(fighter_id, origin, spd)
 	return true
+
+
+func _stop_combat_clip(fighter_id: String) -> void:
+	_combat_clips.erase(fighter_id)
+	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
+	if root != null and root.has_meta("combat_hand_anchor"):
+		root.remove_meta("combat_hand_anchor")
+
+
+func _combat_clip_id(fighter_id: String) -> String:
+	if not _combat_clips.has(fighter_id):
+		return ""
+	return str((_combat_clips[fighter_id] as Dictionary).get("clip", ""))
+
+
+func _apply_combat_clip_frame(fighter_id: String, now: float, spd: int) -> void:
+	if not _combat_clips.has(fighter_id):
+		return
+	var state: Dictionary = _combat_clips[fighter_id] as Dictionary
+	var spec: Dictionary = state.get("spec", {}) as Dictionary
+	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect if root != null else null
+	if root == null or sprite == null or spec.is_empty():
+		return
+	var frames: int = int(spec.get("frames", 0))
+	var ms: float = float(spec.get("ms", 0.0))
+	if frames <= 0 or ms <= 0.0:
+		return
+	var frame_clock: float = (ms / 1000.0) / float(maxi(1, spd))
+	var elapsed: float = maxf(0.0, now - float(state.get("origin", now)))
+	var idx: int = int(elapsed / frame_clock + 0.0001)
+	if bool(spec.get("loop", false)):
+		idx = posmod(idx, frames)
+	else:
+		idx = mini(idx, frames - 1)
+	var tex: Texture2D = CombatClips.texture(spec, idx)
+	if tex != null:
+		sprite.texture = tex
+	## CODE_NOTES: these clips are not mirrored. The imp's cap stem stays on the right.
+	sprite.flip_h = false
+	var anchor: Dictionary = CombatClips.anchor_for(spec, idx)
+	if anchor.is_empty():
+		if root.has_meta("combat_hand_anchor"):
+			root.remove_meta("combat_hand_anchor")
+	else:
+		root.set_meta("combat_hand_anchor", anchor)
+	_place_clip_anchor(root, anchor)
+
+
+func _place_clip_anchor(root: Node, anchor: Dictionary) -> void:
+	## Hand anchors are recorded for frames CODE_NOTES lists. No sword is spawned:
+	## Elaia's wave-1 hands are empty, and the sword blade layer is out of scope.
+	var weapon: Control = root.get_node_or_null("Weapon") as Control
+	if weapon == null:
+		return
+	if anchor.is_empty():
+		weapon.visible = false
+		return
+	weapon.visible = true
+	weapon.position = Vector2(float(anchor.get("hand_x", 0)), float(anchor.get("hand_y", 0))) - FIGHTER_SOLE
+
+
+func _apply_beast_idle_texture(sprite: TextureRect, base: String) -> void:
+	var idle_path: String = str(BEAST_IDLE.get(base, ""))
+	if idle_path == "" or not ResourceLoader.exists(idle_path):
+		idle_path = ECHO_BEAST_IDLE % base
+	if ResourceLoader.exists(idle_path):
+		sprite.texture = load(idle_path) as Texture2D
+		sprite.size = FIGHTER_FRAME
+		sprite.position = -FIGHTER_SOLE
 
 
 func get_playback() -> BattlePlayback:
@@ -737,6 +873,8 @@ func playback_set_beast_hurt(fighter_id: String, species: String) -> bool:
 	if _fighter_root_is_swarm(fighter_id) or species == MOSSMITE_ID:
 		return set_fighter_pose(fighter_id, "hurt")
 	var base: String = _beast_base_species(species)
+	if CombatClips.has_clip(base, "hit"):
+		return set_fighter_pose(fighter_id, "hurt")
 	if not BEAST_HURT.has(base):
 		return false
 	var tex: Texture2D = load(str(BEAST_HURT[base])) as Texture2D
@@ -775,13 +913,11 @@ func playback_set_beast_idle(fighter_id: String) -> void:
 		sprite.modulate = swarm_mod
 		return
 	var base: String = _beast_base_species(species)
-	var idle_path: String = str(BEAST_IDLE.get(base, ""))
-	if idle_path == "" or not ResourceLoader.exists(idle_path):
-		idle_path = ECHO_BEAST_IDLE % base
-	if ResourceLoader.exists(idle_path):
-		sprite.texture = load(idle_path) as Texture2D
-		sprite.size = FIGHTER_FRAME
-		sprite.position = -FIGHTER_SOLE
+	if str(row.get("status", "")) == "calmed" and CombatClips.has_clip(base, "calm"):
+		_start_combat_clip(root, sprite, base, "calm", "calm")
+	else:
+		_stop_combat_clip(fighter_id)
+		_apply_beast_idle_texture(sprite, base)
 	var alpha: float = 0.35 if str(row.get("status", "")) == "calmed" else 1.0
 	var mod: Color = sprite.modulate
 	mod.a = alpha
@@ -946,6 +1082,7 @@ func _clear_fight_ui() -> void:
 	_log_follow_tail = true
 	if _playback != null:
 		_playback.reset_for_fight()
+	_combat_clips.clear()
 	_hide_action_menu()
 	if _fighters != null:
 		for child: Node in _fighters.get_children():
@@ -1630,6 +1767,17 @@ func _refresh_fighter_visual(row: Dictionary) -> void:
 		swarm_mod.a = swarm_alpha
 		sprite.modulate = swarm_mod
 		return
+	var species_now: String = str(row.get("species", root.get_meta("species", "")))
+	var base_now: String = _beast_base_species(species_now)
+	var beast_busy: bool = _playback != null and _playback.is_busy()
+	if not beast_busy and sprite is TextureRect:
+		var posed: TextureRect = sprite as TextureRect
+		if status == "calmed" and CombatClips.has_clip(base_now, "calm"):
+			if _combat_clip_id(fighter_id) != "calm":
+				_start_combat_clip(root, posed, base_now, "calm", "calm")
+		elif _combat_clips.has(fighter_id):
+			_stop_combat_clip(fighter_id)
+			_apply_beast_idle_texture(posed, base_now)
 	var alpha: float = 0.35 if status == "calmed" else 1.0
 	var mod: Color = sprite.modulate
 	mod.a = alpha
