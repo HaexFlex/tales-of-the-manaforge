@@ -1433,6 +1433,8 @@ func _cancel_idle_moment() -> void:
 func _tick_idle_moments(delta: float) -> void:
 	if actor_id() != "keeper":
 		return
+	if _idle_moment_kind == IdleMomentKind.SIT and _idle_moment_sit_phase == IdleMomentSitPhase.BREATHE:
+		return
 	if _idle_moment_kind != IdleMomentKind.NONE:
 		if not _keeper_standing_idle() or _player_input_active():
 			_cancel_idle_moment()

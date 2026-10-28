@@ -289,6 +289,8 @@ static func open_reach_fight(fight: FightState) -> bool:
 	var reach_view: BattleView = _current as BattleView
 	if reach_view == null:
 		return false
+	if reach_view._fight == fight and fight.outcome() == "":
+		return true
 	reach_view._hide_end_panel()
 	reach_view.set_reach_mode(true)
 	reach_view._reach_outcome_applied = false
@@ -3209,7 +3211,12 @@ func _on_target_pressed(target_id: String) -> void:
 	if stepped:
 		_note_reach_fight_action()
 	_enqueue_step(packet)
-	_advance()
+	## Instant reach playback (headless): do not auto-run the enemy phase here; callers
+	## that need it (resume tests, Strike-for-me) call _advance() explicitly.
+	if _reach_mode and _playback != null and _playback.instant:
+		_finish_turn_ui()
+	else:
+		_advance()
 
 
 func _note_reach_fight_action() -> void:
