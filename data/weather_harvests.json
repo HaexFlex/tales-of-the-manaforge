@@ -19,6 +19,8 @@
   },
   "audio": {
     "crossfade_sec": 2.0,
+    "bed_fade_in_sec": 3.0,
+    "bed_fade_out_sec": 4.0,
     "beds": {
       "soft_rain": "sfx_weather_rain_bed",
       "mist": "sfx_weather_mist_bed"
