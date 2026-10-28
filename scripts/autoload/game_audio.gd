@@ -117,6 +117,8 @@ var _bed_left: float = 0.0
 var _bed_span: float = 0.0
 var _beds_held: bool = false
 var _chore_cue_at: Dictionary = {}
+## Tests pin this. -1 keeps the throttle on Time.get_ticks_msec().
+var _chore_clock_msec: int = -1
 
 
 func _ready() -> void:
@@ -1311,7 +1313,7 @@ func play_chore_payout(companion_id: String, node_id: String) -> bool:
 	if _minigame_hold or _held_while_fruit_committed(cue, str(spec.get("bus", "SFX_World"))):
 		return false
 	var gap_ms: int = int(round(float(spec.get("gap_sec", 2.0)) * 1000.0))
-	var now: int = Time.get_ticks_msec()
+	var now: int = _chore_now_msec()
 	var last: int = int(_chore_cue_at.get(companion_id, -100000000))
 	if now - last < gap_ms:
 		return false
@@ -1320,8 +1322,23 @@ func play_chore_payout(companion_id: String, node_id: String) -> bool:
 	return true
 
 
+func set_chore_clock_msec(msec: int) -> void:
+	## Test hook. The gap stays gap_sec; only the clock the throttle reads is pinned.
+	_chore_clock_msec = maxi(0, msec)
+
+
+func clear_chore_clock() -> void:
+	_chore_clock_msec = -1
+
+
+func _chore_now_msec() -> int:
+	if _chore_clock_msec >= 0:
+		return _chore_clock_msec
+	return Time.get_ticks_msec()
+
+
 func age_chore_cue(companion_id: String, msec: int) -> void:
-	_chore_cue_at[CompanionRoster.canonical_id(companion_id)] = Time.get_ticks_msec() - msec
+	_chore_cue_at[CompanionRoster.canonical_id(companion_id)] = _chore_now_msec() - msec
 
 
 func clear_chore_cues() -> void:

@@ -501,6 +501,7 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(str(audio.get("last_cue_bus")) == "SFX_World", "chore cue bus is SFX_World")
 	failed += _assert(not bool(audio.call("did_play", &"sfx_mana_chime_1")), "chore payout does not play the keeper chime")
 	audio.call("clear_played_log")
+	audio.call("set_chore_clock_msec", 10000)
 	audio.call("age_chore_cue", "puff", 1999)
 	audio.call("age_chore_cue", "tortoise", 1999)
 	CompanionChores.grant_online_seconds(4.0)
@@ -510,6 +511,7 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	audio.call("age_chore_cue", "tortoise", 2000)
 	CompanionChores.grant_online_seconds(4.0)
 	failed += _assert(bool(audio.call("did_play", &"sfx_gather_food")) and bool(audio.call("did_play", &"sfx_gather_stone")), "chore cue plays again after 2 s")
+	audio.call("clear_chore_clock")
 	audio.call("clear_played_log")
 	var played_tree: bool = bool(audio.call("play_chore_payout", "elaia", "manatree"))
 	failed += _assert(played_tree and bool(audio.call("did_play", &"sfx_water_pulse")) and is_equal_approx(float(audio.get("last_cue_volume_db")), -6.0), "manatree chore uses the water cue at -6 dB")
@@ -533,6 +535,7 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	game_state.call("reset_for_new_game")
 	WeatherState.reset_default()
 	CompanionChores.clear_forced()
+	audio.call("clear_chore_clock")
 	audio.call("advance_weather_audio", fade)
 	if failed == 0:
 		print("HUB_WEATHER_AUDIO_OK")
