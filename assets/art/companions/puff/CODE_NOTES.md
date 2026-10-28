@@ -18,10 +18,10 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 
 | File | Frames | ms | Notes |
 |---|---|---|---|
-| `walk_s/frame_0000..0007.png` | 8 | 100 (target; source was Keeper 8-frame timing) each | 128×128 RGBA |
-| `walk_n/frame_0000..0007.png` | 8 | 100 (target; source was Keeper 8-frame timing) each | 128×128 RGBA |
-| `walk_e/frame_0000..0007.png` | 8 | 100 (target; source was Keeper 8-frame timing) each | 128×128 RGBA |
-| `walk_w/frame_0000..0007.png` | 8 | 100 (target; source was Keeper 8-frame timing) each | 128×128 RGBA |
+| `walk_s/frame_0000..0008.png` | 9 | 100 each | 128×128 RGBA; Imagine try1 |
+| `walk_n/frame_0000..0008.png` | 9 | 100 each | 128×128 RGBA; Imagine try1 |
+| `walk_e/frame_0000..0008.png` | 9 | 100 each | 128×128 RGBA; Imagine try1 |
+| `walk_w/frame_0000..0008.png` | 9 | 100 each | 128×128 RGBA; Imagine try1 |
 | `idle_s.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `idle_n.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `idle_e.png` | 1 still | 100 hold | 128×128; from source idle/still |
@@ -32,7 +32,8 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 
 ## Missing (no existing source)
 
-- `walk_*` frame 9 (locked target is **9×100 ms**; source puff walk is **8** frames / Keeper WALK_MS) — ~1 Imagine run to add a 9th pose, or Code accepts 8.
+- ~~`walk_*` 9th frame~~ **SHIPPED** 2026-10-28: 9×100 ms from Imagine treadmill videos (try1 each dir). Old 8f → `assets/library/legacy/puff_walk8_2026-10-28/`.
+  Source indices (1-based ffmpeg): s `[4,15,26,37,48,59,70,81,92]`; n/e/w `[7,17,28,38,48,58,68,79,89]`. Anchor sole y=123, feet_x≈63.5.
 - `work_brew` (sheet_traits includes brew; mechanic null) — ~2–3 Imagine runs.
 - `battle_attack`, `battle_hit` — ~5–6 Imagine runs for full battle set with existing idle.
 - Animated idle loops (12f) exist in legacy; locked idle is still-only per `companion.gd` `_add_still`.
@@ -54,6 +55,7 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 - `walk_e/frame_0005.png` — 128×128 RGBA
 - `walk_e/frame_0006.png` — 128×128 RGBA
 - `walk_e/frame_0007.png` — 128×128 RGBA
+- `walk_e/frame_0008.png` — 128×128 RGBA
 - `walk_n/frame_0000.png` — 128×128 RGBA
 - `walk_n/frame_0001.png` — 128×128 RGBA
 - `walk_n/frame_0002.png` — 128×128 RGBA
@@ -62,6 +64,7 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 - `walk_n/frame_0005.png` — 128×128 RGBA
 - `walk_n/frame_0006.png` — 128×128 RGBA
 - `walk_n/frame_0007.png` — 128×128 RGBA
+- `walk_n/frame_0008.png` — 128×128 RGBA
 - `walk_s/frame_0000.png` — 128×128 RGBA
 - `walk_s/frame_0001.png` — 128×128 RGBA
 - `walk_s/frame_0002.png` — 128×128 RGBA
@@ -70,6 +73,7 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 - `walk_s/frame_0005.png` — 128×128 RGBA
 - `walk_s/frame_0006.png` — 128×128 RGBA
 - `walk_s/frame_0007.png` — 128×128 RGBA
+- `walk_s/frame_0008.png` — 128×128 RGBA
 - `walk_w/frame_0000.png` — 128×128 RGBA
 - `walk_w/frame_0001.png` — 128×128 RGBA
 - `walk_w/frame_0002.png` — 128×128 RGBA
@@ -78,3 +82,15 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 - `walk_w/frame_0005.png` — 128×128 RGBA
 - `walk_w/frame_0006.png` — 128×128 RGBA
 - `walk_w/frame_0007.png` — 128×128 RGBA
+- `walk_w/frame_0008.png` — 128×128 RGBA
+
+## Walk 9×100 ship (2026-10-28)
+
+| dir | frames | ms | source indices (ffmpeg 1-based) | runs | gate hist mean | sole | h |
+|---|---|---|---|---|---|---|---|
+| walk_s | 9 | 100 | 4,15,26,37,48,59,70,81,92 | 1 | 0.901 | 123 | 73 |
+| walk_n | 9 | 100 | 7,17,28,38,48,58,68,79,89 | 1 | 0.932 | 123 | 75 |
+| walk_e | 9 | 100 | 7,17,28,38,48,58,68,79,89 | 1 | 0.939 | 123 | 77 |
+| walk_w | 9 | 100 | 7,17,28,38,48,58,68,79,89 | 1 | 0.940 | 123 | 77 |
+
+Contacts: `assets/library/companions_r7_2026-10-28/puff_walk9_contact_{1x,4x}.png`
