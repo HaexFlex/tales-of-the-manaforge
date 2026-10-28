@@ -27,6 +27,8 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 | `idle_e.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `idle_w.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `battle_idle.png` | 1 | — | 128×128 west-facing |
+| `battle_attack/frame_0000..0007.png` | 8 | 125 each | west; hit_frame=3; Imagine try2 |
+| `battle_hit/frame_0000..0003.png` | 4 | 100 each | west; Imagine try1 |
 | `portrait_52.png` | 1 | — | 52×52 HUD |
 | `portrait_160.png` | 1 | — | 160×160 sheet |
 
@@ -35,7 +37,7 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 - ~~`walk_*` 9th frame~~ **SHIPPED** 2026-10-28: 9×100 ms from Imagine treadmill videos (try1 each dir). Old 8f → `assets/library/legacy/puff_walk8_2026-10-28/`.
   Source indices (1-based ffmpeg): s `[4,15,26,37,48,59,70,81,92]`; n/e/w `[7,17,28,38,48,58,68,79,89]`. Anchor sole y=123, feet_x≈63.5.
 - `work_brew` (sheet_traits includes brew; mechanic null) — ~2–3 Imagine runs.
-- `battle_attack`, `battle_hit` — ~5–6 Imagine runs for full battle set with existing idle.
+- ~~`battle_attack`, `battle_hit`~~ **SHIPPED** 2026-10-28.
 - Animated idle loops (12f) exist in legacy; locked idle is still-only per `companion.gd` `_add_still`.
 
 ## Inventory
@@ -94,3 +96,29 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/puff` a
 | walk_w | 9 | 100 | 7,17,28,38,48,58,68,79,89 | 1 | 0.940 | 123 | 77 |
 
 Contacts: `assets/library/companions_r7_2026-10-28/puff_walk9_contact_{1x,4x}.png`
+
+
+## Battle ship (2026-10-28)
+
+West-facing like `battle_idle.png`. No mirroring.
+
+| clip | frames | ms | hit_frame | source indices (ffmpeg 1-based) | runs | gate |
+|---|---|---|---|---|---|---|
+| battle_attack | 8 | 125 | 3 | 1,7,22,43,46,49,55,61 (try2) | 2 (try1 wrong identity discarded) | PASS hist_mean=0.568 vs clean24(battle_idle); h=77; sole=123; clean |
+| battle_hit | 4 | 100 | — | 3,17,31,45 (try1) | 1 | PASS hist_mean=0.518 vs clean24; h=77; sole=123; clean |
+
+Note: raw `battle_idle.png` has 1000+ unique colours; identity hist gated against median-cut clean24 of the same sprite (silhouette/pose unchanged). Anchor sole y=123, feet_x≈63.5.
+Contacts: `assets/library/companions_r7_2026-10-28/puff_battle_contact_{1x,4x}.png`
+
+- `battle_attack/frame_0000.png` — 128×128 RGBA
+- `battle_attack/frame_0001.png` — 128×128 RGBA
+- `battle_attack/frame_0002.png` — 128×128 RGBA
+- `battle_attack/frame_0003.png` — 128×128 RGBA
+- `battle_attack/frame_0004.png` — 128×128 RGBA
+- `battle_attack/frame_0005.png` — 128×128 RGBA
+- `battle_attack/frame_0006.png` — 128×128 RGBA
+- `battle_attack/frame_0007.png` — 128×128 RGBA
+- `battle_hit/frame_0000.png` — 128×128 RGBA
+- `battle_hit/frame_0001.png` — 128×128 RGBA
+- `battle_hit/frame_0002.png` — 128×128 RGBA
+- `battle_hit/frame_0003.png` — 128×128 RGBA
