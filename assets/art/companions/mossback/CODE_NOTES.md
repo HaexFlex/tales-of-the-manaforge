@@ -129,3 +129,8 @@ Contacts: `assets/library/companions_r7_2026-10-28/mossback_work_stone_contact_{
 - `work_stone/frame_0005.png` — 128×128 RGBA
 - `work_stone/frame_0006.png` — 128×128 RGBA
 - `work_stone/frame_0007.png` — 128×128 RGBA
+
+## Clean refs restore (2026-10-28 true-size fix)
+
+Root cause: `battle_idle` / `idle_*` were already noisy (1000–3000 colours) on art-r5 source branches; `b1b6695` copied them. Bad copies → `assets/library/legacy/companions_bad_refs_2026-10-28/`.
+New refs derived from legacy `moss_tortoise/anim/walk8/{dir}/frame_0000` (≤40 colours). Locked `walk_*` unchanged.
