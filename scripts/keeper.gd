@@ -926,6 +926,7 @@ func has_station_work_spot() -> bool:
 
 
 func command_work(target: Node2D, type_id: String, claim_key: String = "") -> void:
+	note_player_order()
 	_cancel_idle_moment()
 	if target == null:
 		return
@@ -958,6 +959,7 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 
 
 func command_station(station: Node2D) -> void:
+	note_player_order()
 	_cancel_idle_moment()
 	if station == null:
 		return
@@ -1462,6 +1464,60 @@ func _tick_idle_moments(delta: float) -> void:
 	if _idle_stand_accum < _idle_moment_wait_sec:
 		return
 	_start_idle_moment(_pick_idle_moment_kind())
+
+
+var _player_order: bool = false
+
+
+func note_player_order() -> void:
+	_player_order = true
+
+
+func player_order_active() -> bool:
+	if not _player_order:
+		return false
+	if _channel_kind != ChannelKind.NONE:
+		return true
+	if _moving:
+		return true
+	var task: Dictionary = read_published_task()
+	if bool(task.get("working", false)):
+		return true
+	_player_order = false
+	return false
+
+
+func hold_schedule_spot(world_pos: Vector2, face: String) -> void:
+	## Routine walk. Uses move_to, so the existing walk clips play. Does not publish a job.
+	if player_order_active():
+		return
+	y_sort_enabled = true
+	if global_position.distance_to(world_pos) > ARRIVE_DIST:
+		if not _moving or _target.distance_to(world_pos) > 4.0:
+			_suppress_work_clear = true
+			move_to(world_pos, null)
+			_suppress_work_clear = false
+		return
+	if face != "":
+		_facing = face
+	end_work_loop()
+
+
+func hold_chore_node(target: Node2D, type_id: String) -> void:
+	## Stay on the chore node and play the work clip. Yield is paid by CompanionChores, not this channel.
+	if player_order_active() or target == null:
+		return
+	y_sort_enabled = true
+	var solved: Dictionary = _solve_for(target, type_id)
+	var spot: Vector2 = solved.get("position", global_position)
+	if global_position.distance_to(spot) > ARRIVE_DIST + WORK_ARRIVE_SLACK:
+		if not _moving or _target.distance_to(spot) > 4.0:
+			_suppress_work_clear = true
+			move_to(spot, null)
+			_suppress_work_clear = false
+		return
+	_apply_solved(target, type_id, solved)
+	begin_work_loop()
 
 
 func halt() -> void:

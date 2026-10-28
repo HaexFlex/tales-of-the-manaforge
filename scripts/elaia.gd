@@ -172,6 +172,7 @@ func bring_to_this_area(near: Vector2) -> void:
 
 
 func command_move(world_pos: Vector2) -> void:
+	note_player_order()
 	if not GameState.elaia_in_party():
 		return
 	if GameState.elaia_area != home_area:

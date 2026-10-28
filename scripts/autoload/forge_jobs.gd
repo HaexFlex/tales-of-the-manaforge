@@ -28,6 +28,14 @@ var _hero_claims: Dictionary = {}
 var _silent: bool = false
 var _pending_toast: String = ""
 var _return_to_clearing: bool = false
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 var _dev_override: float = -1.0
 var _autosave_enabled: bool = true
 var _autosave_accum: float = 0.0
@@ -1109,6 +1117,16 @@ func offline_effective_seconds(closed_sec: float) -> float:
 
 func apply_offline_seconds(closed_sec: float) -> Dictionary:
 	## Fresh-curve closure. Gathering still uses the curve. Crafting uses the raw gap.
+	## Weather bonuses stay off for a closed game.
+	if closed_sec <= 0.0:
+		return _empty_offline()
+	_hub_life().call("push_offline")
+	var granted_now: Dictionary = _apply_offline_seconds_open(closed_sec)
+	_hub_life().call("pop_offline")
+	return granted_now
+
+
+func _apply_offline_seconds_open(closed_sec: float) -> Dictionary:
 	if closed_sec <= 0.0:
 		return _empty_offline()
 	if _offline_blocked():
@@ -1125,6 +1143,14 @@ func apply_offline_seconds(closed_sec: float) -> Dictionary:
 
 func apply_saved_offline_gap(gap_sec: float) -> Dictionary:
 	## Load path. Continues the curve unless this session already played offline_reset_active_sec.
+	## Weather bonuses stay off for a closed game.
+	_hub_life().call("push_offline")
+	var granted_now: Dictionary = _apply_saved_offline_gap_open(gap_sec)
+	_hub_life().call("pop_offline")
+	return granted_now
+
+
+func _apply_saved_offline_gap_open(gap_sec: float) -> Dictionary:
 	if gap_sec <= 0.0 or not has_node("/root/GameState"):
 		var skipped: Dictionary = _empty_offline()
 		skipped["raw_sec"] = maxf(0.0, gap_sec)
@@ -1258,6 +1284,7 @@ func _grant_offline(eff: float, raw_sec: float = -1.0) -> Dictionary:
 	result["forge_completed"] = int(craft.get("total", 0))
 	result["forge_stations"] = craft.get("stations", {})
 	_offline_wisp_grants(eff, result)
+	_hub_life().call("apply_offline", eff, result)
 	_silent = was_silent
 	_keeper_working = false
 	_keeper_station = ""
@@ -1917,7 +1944,7 @@ func _keeper_task_kind() -> String:
 	return str(_keeper_task.get("kind", "none"))
 
 
-func _offline_water(eff: float, reward_mult: float = 1.0) -> Dictionary:
+func _offline_water(eff: float, reward_mult: float = 1.0, essence_bank: String = "") -> Dictionary:
 	## Same pulse as online watering. No extra offline multiplier and no stage multiplier.
 	var pulse: float = maxf(GameState.get_channel_pulse_sec(), 0.05)
 	var pulses: int = int(floor(eff / pulse))
@@ -1930,13 +1957,18 @@ func _offline_water(eff: float, reward_mult: float = 1.0) -> Dictionary:
 	var shard_units: float = roll * float(pulses) * reward_mult * _offline_shard_mult()
 	var shards: int = GameState.accumulate_harvest(&"manashards", shard_units)
 	var essence: int = 0
-	if is_equal_approx(reward_mult, 1.0):
+	if essence_bank == "" and is_equal_approx(reward_mult, 1.0):
 		essence = int(floor(float(GameState.get_water_essence_amount()) * float(pulses)))
 	else:
 		var ess_units: float = float(GameState.get_water_essence_amount()) * float(pulses) * reward_mult
-		GameState.elaia_water_essence_frac += ess_units
-		essence = int(floor(GameState.elaia_water_essence_frac))
-		GameState.elaia_water_essence_frac -= float(essence)
+		if essence_bank == "":
+			GameState.elaia_water_essence_frac += ess_units
+			essence = int(floor(GameState.elaia_water_essence_frac))
+			GameState.elaia_water_essence_frac -= float(essence)
+		else:
+			var banked: float = GameState._essence_bank_value(essence_bank) + ess_units
+			essence = int(floor(banked))
+			GameState._set_essence_bank(essence_bank, banked - float(essence))
 	if shards > 0:
 		GameState.lifetime_shards_from_water += shards
 	if essence > 0:

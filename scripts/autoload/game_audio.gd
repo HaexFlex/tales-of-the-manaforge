@@ -14,6 +14,8 @@ const HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ: float = HubTimePhase.HUB_AMBIENCE_DAY_C
 const HUB_AMBIENCE_FILTER_NIGHT_CUTOFF_HZ: float = HubTimePhase.HUB_AMBIENCE_NIGHT_CUTOFF_HZ
 const HUB_AMBIENCE_FILTER_RESONANCE: float = 0.5
 const HUB_AMBIENCE_FILTER_DISCONTINUITY_SEC: float = 2.0
+## Fade floor for a weather bed that is fully out. Crossfade and clear fade times live in data.
+const WEATHER_BED_SILENCE_DB: float = -80.0
 ## Matches HubDayNightCycle.CYCLE_SEC (phase jump detection).
 const HUB_DAY_NIGHT_CYCLE_SEC: float = 1200.0
 const MUSIC_BUS_DEFAULT_DB: float = -9.0
@@ -79,6 +81,7 @@ var _hub_filter_discontinuity_pending: bool = false
 ## < 0 = pause-menu low-pass cap off. When set, effective cutoff = min(phase, this).
 var _pause_hub_bed_lowpass_cutoff_hz: float = -1.0
 var last_cue_volume_db: float = 0.0
+var last_cue_bus: String = ""
 var _duck_amount_db: float = -5.0
 var _duck_attack_sec: float = 0.05
 var _duck_release_sec: float = 0.6
@@ -95,6 +98,25 @@ var _last_gather_msec: int = -100000000
 var _bench_rest_last_play_msec: int = -100000000
 var _bench_rest_bed_lift_db: float = 0.0
 var _bench_rest_bed_tween: Tween
+var _hub_life_script: GDScript
+var _weather_lowpass: AudioEffectLowPassFilter
+var _weather_gain: AudioEffectAmplify
+var _weather_reverb: AudioEffectReverb
+var _weather_ready: bool = false
+var _weather_state: String = ""
+var _weather_fx: Dictionary = {}
+var _weather_from: Dictionary = {}
+var _weather_to: Dictionary = {}
+var _weather_left: float = 0.0
+var _weather_span: float = 0.0
+var _bed_players: Dictionary = {}
+var _bed_vol: Dictionary = {}
+var _bed_from: Dictionary = {}
+var _bed_to: Dictionary = {}
+var _bed_left: float = 0.0
+var _bed_span: float = 0.0
+var _beds_held: bool = false
+var _chore_cue_at: Dictionary = {}
 
 
 func _ready() -> void:
@@ -150,6 +172,7 @@ func _ensure_buses() -> void:
 			_hub_bed_lowpass.resonance = HUB_AMBIENCE_FILTER_RESONANCE
 			_hub_bed_cutoff_hz = HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
 			AudioServer.add_bus_effect(hub_bed_idx, _hub_bed_lowpass)
+		_ensure_weather_bus_effects(hub_bed_idx)
 	## Duck is a bed-player envelope. A sidechain compressor would also duck the stings.
 	var music_idx: int = AudioServer.get_bus_index("Music")
 	if music_idx < 0:
@@ -513,6 +536,7 @@ func play(cue_id: StringName, offset_db: float = 0.0, pitch: float = 1.0) -> voi
 	player.pitch_scale = pitch
 	if bus != "Music":
 		last_cue_volume_db = effective_db
+		last_cue_bus = bus
 	player.play()
 	if progress:
 		_note_progress_started()
@@ -657,6 +681,7 @@ func pause_hub_bed_lowpass_cutoff_hz() -> float:
 
 func _process(delta: float) -> void:
 	_refresh_hub_ambience_lowpass(delta)
+	advance_weather_audio(delta)
 
 
 func _phase_hub_bed_cutoff_hz() -> float:
@@ -1169,3 +1194,385 @@ func get_cue_path(cue_id: StringName) -> String:
 		return ""
 	var meta: Dictionary = _cues[key]
 	return str(meta.get("path", ""))
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
+
+
+func _ensure_weather_bus_effects(bus_idx: int) -> void:
+	if _weather_lowpass != null:
+		return
+	_weather_lowpass = AudioEffectLowPassFilter.new()
+	_weather_lowpass.cutoff_hz = HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ
+	_weather_gain = AudioEffectAmplify.new()
+	_weather_gain.volume_db = 0.0
+	_weather_reverb = AudioEffectReverb.new()
+	_weather_reverb.dry = 1.0
+	_weather_reverb.wet = 0.0
+	_weather_reverb.room_size = 0.0
+	_weather_reverb.damping = 0.0
+	AudioServer.add_bus_effect(bus_idx, _weather_lowpass)
+	AudioServer.add_bus_effect(bus_idx, _weather_gain)
+	AudioServer.add_bus_effect(bus_idx, _weather_reverb)
+	_set_weather_effect_enabled(_weather_lowpass, false)
+	_set_weather_effect_enabled(_weather_gain, false)
+	_set_weather_effect_enabled(_weather_reverb, false)
+
+
+func _set_weather_effect_enabled(effect: AudioEffect, enabled: bool) -> void:
+	var bus_idx: int = AudioServer.get_bus_index(HUB_BED_BUS)
+	if bus_idx < 0 or effect == null:
+		return
+	for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
+		if AudioServer.get_bus_effect(bus_idx, i) == effect:
+			AudioServer.set_bus_effect_enabled(bus_idx, i, enabled)
+			return
+
+
+func _weather_effect_enabled(effect: AudioEffect) -> bool:
+	var bus_idx: int = AudioServer.get_bus_index(HUB_BED_BUS)
+	if bus_idx < 0 or effect == null:
+		return false
+	for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
+		if AudioServer.get_bus_effect(bus_idx, i) == effect:
+			return AudioServer.is_bus_effect_enabled(bus_idx, i)
+	return false
+
+
+func weather_hub_bus_params() -> Dictionary:
+	var gain_on: bool = _weather_effect_enabled(_weather_gain)
+	var low_on: bool = _weather_effect_enabled(_weather_lowpass)
+	var rev_on: bool = _weather_effect_enabled(_weather_reverb)
+	return {
+		"lowpass_enabled": low_on,
+		"lowpass_hz": _weather_lowpass.cutoff_hz if _weather_lowpass != null and low_on else 0.0,
+		"gain_enabled": gain_on,
+		"gain_db": _weather_gain.volume_db if _weather_gain != null and gain_on else 0.0,
+		"reverb_enabled": rev_on,
+		"reverb_room": _weather_reverb.room_size if _weather_reverb != null and rev_on else 0.0,
+		"reverb_wet": _weather_reverb.wet if _weather_reverb != null and rev_on else 0.0,
+		"reverb_damp": _weather_reverb.damping if _weather_reverb != null and rev_on else 0.0,
+	}
+
+
+func weather_bed_volume_db(cue_id: String) -> float:
+	var player: AudioStreamPlayer = _bed_players.get(cue_id, null)
+	if player == null or not player.playing:
+		return WEATHER_BED_SILENCE_DB
+	return player.volume_db
+
+
+func weather_bed_playing(cue_id: String) -> bool:
+	return weather_bed_volume_db(cue_id) > WEATHER_BED_SILENCE_DB + 0.5
+
+
+func weather_bed_bus(cue_id: String) -> String:
+	var player: AudioStreamPlayer = _bed_players.get(cue_id, null)
+	if player == null:
+		return ""
+	return player.bus
+
+
+func weather_bed_silence_db() -> float:
+	return WEATHER_BED_SILENCE_DB
+
+
+func advance_weather_audio(seconds: float) -> void:
+	var state: String = _live_weather_state()
+	var held: bool = _weather_beds_held()
+	if not _weather_ready:
+		_weather_ready = true
+		_weather_state = state
+		_beds_held = held
+		_snap_weather(state, held)
+		return
+	if state != _weather_state or held != _beds_held:
+		var from_state: String = _weather_state
+		_weather_state = state
+		_beds_held = held
+		_begin_weather_fade(from_state, state, held)
+	_step_weather_fade(maxf(seconds, 0.0))
+
+
+func play_chore_payout(companion_id: String, node_id: String) -> bool:
+	var script: GDScript = _hub_life()
+	if script == null:
+		return false
+	var spec_v: Variant = script.call("chore_payout_audio", node_id)
+	var spec: Dictionary = spec_v if typeof(spec_v) == TYPE_DICTIONARY else {}
+	var cue: String = str(spec.get("cue", ""))
+	if cue == "":
+		return false
+	if _minigame_hold or _held_while_fruit_committed(cue, str(spec.get("bus", "SFX_World"))):
+		return false
+	var gap_ms: int = int(round(float(spec.get("gap_sec", 2.0)) * 1000.0))
+	var now: int = Time.get_ticks_msec()
+	var last: int = int(_chore_cue_at.get(companion_id, -100000000))
+	if now - last < gap_ms:
+		return false
+	_chore_cue_at[companion_id] = now
+	play(StringName(cue), float(spec.get("offset_db", -6.0)), 1.0)
+	return true
+
+
+func age_chore_cue(companion_id: String, msec: int) -> void:
+	_chore_cue_at[companion_id] = Time.get_ticks_msec() - msec
+
+
+func clear_chore_cues() -> void:
+	_chore_cue_at.clear()
+
+
+func _live_weather_state() -> String:
+	var script: GDScript = _hub_life()
+	if script == null:
+		return "clear"
+	return str(script.call("weather_state_name"))
+
+
+func _weather_audio_block() -> Dictionary:
+	var script: GDScript = _hub_life()
+	if script == null:
+		return {}
+	var raw: Variant = script.call("weather_audio")
+	return raw if typeof(raw) == TYPE_DICTIONARY else {}
+
+
+func _weather_fade_sec() -> float:
+	return maxf(float(_weather_audio_block().get("crossfade_sec", 2.0)), 0.0)
+
+
+func _bed_fade_in_sec() -> float:
+	return maxf(float(_weather_audio_block().get("bed_fade_in_sec", 3.0)), 0.0)
+
+
+func _bed_fade_out_sec() -> float:
+	return maxf(float(_weather_audio_block().get("bed_fade_out_sec", 4.0)), 0.0)
+
+
+func _bed_fade_sec(from_state: String, to_state: String, held: bool) -> float:
+	if held:
+		return _weather_fade_sec()
+	var from_active: bool = _bed_cue_for(from_state) != ""
+	var to_active: bool = _bed_cue_for(to_state) != "" if not held else false
+	if not from_active and to_active:
+		return _bed_fade_in_sec()
+	if from_active and not to_active:
+		return _bed_fade_out_sec()
+	return _weather_fade_sec()
+
+
+func _weather_beds_held() -> bool:
+	if _minigame_hold:
+		return true
+	if has_node("/root/GameState") and GameState.fruit_committed:
+		return true
+	return false
+
+
+func _fx_row(state: String) -> Dictionary:
+	var table_v: Variant = _weather_audio_block().get("hub_bed", {})
+	var table: Dictionary = table_v if typeof(table_v) == TYPE_DICTIONARY else {}
+	var row_v: Variant = table.get(state, {})
+	var row: Dictionary = row_v if typeof(row_v) == TYPE_DICTIONARY else {}
+	var low: float = float(row.get("lowpass_hz", 0.0))
+	var gain: float = float(row.get("gain_db", 0.0))
+	var room: float = float(row.get("reverb_room", 0.0))
+	var wet: float = float(row.get("reverb_wet", 0.0))
+	var damp: float = float(row.get("reverb_damp", 0.0))
+	var use_low: bool = low > 0.0
+	var use_gain: bool = not is_equal_approx(gain, 0.0)
+	var use_rev: bool = wet > 0.0 or room > 0.0 or damp > 0.0
+	return {
+		"lowpass_hz": low if use_low else HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ,
+		"gain_db": gain,
+		"reverb_room": room,
+		"reverb_wet": wet,
+		"reverb_damp": damp,
+		"use_lowpass": use_low,
+		"use_gain": use_gain,
+		"use_reverb": use_rev,
+	}
+
+
+func _neutral_fx() -> Dictionary:
+	return _fx_row("clear")
+
+
+func _bed_level_db(cue_id: String) -> float:
+	if _cues.has(cue_id) and typeof(_cues[cue_id]) == TYPE_DICTIONARY:
+		return float((_cues[cue_id] as Dictionary).get("volume_db", 0.0))
+	return 0.0
+
+
+func _bed_ids() -> PackedStringArray:
+	var beds_v: Variant = _weather_audio_block().get("beds", {})
+	var beds: Dictionary = beds_v if typeof(beds_v) == TYPE_DICTIONARY else {}
+	var out := PackedStringArray()
+	for key_v: Variant in beds.values():
+		var cue_id: String = str(key_v)
+		if cue_id != "" and not out.has(cue_id):
+			out.append(cue_id)
+	return out
+
+
+func _bed_cue_for(state: String) -> String:
+	var beds_v: Variant = _weather_audio_block().get("beds", {})
+	var beds: Dictionary = beds_v if typeof(beds_v) == TYPE_DICTIONARY else {}
+	return str(beds.get(state, ""))
+
+
+func _target_bed_volumes(state: String, held: bool) -> Dictionary:
+	var active: String = "" if held else _bed_cue_for(state)
+	var out: Dictionary = {}
+	for cue_id: String in _bed_ids():
+		out[cue_id] = _bed_level_db(cue_id) if cue_id == active else WEATHER_BED_SILENCE_DB
+	return out
+
+
+func _snap_weather(state: String, held: bool) -> void:
+	_weather_fx = _fx_row(state)
+	_weather_from = _weather_fx.duplicate()
+	_weather_to = _weather_fx.duplicate()
+	_weather_left = 0.0
+	_weather_span = 0.0
+	_apply_fx(_weather_fx)
+	_bed_vol = _target_bed_volumes(state, held)
+	_bed_from = _bed_vol.duplicate()
+	_bed_to = _bed_vol.duplicate()
+	_bed_left = 0.0
+	_bed_span = 0.0
+	_apply_bed_volumes(_bed_vol)
+
+
+func _begin_weather_fade(from_state: String, to_state: String, held: bool) -> void:
+	if _weather_fx.is_empty():
+		_weather_fx = _neutral_fx()
+	_weather_from = _weather_fx.duplicate()
+	_weather_to = _fx_row(to_state)
+	_weather_span = _weather_fade_sec()
+	_weather_left = _weather_span
+	if _bed_vol.is_empty():
+		for cue_id: String in _bed_ids():
+			_bed_vol[cue_id] = WEATHER_BED_SILENCE_DB
+	_bed_from = _bed_vol.duplicate()
+	_bed_to = _target_bed_volumes(to_state, held)
+	_bed_span = _bed_fade_sec(from_state, to_state, held)
+	_bed_left = _bed_span
+
+
+func _step_weather_fade(seconds: float) -> void:
+	if _weather_span <= 0.0001:
+		_weather_fx = _weather_to.duplicate() if not _weather_to.is_empty() else _neutral_fx()
+		_apply_fx(_weather_fx)
+	else:
+		_weather_left = maxf(0.0, _weather_left - seconds)
+		var t: float = 1.0 if _weather_span <= 0.0 else clampf(1.0 - (_weather_left / _weather_span), 0.0, 1.0)
+		_weather_fx = _lerp_fx(_weather_from, _weather_to, t)
+		_apply_fx(_weather_fx)
+	if _bed_span <= 0.0001:
+		_bed_vol = _bed_to.duplicate()
+	else:
+		_bed_left = maxf(0.0, _bed_left - seconds)
+		var bed_t: float = clampf(1.0 - (_bed_left / _bed_span), 0.0, 1.0)
+		_bed_vol = _lerp_beds(_bed_from, _bed_to, bed_t)
+	_apply_bed_volumes(_bed_vol)
+
+
+func _lerp_fx(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
+	var done: bool = t >= 0.999
+	return {
+		"lowpass_hz": lerpf(float(a.get("lowpass_hz", HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ)), float(b.get("lowpass_hz", HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ)), t),
+		"gain_db": lerpf(float(a.get("gain_db", 0.0)), float(b.get("gain_db", 0.0)), t),
+		"reverb_room": lerpf(float(a.get("reverb_room", 0.0)), float(b.get("reverb_room", 0.0)), t),
+		"reverb_wet": lerpf(float(a.get("reverb_wet", 0.0)), float(b.get("reverb_wet", 0.0)), t),
+		"reverb_damp": lerpf(float(a.get("reverb_damp", 0.0)), float(b.get("reverb_damp", 0.0)), t),
+		"use_lowpass": bool(b.get("use_lowpass", false)) if done else (bool(a.get("use_lowpass", false)) or bool(b.get("use_lowpass", false))),
+		"use_gain": bool(b.get("use_gain", false)) if done else (bool(a.get("use_gain", false)) or bool(b.get("use_gain", false))),
+		"use_reverb": bool(b.get("use_reverb", false)) if done else (bool(a.get("use_reverb", false)) or bool(b.get("use_reverb", false))),
+	}
+
+
+func _lerp_beds(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
+	var out: Dictionary = {}
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v2: Variant in b.keys():
+		keys[str(key_v2)] = true
+	for key_v3: Variant in keys.keys():
+		var cue_id: String = str(key_v3)
+		out[cue_id] = lerpf(float(a.get(cue_id, WEATHER_BED_SILENCE_DB)), float(b.get(cue_id, WEATHER_BED_SILENCE_DB)), t)
+	return out
+
+
+func _apply_fx(fx: Dictionary) -> void:
+	if _weather_lowpass == null:
+		return
+	_weather_lowpass.cutoff_hz = float(fx.get("lowpass_hz", HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ))
+	_weather_gain.volume_db = float(fx.get("gain_db", 0.0))
+	_weather_reverb.room_size = float(fx.get("reverb_room", 0.0))
+	_weather_reverb.wet = float(fx.get("reverb_wet", 0.0))
+	_weather_reverb.damping = float(fx.get("reverb_damp", 0.0))
+	_weather_reverb.dry = 1.0
+	_set_weather_effect_enabled(_weather_lowpass, bool(fx.get("use_lowpass", false)))
+	_set_weather_effect_enabled(_weather_gain, bool(fx.get("use_gain", false)))
+	_set_weather_effect_enabled(_weather_reverb, bool(fx.get("use_reverb", false)))
+
+
+func _apply_bed_volumes(volumes: Dictionary) -> void:
+	for key_v: Variant in volumes.keys():
+		var cue_id: String = str(key_v)
+		var db: float = float(volumes[cue_id])
+		if db <= WEATHER_BED_SILENCE_DB + 0.05:
+			_stop_bed(cue_id)
+		else:
+			_play_bed(cue_id, db)
+
+
+func _play_bed(cue_id: String, db: float) -> void:
+	var player: AudioStreamPlayer = _ensure_bed_player(cue_id)
+	if player == null:
+		return
+	player.volume_db = db
+	if not player.playing:
+		player.play()
+
+
+func _stop_bed(cue_id: String) -> void:
+	var player: AudioStreamPlayer = _bed_players.get(cue_id, null)
+	if player == null:
+		return
+	player.volume_db = WEATHER_BED_SILENCE_DB
+	if player.playing:
+		player.stop()
+
+
+func _ensure_bed_player(cue_id: String) -> AudioStreamPlayer:
+	var existing: AudioStreamPlayer = _bed_players.get(cue_id, null)
+	if existing != null:
+		return existing
+	if not _cues.has(cue_id) or typeof(_cues[cue_id]) != TYPE_DICTIONARY:
+		return null
+	var meta: Dictionary = _cues[cue_id]
+	var path: String = str(meta.get("path", ""))
+	if path == "" or not ResourceLoader.exists(path):
+		cue_missing.emit(StringName(cue_id))
+		return null
+	var stream: AudioStream = load(path) as AudioStream
+	if stream == null:
+		cue_missing.emit(StringName(cue_id))
+		return null
+	_force_stream_loop(stream)
+	var player := AudioStreamPlayer.new()
+	player.name = "WeatherBed_%s" % cue_id
+	player.bus = str(meta.get("bus", "SFX_World"))
+	player.stream = stream
+	player.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(player)
+	_bed_players[cue_id] = player
+	return player

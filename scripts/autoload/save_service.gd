@@ -13,6 +13,14 @@ var boot_slot: int = 0
 var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 
 const SAVE_VERSION: int = 15
 ## Never read a save newer than this build writes: unknown fields would be dropped silently.
@@ -441,6 +449,7 @@ func _load_path(path: String) -> bool:
 	current_save_id = int(root.get("save_id", 0))
 	_apply_loaded_adventure()
 	_apply_offline_catchup(root)
+	_hub_life().call("on_save_loaded")
 	load_completed.emit(true)
 	return true
 
@@ -801,6 +810,7 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v15(out)
 	_drop_removed_blessings(out)
 	_normalize_stat_ranks(out)
+	_hub_life().call("migrate_fields", out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
 	return out

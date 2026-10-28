@@ -1,6 +1,6 @@
 {
   "owner": "Audio",
-  "version": "v0.3.1-battle-music+water-soft+mana-chimes-sprint",
+  "version": "v0.3.2-weather-beds",
   "date": "2026-10-16",
   "source_spec": "CUE_NOTES_FIXPASS.md (box audio_restart/); supersedes AUDIO_RESTART_V01.md and CUE_NOTES_FORGE_V2.md where they differ; battle cues: CUE_NOTES_BATTLE_V1.md",
   "mirrors": "data/audio_cues.json: same cue ids, files (path) and buses. 58 cues: 38 from the fix pass/adventure + mus_battle_forest (reach manual fights) + 15 sfx_battle_* (in audio_cues.json, wired by battle playback job 21; rules in audio_cues.json battle_playback). This file is documentation; code reads audio_cues.json only.",
@@ -726,6 +726,28 @@
       "base_db": 0.0,
       "play_offset_db": -6.0,
       "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 3 (Eb6). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
+    },
+    "sfx_weather_rain_bed": {
+      "file": "sfx_weather_rain_bed.ogg",
+      "path": "res://assets/audio/sfx_weather_rain_bed.ogg",
+      "bus": "SFX_World",
+      "loop": true,
+      "duration_sec": 12.0,
+      "file_peak_dbfs": -14.0,
+      "base_db": -6.0,
+      "play_offset_db": 0.0,
+      "notes": "Haex sprint go 2026-10-27. R6 weather. Soft rain bed, 12 s seamless loop. Plays only while this weather is active; 3 s fade in, 4 s fade out (2 s crossfade between weathers OK). Hub bed gets the Music bus FX for this weather. Snow/blossom: no bed."
+    },
+    "sfx_weather_mist_bed": {
+      "file": "sfx_weather_mist_bed.ogg",
+      "path": "res://assets/audio/sfx_weather_mist_bed.ogg",
+      "bus": "SFX_World",
+      "loop": true,
+      "duration_sec": 12.0,
+      "file_peak_dbfs": -16.0,
+      "base_db": -8.0,
+      "play_offset_db": 0.0,
+      "notes": "Haex sprint go 2026-10-27. R6 weather. Mist C/G pad bed, 12 s seamless loop. Plays only while this weather is active; 3 s fade in, 4 s fade out (2 s crossfade between weathers OK). Hub bed gets the Music bus FX for this weather. Snow/blossom: no bed."
     },
     "sfx_bench_rest": {
       "file": "sfx_bench_rest.ogg",
