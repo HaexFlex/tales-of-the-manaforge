@@ -3236,8 +3236,6 @@ func _portrait_row_y(which: String) -> float:
 		target = _slot_wisp
 	elif _companion_slots.has(which):
 		target = _companion_slots[which] as Control
-	elif which == "elaia":
-		target = _slot_elaia
 	var y: float = 0.0
 	if _party_column == null:
 		return y
@@ -3452,7 +3450,9 @@ func open_character_sheet() -> void:
 	hide_fruit_confirm()
 	if _sheet == null:
 		return
-	var actor: String = "elaia" if GameState.selected_hero_id() == "elaia" else "keeper"
+	var actor: String = GameState.selected_hero_id()
+	if actor == "" or actor == "keeper":
+		actor = "keeper"
 	_sheet.open_sheet(actor)
 	if _party_info:
 		_party_info.visible = false

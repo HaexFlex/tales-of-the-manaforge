@@ -409,8 +409,7 @@ func _companion_row(actor: String) -> Dictionary:
 
 
 func actor_walk_ref_speed(actor: String) -> float:
-	var fallback: float = 88.0 if actor == "elaia" else 80.0
-	return float(_companion_row(actor).get("walk_ref_speed", fallback))
+	return float(_companion_row(actor).get("walk_ref_speed", 80.0))
 
 
 func actor_move_mult(actor: String) -> float:
@@ -913,8 +912,6 @@ func companion_joined(actor: String) -> bool:
 	var id: String = CompanionRoster.canonical_id(actor)
 	if id == "keeper":
 		return true
-	if id == "elaia":
-		return elaia_in_party()
 	var join_v: Variant = CompanionRoster.row(id).get("join", {})
 	var kind: String = str((join_v as Dictionary).get("kind", "")) if typeof(join_v) == TYPE_DICTIONARY else ""
 	if id == "bramble" or kind == "bramble":
@@ -1072,8 +1069,6 @@ func _apply_companions_block(data: Dictionary) -> void:
 		return
 	for key_v: Variant in (raw as Dictionary).keys():
 		var id: String = CompanionRoster.canonical_id(str(key_v))
-		if id == "tortoise":
-			id = "mossback"
 		var block_v: Variant = (raw as Dictionary)[key_v]
 		if typeof(block_v) != TYPE_DICTIONARY:
 			continue

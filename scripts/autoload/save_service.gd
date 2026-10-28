@@ -820,7 +820,12 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 
 func _migrate_v16(out: Dictionary) -> void:
 	## Per-name fields become companions{id: {joined, level, chore, gear}}.
-	## tortoise is mossback. Legacy elaia_* fields stay so older readers still see them.
+	## tortoise is only a save alias for mossback. It is not a roster id.
+	## Puff and Mossback have no join event in this build (no spare, hatch, or
+	## reach gate names them). joined stays false unless the blob already stored it.
+	## elaia_* keys stay on the blob. This migration is what copies her join, chore,
+	## and gear into companions{}. Pose, the join dialogue, footsteps, and the water
+	## fraction still live on those keys, so apply_save_dict keeps reading them.
 	var chores_v: Variant = out.get("companion_chores", {})
 	var chores: Dictionary = chores_v if typeof(chores_v) == TYPE_DICTIONARY else {}
 	if chores.has("tortoise"):

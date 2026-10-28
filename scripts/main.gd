@@ -324,11 +324,7 @@ func _apply_forge_return() -> void:
 func focus_actor(actor_id: String) -> void:
 	if camera == null:
 		return
-	var node: Node2D = null
-	if actor_id == "elaia":
-		node = get_tree().get_first_node_in_group("elaia") as Node2D
-	elif actor_id == "keeper":
-		node = keeper
+	var node: Node2D = keeper if actor_id == "keeper" else (GameState.find_companion_body(actor_id) as Node2D)
 	if node == null or not node.visible:
 		return
 	camera.position = _clamped_camera_pos(node.global_position)
@@ -1152,12 +1148,13 @@ func handle_lmb_ground() -> void:
 func _on_reach_party_changed() -> void:
 	if keeper and keeper.has_method("apply_keeper_presence"):
 		keeper.apply_keeper_presence()
-	var elaia_body: Node = world.get_node_or_null("Elaia") if world else null
-	if elaia_body and elaia_body.has_method("_apply_presence"):
-		elaia_body.call("_apply_presence")
+	for body: Node in get_tree().get_nodes_in_group("companion"):
+		if body.has_method("_apply_presence"):
+			body.call("_apply_presence")
 	if GameState.member_away("keeper"):
 		GameState.set_keeper_selected(false)
-	if GameState.member_away("elaia") and GameState.selected_companion_id == "elaia":
+	var selected: String = str(GameState.selected_companion_id)
+	if selected != "" and GameState.member_away(selected):
 		GameState.selected_companion_id = ""
 		GameState.selection_changed.emit()
 	if has_node("/root/Reach"):
@@ -1183,10 +1180,11 @@ func handle_rmb_ground(world_pos: Vector2) -> void:
 				unassigned = true
 		if unassigned:
 			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
-	if GameState.selected_hero_id() == "elaia":
-		var elaia: Node = get_tree().get_first_node_in_group("elaia")
-		if elaia and elaia.has_method("command_move"):
-			elaia.call("command_move", world_pos)
+	var hero_id: String = GameState.selected_hero_id()
+	if hero_id != "" and hero_id != "keeper":
+		var hero: Node = GameState.find_selected_hero()
+		if hero and hero.has_method("command_move"):
+			hero.call("command_move", world_pos)
 		return
 	if GameState.keeper_selected:
 		if keeper.has_method("scene_home") and GameState.keeper_area != keeper.scene_home():

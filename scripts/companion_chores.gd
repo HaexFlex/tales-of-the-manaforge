@@ -251,7 +251,7 @@ static func player_task_working(companion_id: String) -> bool:
 
 static func has_chore(companion_id: String) -> bool:
 	_ensure()
-	return str(assignments.get(companion_id, "")) != ""
+	return str(assignments.get(_cid(companion_id), "")) != ""
 
 
 static func active_ids() -> Array[String]:

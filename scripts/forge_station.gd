@@ -281,8 +281,6 @@ func _on_right_click() -> void:
 			hero.call("command_station", self)
 		if room and room.has_method("present_companion_at_station"):
 			room.call("present_companion_at_station", hero_id, station_id)
-		elif hero_id == "elaia" and room and room.has_method("present_elaia_at_station"):
-			room.call("present_elaia_at_station", station_id)
 		return
 	if GameState.keeper_selected:
 		var keeper: Node = get_tree().get_first_node_in_group("keeper")

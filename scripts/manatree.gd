@@ -214,8 +214,9 @@ func do_water() -> void:
 		fruit_menu_requested.emit()
 		return
 	var hero: Node = null
-	if GameState.selected_hero_id() == "elaia":
-		hero = get_tree().get_first_node_in_group("elaia")
+	var hero_id: String = GameState.selected_hero_id()
+	if hero_id != "" and hero_id != "keeper":
+		hero = GameState.find_selected_hero()
 	if hero == null:
 		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 		if not keepers.is_empty():

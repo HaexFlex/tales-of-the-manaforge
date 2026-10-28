@@ -314,12 +314,13 @@ func _on_elaia_arrived() -> void:
 func _on_reach_party_changed() -> void:
 	if keeper and keeper.has_method("apply_keeper_presence"):
 		keeper.apply_keeper_presence()
-	var elaia_body: Node = get_node_or_null("Elaia")
-	if elaia_body and elaia_body.has_method("_apply_presence"):
-		elaia_body.call("_apply_presence")
+	for body: Node in get_tree().get_nodes_in_group("companion"):
+		if body.has_method("_apply_presence"):
+			body.call("_apply_presence")
 	if GameState.member_away("keeper"):
 		GameState.set_keeper_selected(false)
-	if GameState.member_away("elaia") and GameState.selected_companion_id == "elaia":
+	var selected: String = str(GameState.selected_companion_id)
+	if selected != "" and GameState.member_away(selected):
 		GameState.selected_companion_id = ""
 		GameState.selection_changed.emit()
 	if has_node("/root/Reach"):
@@ -331,9 +332,10 @@ func _on_reach_party_changed() -> void:
 func _on_rmb_ground(world_pos: Vector2) -> void:
 	_dest_station = ""
 	_station_actor = ""
-	var elaia_selected: bool = GameState.selected_hero_id() == "elaia"
+	var hero_id: String = GameState.selected_hero_id()
+	var companion_selected: bool = hero_id != "" and hero_id != "keeper"
 	var keeper_away: bool = GameState.member_away("keeper")
-	if has_node("/root/ForgeJobs") and not elaia_selected:
+	if has_node("/root/ForgeJobs") and not companion_selected:
 		ForgeJobs.set_keeper_working("", false)
 	_hide_recipes()
 	var ids: Array[int] = GameState.selected_wisp_list()
@@ -347,10 +349,10 @@ func _on_rmb_ground(world_pos: Vector2) -> void:
 				unassigned = true
 		if unassigned:
 			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
-	if elaia_selected:
-		var elaia: Node = get_node_or_null("Elaia")
-		if elaia and elaia.has_method("command_move"):
-			elaia.call("command_move", world_pos)
+	if companion_selected:
+		var hero: Node = GameState.find_selected_hero()
+		if hero and hero.has_method("command_move"):
+			hero.call("command_move", world_pos)
 		return
 	if GameState.keeper_selected and keeper and keeper.has_method("move_to"):
 		keeper.call("move_to", world_pos, null)
@@ -709,11 +711,7 @@ func _on_repeat_toggled() -> void:
 func focus_actor(actor_id: String) -> void:
 	if camera == null:
 		return
-	var node: Node2D = null
-	if actor_id == "elaia":
-		node = get_node_or_null("Elaia") as Node2D
-	else:
-		node = keeper
+	var node: Node2D = keeper if actor_id == "keeper" else (GameState.find_companion_body(actor_id) as Node2D)
 	if node == null or not node.visible:
 		return
 	camera.position = node.global_position

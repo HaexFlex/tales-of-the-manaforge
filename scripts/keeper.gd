@@ -129,7 +129,7 @@ func _touch_deselects(event: InputEvent) -> bool:
 
 
 func _clear_touch_selection() -> void:
-	if actor_id() == "elaia":
+	if actor_id() != "keeper":
 		GameState.selected_companion_id = ""
 		GameState.selection_changed.emit()
 		return
@@ -1198,9 +1198,9 @@ func _present_in_clearing() -> bool:
 		return false
 	if not has_node("/root/GameState"):
 		return false
-	if actor_id() == "elaia":
-		return GameState.elaia_in_party() and GameState.elaia_area == "clearing"
-	return GameState.keeper_area == "clearing"
+	if actor_id() == "keeper":
+		return GameState.keeper_area == "clearing"
+	return GameState.companion_joined(actor_id()) and GameState.companion_area(actor_id()) == "clearing"
 
 
 func _keeper_standing_idle() -> bool:
@@ -1828,16 +1828,16 @@ func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -
 				if actor_id() == "keeper":
 					GameState.status_message.emit(ContentStrings.get_text("keeper_select_hint"))
 				else:
-					GameState.status_message.emit(ContentStrings.get_text("echo_elaia_name"))
+					GameState.status_message.emit(GameState.hero_display_name(actor_id()))
 			get_viewport().set_input_as_handled()
 		elif GameInput.is_command(mb):
 			get_viewport().set_input_as_handled()
 
 
 func world_hover_name() -> String:
-	if actor_id() == "elaia":
-		return ContentStrings.get_text("echo_elaia_name")
-	return ContentStrings.get_text("keeper_select")
+	if actor_id() == "keeper":
+		return ContentStrings.get_text("keeper_select")
+	return GameState.hero_display_name(actor_id())
 
 
 func _on_hover(inside: bool) -> void:
