@@ -371,6 +371,20 @@ func _find_station(station_id: String) -> Node2D:
 	return null
 
 
+func actor_work_anim(tool: String, facing: String) -> String:
+	if actor_id() == "mossback" and tool == "pickaxe":
+		return "work_stone"
+	return super.actor_work_anim(tool, facing)
+
+
+func actor_work_anim_offset(anim: String) -> Vector2:
+	var clip: Dictionary = CompanionClips.clip_spec(actor_id(), anim)
+	if not clip.is_empty():
+		var layout: Dictionary = CompanionClips.layout(clip)
+		return layout.get("offset", OFFSET_BODY) as Vector2
+	return super.actor_work_anim_offset(anim)
+
+
 func _remember_pose() -> void:
 	if not has_node("/root/GameState"):
 		return

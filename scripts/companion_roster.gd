@@ -98,6 +98,9 @@ static func text_key(actor_id: String, field: String, fallback: String) -> Strin
 
 
 static func battle_pose(actor_id: String, pose: String) -> String:
+	var clip_name: String = CompanionClips.battle_clip_name(pose)
+	if clip_name != "" and not CompanionClips.clip_spec(actor_id, clip_name).is_empty():
+		return ""
 	var art: Variant = row(actor_id).get("art", {})
 	var block: Dictionary = art if typeof(art) == TYPE_DICTIONARY else {}
 	var battle: Variant = block.get("battle", {})

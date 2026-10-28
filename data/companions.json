@@ -130,11 +130,14 @@
         "west": "idle_w.png"
       },
       "clips": {
-        "walk_south": {"dir": "walk_s", "frame_ms": 100},
-        "walk_north": {"dir": "walk_n", "frame_ms": 100},
-        "walk_east": {"dir": "walk_e", "frame_ms": 100},
-        "walk_west": {"dir": "walk_w", "frame_ms": 100},
-        "walk_front": {"dir": "walk_s", "frame_ms": 100}
+        "walk_south": {"dir": "walk_s", "frame_ms": 100, "frames": 9},
+        "walk_north": {"dir": "walk_n", "frame_ms": 100, "frames": 9},
+        "walk_east": {"dir": "walk_e", "frame_ms": 100, "frames": 9},
+        "walk_west": {"dir": "walk_w", "frame_ms": 100, "frames": 9},
+        "walk_front": {"dir": "walk_s", "frame_ms": 100, "frames": 9},
+        "battle_attack": {"dir": "battle_attack", "frame_ms": 125, "frames": 8, "hit_frame": 3},
+        "battle_hit": {"dir": "battle_hit", "frame_ms": 100, "frames": 4},
+        "work_brew": {"dir": "work_brew", "frame_ms": 100, "frames": 8}
       }
     }
   },
@@ -173,11 +176,27 @@
         "west": "idle_w.png"
       },
       "clips": {
-        "walk_south": {"dir": "walk_s", "frame_ms": 100},
-        "walk_north": {"dir": "walk_n", "frame_ms": 100},
-        "walk_east": {"dir": "walk_e", "frame_ms": 100},
-        "walk_west": {"dir": "walk_w", "frame_ms": 100},
-        "walk_front": {"dir": "walk_s", "frame_ms": 100}
+        "walk_south": {"dir": "walk_s", "frame_ms": 100, "frames": 9},
+        "walk_north": {"dir": "walk_n", "frame_ms": 100, "frames": 9},
+        "walk_east": {"dir": "walk_e", "frame_ms": 100, "frames": 9},
+        "walk_west": {"dir": "walk_w", "frame_ms": 100, "frames": 9},
+        "walk_front": {"dir": "walk_s", "frame_ms": 100, "frames": 9},
+        "battle_attack": {
+          "dir": "battle_attack",
+          "frame_ms": 125,
+          "frames": 8,
+          "hit_frame": 3,
+          "canvas": [152, 128],
+          "offset": [-76, -128]
+        },
+        "battle_hit": {"dir": "battle_hit", "frame_ms": 100, "frames": 4, "canvas": [128, 128], "offset": [-64, -128]},
+        "work_stone": {
+          "dir": "work_stone",
+          "frame_ms": 100,
+          "frames": 8,
+          "canvas": [146, 128],
+          "offset": [-73, -128]
+        }
       }
     }
   },

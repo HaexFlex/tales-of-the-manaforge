@@ -2,6 +2,8 @@ extends RefCounted
 class_name RosterTests
 ## Generic roster and save v16. Runnable from the default VERIFY suite and alone.
 
+const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
+
 
 func generic(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
@@ -209,6 +211,83 @@ func join_hooks(tree_root: Window, game_state: Node, save_service: Node) -> int:
 		print("COMPANION_JOIN_HOOKS_OK")
 	else:
 		print("COMPANION_JOIN_HOOKS_FAIL: %d" % failed)
+	return failed
+
+
+func companion_clips(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	CompanionRoster.reload()
+	for actor_id: String in ["puff", "mossback"]:
+		var anim_v: Variant = CompanionRoster.row(actor_id).get("anim", {})
+		var clips_v: Variant = anim_v.get("clips", {}) if typeof(anim_v) == TYPE_DICTIONARY else {}
+		if typeof(clips_v) != TYPE_DICTIONARY:
+			failed += _assert(false, "%s anim.clips missing" % actor_id)
+			continue
+		for clip_name_v: Variant in (clips_v as Dictionary).keys():
+			var clip_name: String = str(clip_name_v)
+			var clip_v: Variant = (clips_v as Dictionary)[clip_name_v]
+			if typeof(clip_v) != TYPE_DICTIONARY:
+				continue
+			var clip: Dictionary = clip_v as Dictionary
+			var dir_path: String = CompanionClips.frame_dir(actor_id, clip_name)
+			var disk: int = CompanionClips.count_frames_on_disk(dir_path)
+			var declared: int = CompanionClips.declared_frame_count(clip)
+			failed += _assert(disk > 0 and ResourceLoader.exists(CompanionClips.frame_path(dir_path, 0)), "%s/%s loads" % [actor_id, clip_name])
+			failed += _assert(disk == declared, "%s/%s frames data/disk (%d vs %d)" % [actor_id, clip_name, declared, disk])
+			if clip_name == "battle_attack":
+				failed += _assert(CompanionClips.hit_frame_index(clip) == 3, "%s attack hit_frame is 3" % actor_id)
+				var want_hit: float = CompanionClips.hit_time_sec(clip)
+				failed += _assert(is_equal_approx(want_hit, 0.375), "%s attack hit time" % actor_id)
+		var idle_path: String = CompanionRoster.battle_pose(actor_id, "idle")
+		failed += _assert(idle_path != "" and ResourceLoader.exists(idle_path), "%s battle idle still" % actor_id)
+	failed += _companion_clip_hit_in_arena(tree_root, game_state, "puff")
+	failed += _companion_clip_hit_in_arena(tree_root, game_state, "mossback")
+	var body_packed: PackedScene = load("res://scenes/companion.tscn") as PackedScene
+	if body_packed != null:
+		game_state.call("_set_stage", &"elder")
+		var reach: Node = tree_root.get_node_or_null("Reach")
+		if reach != null:
+			reach.set("reaches_cleared", 1)
+		var moss: Companion = body_packed.instantiate() as Companion
+		if moss != null:
+			moss.companion_id = "mossback"
+			tree_root.add_child(moss)
+			failed += _assert(moss.sprite.sprite_frames != null and moss.sprite.sprite_frames.has_animation(&"work_stone"), "mossback work_stone clip registered")
+			if moss.sprite.sprite_frames != null and moss.sprite.sprite_frames.has_animation(&"work_stone"):
+				failed += _assert(moss.sprite.sprite_frames.get_frame_count(&"work_stone") == 8, "mossback work_stone has 8 frames")
+			moss.sprite.play(&"work_stone")
+			moss.call("_play_loop", &"work_stone", 1.0, moss.call("actor_work_anim_offset", "work_stone"))
+			var work_tex: Texture2D = moss.sprite.sprite_frames.get_frame_texture(&"work_stone", 0) if moss.sprite.sprite_frames != null else null
+			failed += _assert(work_tex != null and _texture_has_visible_pixels(work_tex), "mossback work_stone hub clip draws")
+			var layout: Dictionary = CompanionClips.layout(CompanionClips.clip_spec("mossback", "work_stone"))
+			failed += _assert((layout.get("offset", Vector2.ZERO) as Vector2).is_equal_approx(Vector2(-73, -128)), "mossback work_stone offset from data")
+			failed += _assert(moss.sprite.offset.is_equal_approx(Vector2(-73, -128)), "mossback work_stone sprite offset")
+			moss.queue_free()
+	if failed == 0:
+		print("COMPANION_CLIPS_OK")
+	else:
+		print("COMPANION_CLIPS_FAIL: %d" % failed)
+	return failed
+
+
+func _companion_clip_hit_in_arena(tree_root: Window, game_state: Node, member: String) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	if not bool(BattleViewScript.open_arena()):
+		return _assert(false, "arena opens for %s clip hit" % member)
+	var views: Array[Node] = tree_root.get_tree().get_nodes_in_group("battle_overlay")
+	if views.is_empty():
+		BattleViewScript.close_arena()
+		return _assert(false, "arena overlay for %s" % member)
+	var view: BattleView = views[0] as BattleView
+	view._last_clip_hit_sec = -1.0
+	failed += _assert(bool(view.set_fighter_pose(member, "attack")), "%s battle attack clip starts" % member)
+	var elapsed: float = 0.0
+	while elapsed < 0.55 and view.clip_hit_last_sec() < 0.0:
+		view.playback_tick_fighter_clips(0.05)
+		elapsed += 0.05
+	failed += _assert(view.clip_hit_last_sec() >= 0.0, "%s battle_attack hit_frame fires" % member)
+	BattleViewScript.close_arena()
 	return failed
 
 

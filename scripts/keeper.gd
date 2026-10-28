@@ -465,12 +465,12 @@ func _update_anim(intended: Vector2) -> void:
 	if _pose_hold or _pose_finish_left > 0.0:
 		return
 	if _should_work_loop():
-		var anim := StringName(work_anim_for(_work_tool, _work_facing))
+		var anim := StringName(actor_work_anim(_work_tool, _work_facing))
 		var scale: float = 1.0
 		if _work_tool == "station":
 			## Walk speed_scale must not drive station work. Engine.time_scale still scales playback.
 			scale = station_work_anim_speed()
-		_play_loop(anim, scale, _offset_for_anim(String(anim)))
+		_play_loop(anim, scale, actor_work_anim_offset(String(anim)))
 		return
 	if actor_idle_uses_facing():
 		_play_loop(StringName("idle_%s" % _facing), 1.0, OFFSET_BODY)
@@ -708,6 +708,14 @@ static func work_anim_for(tool: String, facing: String) -> String:
 	if tool == "axe" or tool == "pickaxe" or tool == "berries":
 		return "harvest_%s_%s" % [tool, facing]
 	return "idle_south"
+
+
+func actor_work_anim(tool: String, facing: String) -> String:
+	return work_anim_for(tool, facing)
+
+
+func actor_work_anim_offset(anim: String) -> Vector2:
+	return _offset_for_anim(anim)
 
 
 static func tool_for_type(type_id: String) -> String:

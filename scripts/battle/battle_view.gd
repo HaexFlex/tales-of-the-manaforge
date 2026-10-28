@@ -29,8 +29,13 @@ const SLOT_MARK_SIZE: Vector2 = Vector2(56.0, 16.0)
 ## 128x128 fighter frames: soles on row 123, feet centred on x 63.5.
 const FIGHTER_FRAME: Vector2 = Vector2(128.0, 128.0)
 const FIGHTER_SOLE: Vector2 = Vector2(64.0, 123.0)
-## Placeholder lineup until job 18's formation: Keeper front middle, Elaia back middle.
-const PARTY_LINEUP: Dictionary = {"keeper": ["party_front", 1], "elaia": ["party_back", 1]}
+## Placeholder lineup before job 18's formation: four roster bodies on v7 slots.
+const PARTY_LINEUP: Dictionary = {
+	"keeper": ["party_front", 1],
+	"elaia": ["party_back", 1],
+	"puff": ["party_front", 0],
+	"mossback": ["party_back", 2],
+}
 ## Battle poses (east-facing). Playback swaps attack, brace, hurt, and ko; rest_pose_for picks idle or brace.
 const PARTY_POSES: Dictionary = {
 	"keeper": {
@@ -182,6 +187,14 @@ const KEEPER_TEST_STATS: Dictionary = {
 const ELAIA_TEST_STATS: Dictionary = {
 	"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
 	"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+}
+const PUFF_TEST_STATS: Dictionary = {
+	"might": 6, "arcana": 4, "resilience": 5, "ward": 5,
+	"vitality": 6, "swiftness": 6, "fate": 5, "attack": "physical",
+}
+const MOSSBACK_TEST_STATS: Dictionary = {
+	"might": 7, "arcana": 3, "resilience": 7, "ward": 6,
+	"vitality": 7, "swiftness": 4, "fate": 5, "attack": "physical",
 }
 const LOG_LINE_COUNT: int = 5
 const LOG_SCROLL_PAD: float = 4.0
@@ -558,11 +571,10 @@ func _build_plate_layer() -> void:
 
 
 func _place_party() -> void:
-	## Keeper and Elaia idle poses on their placeholder slots before a fight starts.
-	## set_fighter_pose swaps frames for later playback.
+	## Roster battle idles on placeholder slots before a fight starts.
 	if _fighters == null:
 		return
-	for member: String in ["elaia", "keeper"]:
+	for member: String in PARTY_LINEUP.keys():
 		var spot: Array = PARTY_LINEUP[member]
 		var sole: Vector2 = slot_sole(str(spot[0]), int(spot[1]))
 		var root: Control = _new_fighter_root(member, "party", sole)
@@ -705,6 +717,9 @@ func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	if bool(root.get_meta("swarm", false)):
 		return _set_swarm_pose(root, fighter_id, pose)
 	var member: String = str(root.get_meta("member", fighter_id))
+	var clip_name: String = CompanionClips.battle_clip_name(pose)
+	if clip_name != "" and not CompanionClips.clip_spec(member, clip_name).is_empty():
+		return _play_party_clip(root, member, clip_name, pose)
 	var pose_path: String = CompanionRoster.battle_pose(member, pose)
 	if pose_path == "" or not ResourceLoader.exists(pose_path):
 		var poses: Dictionary = PARTY_POSES.get(member, {})
@@ -715,9 +730,93 @@ func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
 	if tex == null or sprite == null:
 		return false
+	_stop_party_clip(root)
 	sprite.texture = tex
+	sprite.size = FIGHTER_FRAME
+	sprite.position = -FIGHTER_SOLE
 	root.set_meta("pose", pose)
 	return true
+
+
+var _last_clip_hit_sec: float = -1.0
+
+
+func clip_hit_last_sec() -> float:
+	return _last_clip_hit_sec
+
+
+func playback_tick_fighter_clips(sec: float) -> void:
+	if _fighters == null or sec <= 0.0:
+		return
+	for child: Node in _fighters.get_children():
+		if child is Control and bool((child as Control).get_meta("clip_active", false)):
+			_advance_party_clip(child as Control, sec)
+
+
+func _play_party_clip(root: Control, member: String, clip_name: String, pose: String) -> bool:
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+	if sprite == null:
+		return false
+	var dir_path: String = CompanionClips.frame_dir(member, clip_name)
+	if CompanionClips.count_frames_on_disk(dir_path) <= 0:
+		return false
+	var clip: Dictionary = CompanionClips.clip_spec(member, clip_name)
+	var layout: Dictionary = CompanionClips.layout(clip)
+	var size: Vector2 = layout.get("size", FIGHTER_FRAME) as Vector2
+	var offset: Vector2 = layout.get("offset", -FIGHTER_SOLE) as Vector2
+	sprite.size = size
+	sprite.position = offset
+	var tex: Texture2D = CompanionClips.load_frame(dir_path, 0)
+	if tex == null:
+		return false
+	sprite.texture = tex
+	root.set_meta("clip_active", true)
+	root.set_meta("clip_member", member)
+	root.set_meta("clip_name", clip_name)
+	root.set_meta("clip_pose", pose)
+	root.set_meta("clip_frame", 0)
+	root.set_meta("clip_elapsed", 0.0)
+	root.set_meta("clip_hit_done", false)
+	root.set_meta("pose", pose)
+	return true
+
+
+func _stop_party_clip(root: Control) -> void:
+	root.set_meta("clip_active", false)
+	root.set_meta("clip_elapsed", 0.0)
+	root.set_meta("clip_frame", 0)
+	root.set_meta("clip_hit_done", false)
+
+
+func _advance_party_clip(root: Control, sec: float) -> void:
+	var member: String = str(root.get_meta("clip_member", ""))
+	var clip_name: String = str(root.get_meta("clip_name", ""))
+	var clip: Dictionary = CompanionClips.clip_spec(member, clip_name)
+	var dir_path: String = CompanionClips.frame_dir(member, clip_name)
+	var frame_count: int = CompanionClips.count_frames_on_disk(dir_path)
+	if clip.is_empty() or frame_count <= 0:
+		_stop_party_clip(root)
+		return
+	var ms: float = maxf(CompanionClips.frame_ms(clip), 1.0)
+	var elapsed: float = float(root.get_meta("clip_elapsed", 0.0)) + sec
+	var frame: int = mini(int(elapsed * 1000.0 / ms), frame_count - 1)
+	if int(root.get_meta("clip_frame", -1)) != frame:
+		root.set_meta("clip_frame", frame)
+		var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+		var tex: Texture2D = CompanionClips.load_frame(dir_path, frame)
+		if sprite != null and tex != null:
+			sprite.texture = tex
+	var hit: int = CompanionClips.hit_frame_index(clip)
+	if hit >= 0 and frame >= hit and not bool(root.get_meta("clip_hit_done", false)):
+		root.set_meta("clip_hit_done", true)
+		_last_clip_hit_sec = Time.get_ticks_msec() / 1000.0
+		root.set_meta("clip_hit_sec", _last_clip_hit_sec)
+	if elapsed * 1000.0 >= float(frame_count) * ms:
+		_stop_party_clip(root)
+		var fighter_id: String = str(root.get_meta("fighter_id", ""))
+		set_fighter_pose(fighter_id, "idle")
+		return
+	root.set_meta("clip_elapsed", elapsed)
 
 
 func get_playback() -> BattlePlayback:
@@ -2233,6 +2332,8 @@ static func _add_test_party(fight: FightState, with_elaia: bool) -> void:
 	fight.add_member("keeper", KEEPER_TEST_STATS, 0, "front", "keeper")
 	if with_elaia:
 		fight.add_member("elaia", ELAIA_TEST_STATS, 1, "back", "elaia")
+	fight.add_member("puff", PUFF_TEST_STATS, 2, "front", "puff")
+	fight.add_member("mossback", MOSSBACK_TEST_STATS, 3, "back", "mossback")
 
 
 func _show_party_preview() -> void:
@@ -2247,10 +2348,20 @@ func _show_party_preview() -> void:
 	var preview := FightState.new()
 	_add_test_party(preview, with_elaia)
 	var rows: Array = preview.to_dict().get("fighters", []) as Array
-	for member: String in ["elaia", "keeper"]:
+	var visible_members: Dictionary = {}
+	for row_v: Variant in rows:
+		if row_v is Dictionary:
+			var row: Dictionary = row_v as Dictionary
+			var member_id: String = str(row.get("member", row.get("id", "")))
+			if member_id != "":
+				visible_members[member_id] = true
+	for member: String in PARTY_LINEUP.keys():
 		var root: Control = playback_fighter_root(member)
 		if root != null:
-			root.visible = member != "elaia" or with_elaia
+			if member == "elaia" and not with_elaia:
+				root.visible = false
+			else:
+				root.visible = visible_members.has(member)
 	for row_v: Variant in rows:
 		if row_v is Dictionary:
 			var row: Dictionary = row_v as Dictionary
