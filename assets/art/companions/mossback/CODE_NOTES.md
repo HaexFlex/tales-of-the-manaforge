@@ -31,10 +31,11 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/mossbac
 | `battle_hit/frame_0000..0003.png` | 4 | 100 each | west; Imagine try1 |
 | `portrait_52.png` | 1 | — | 52×52 HUD |
 | `portrait_160.png` | 1 | — | 160×160 sheet |
+| `work_stone/frame_0000..0007.png` | 8 | 100 each | side/east; Imagine try1 |
 
 ## Missing (no existing source)
 
-- `work_<mechanic>` (mechanic null; no work loop source) — ~2–3 Imagine runs when mechanic lands.
+- ~~`work_stone`~~ **SHIPPED** 2026-10-28 (stone gathering body motion).
 - ~~`battle_attack`, `battle_hit`~~ **SHIPPED** 2026-10-28.
 - Animated idle loops (12f) + `walk8/` archived in legacy; locked walk uses 9×100 from source `anim/walk/`.
 
@@ -109,3 +110,22 @@ Contacts: `assets/library/companions_r7_2026-10-28/mossback_battle_contact_{1x,4
 - `battle_hit/frame_0001.png` — 128×128 RGBA
 - `battle_hit/frame_0002.png` — 128×128 RGBA
 - `battle_hit/frame_0003.png` — 128×128 RGBA
+
+## Work ship — work_stone (2026-10-28)
+
+Side view (east, like `idle_e.png`). Body motion only (head/front-feet nudge loop).
+
+| clip | frames | ms | source indices | runs | gate |
+|---|---|---|---|---|---|
+| work_stone | 8 | 100 | 7,19,30,42,54,66,77,89 | 1 | PASS hist_mean=0.858 vs clean24(idle_e); h≈90; sole=123; clean |
+
+Contacts: `assets/library/companions_r7_2026-10-28/mossback_work_stone_contact_{1x,4x}.png`
+
+- `work_stone/frame_0000.png` — 128×128 RGBA
+- `work_stone/frame_0001.png` — 128×128 RGBA
+- `work_stone/frame_0002.png` — 128×128 RGBA
+- `work_stone/frame_0003.png` — 128×128 RGBA
+- `work_stone/frame_0004.png` — 128×128 RGBA
+- `work_stone/frame_0005.png` — 128×128 RGBA
+- `work_stone/frame_0006.png` — 128×128 RGBA
+- `work_stone/frame_0007.png` — 128×128 RGBA
