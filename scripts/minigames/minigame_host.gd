@@ -495,9 +495,10 @@ func hero_for(target_id: String) -> String:
 	var keeper_task: Dictionary = ForgeJobs.keeper_task()
 	if bool(keeper_task.get("working", false)) and str(keeper_task.get("target", "")) == target_id:
 		return "keeper"
-	var elaia_task: Dictionary = ForgeJobs.elaia_task()
-	if bool(elaia_task.get("working", false)) and str(elaia_task.get("target", "")) == target_id:
-		return "elaia"
+	for actor_id: String in CompanionRoster.ids():
+		var task: Dictionary = ForgeJobs.task_for(actor_id)
+		if bool(task.get("working", false)) and str(task.get("target", "")) == target_id:
+			return actor_id
 	return ""
 
 
@@ -570,7 +571,7 @@ func debug_open(game_id: String) -> bool:
 
 
 func _open_game(game_id: String, worker: String, target_id: String, from_debug: bool) -> bool:
-	if game_id == "" or (worker != "keeper" and worker != "elaia"):
+	if game_id == "" or (worker != "keeper" and not CompanionRoster.has_id(worker)):
 		return false
 	if not from_debug and not MinigameCatalog.is_reachable(game_id):
 		return false

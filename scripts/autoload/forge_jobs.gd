@@ -21,6 +21,7 @@ var _keeper_working: bool = false
 var _companions: Dictionary = {}
 var _keeper_task: Dictionary = {"kind": "none", "target": "", "working": false}
 var _elaia_task: Dictionary = {"kind": "none", "target": "", "working": false}
+var _actor_tasks: Dictionary = {}
 var _elaia_station: String = ""
 var _elaia_working: bool = false
 ## Target key held while a hero is walking, before the job is marked working.
@@ -611,16 +612,13 @@ func _move_door_party(leader: String, _from_area: String, to_area: String) -> vo
 
 
 func _place_transferred(actor_id: String, area: String, spot: Vector2, facing: String) -> void:
-	if actor_id == "elaia":
-		GameState.elaia_area = area
-		GameState.elaia_has_pos = true
-		GameState.elaia_pos = spot
-		GameState.elaia_facing = facing
-	else:
+	if actor_id == "keeper":
 		GameState.keeper_area = area
 		GameState.keeper_has_pos = true
 		GameState.keeper_pos = spot
 		GameState.keeper_facing = facing
+	else:
+		GameState.set_companion_pose(actor_id, area, spot, facing, true)
 
 
 func try_door_entry(actor_id: String) -> String:
@@ -675,9 +673,11 @@ func _clear_door_walk() -> void:
 func _door_hero(actor: String) -> Node:
 	if get_tree() == null:
 		return null
-	if actor == "elaia":
-		return get_tree().get_first_node_in_group("elaia")
-	return get_tree().get_first_node_in_group("keeper")
+	if actor == "keeper":
+		return get_tree().get_first_node_in_group("keeper")
+	if has_node("/root/GameState"):
+		return GameState.find_companion_body(actor)
+	return get_tree().get_first_node_in_group(actor)
 
 
 func _tick_door_walk() -> void:
@@ -785,11 +785,65 @@ func elaia_task() -> Dictionary:
 	return _elaia_task.duplicate(true)
 
 
-func on_member_departed(member: String) -> void:
-	if member == "keeper":
+func task_for(actor_id: String) -> Dictionary:
+	var id: String = CompanionRoster.canonical_id(actor_id)
+	if id == "keeper":
+		return keeper_task()
+	if id == "elaia":
+		return elaia_task()
+	var raw: Variant = _actor_tasks.get(id, {})
+	if typeof(raw) != TYPE_DICTIONARY:
+		return {"kind": "none", "target": "", "working": false}
+	return (raw as Dictionary).duplicate(true)
+
+
+func set_actor_task(actor_id: String, kind: String, target: String, working: bool) -> void:
+	var id: String = CompanionRoster.canonical_id(actor_id)
+	if id == "keeper":
+		set_keeper_task(kind, target, working)
+		return
+	if id == "elaia":
+		set_elaia_task(kind, target, working)
+		return
+	_actor_tasks[id] = {"kind": kind, "target": target, "working": working}
+	if working and target != "":
+		_hero_claims[id] = target
+	elif not working:
+		_hero_claims.erase(id)
+
+
+func set_actor_working(actor_id: String, station_id: String, working: bool) -> void:
+	var id: String = CompanionRoster.canonical_id(actor_id)
+	if id == "elaia":
+		set_elaia_working(station_id, working)
+		return
+	if id == "keeper":
+		set_keeper_working(station_id, working)
+		return
+	if working and station_id != "":
+		var kind: String = "bench" if station_id == WORKBENCH_ID else "forge"
+		set_actor_task(id, kind, station_id, true)
+		return
+	var task: Dictionary = task_for(id)
+	if station_id == "" or station_id == str(task.get("target", "")):
+		var kind_now: String = str(task.get("kind", ""))
+		if kind_now == "forge" or kind_now == "bench":
+			set_actor_task(id, "none", "", false)
+
+
+func note_actor_idle(actor_id: String) -> void:
+	var id: String = CompanionRoster.canonical_id(actor_id)
+	if id == "keeper":
 		note_keeper_idle()
-	elif member == "elaia":
+	elif id == "elaia":
 		note_elaia_idle()
+	else:
+		_actor_tasks.erase(id)
+		_hero_claims.erase(id)
+
+
+func on_member_departed(member: String) -> void:
+	note_actor_idle(member)
 
 
 func _tick_absent_elaia(delta: float) -> void:
@@ -1426,6 +1480,7 @@ func reset_for_new_game() -> void:
 	_companions.clear()
 	note_keeper_idle()
 	note_elaia_idle()
+	_actor_tasks.clear()
 	_pending_toast = ""
 	_return_to_clearing = false
 	_pending_scene = ""
@@ -1675,7 +1730,7 @@ func _grant_material(item_id: String, amount: int) -> void:
 ## k seconds of the played hero only, on the current item. Leftover does not enter the queue.
 func grant_played_job_seconds(station_id: String, actor: String, seconds: float) -> Dictionary:
 	var denied := {"ok": false, "applied": 0.0, "finished": 0, "reason": "", "spilled": 0.0}
-	if actor != "keeper" and actor != "elaia":
+	if actor != "keeper" and not CompanionRoster.has_id(actor):
 		denied["reason"] = "wisp"
 		return denied
 	if seconds <= 0.0:

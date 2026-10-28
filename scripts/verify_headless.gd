@@ -271,6 +271,22 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ROSTER_GENERIC") == "1":
+		var roster_only: int = _roster_generic_checks(tree_root, game_state, save_service)
+		if roster_only > 0:
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V16") == "1":
+		var save_v16_only: int = _save_v16_checks(tree_root, game_state, save_service)
+		if save_v16_only > 0:
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_INTEGRATION_R1") == "1":
 		var integration_r1_failed: int = await _integration_r1_ok(tree_root, game_state, game_audio)
 		if integration_r1_failed > 0:
@@ -4231,6 +4247,8 @@ func _run() -> void:
 	failed += await _longpress_hint_width_ok(tree_root)
 	failed += _sprint_r3_tending_ok(game_state, game_audio)
 	failed += await _hub_life_checks(tree_root, game_state, save_service, backpack, content_strings)
+	failed += _roster_generic_checks(tree_root, game_state, save_service)
+	failed += _save_v16_checks(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -26896,6 +26914,25 @@ func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -
 	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "wisp harvest did not steal gift day")
 	game_state.set("_morning_gift_day_override", "")
 	return failed
+
+
+func _roster_generic_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var tests: RefCounted = _roster_tests()
+	return int(tests.call("generic", tree_root, game_state, save_service))
+
+
+func _save_v16_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var tests: RefCounted = _roster_tests()
+	return int(tests.call("migration", tree_root, game_state, save_service))
+
+
+func _roster_tests() -> RefCounted:
+	var script_name := "roster_tests.gd"
+	var loaded: GDScript = load("res://scripts/%s" % script_name) as GDScript
+	var tests := RefCounted.new()
+	if loaded != null:
+		tests = loaded.new() as RefCounted
+	return tests
 
 
 func _hub_life_tests() -> RefCounted:

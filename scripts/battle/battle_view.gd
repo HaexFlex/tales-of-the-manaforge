@@ -705,10 +705,13 @@ func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	if bool(root.get_meta("swarm", false)):
 		return _set_swarm_pose(root, fighter_id, pose)
 	var member: String = str(root.get_meta("member", fighter_id))
-	var poses: Dictionary = PARTY_POSES.get(member, {})
-	if not poses.has(pose):
-		return false
-	var tex: Texture2D = load(str(poses[pose])) as Texture2D
+	var pose_path: String = CompanionRoster.battle_pose(member, pose)
+	if pose_path == "" or not ResourceLoader.exists(pose_path):
+		var poses: Dictionary = PARTY_POSES.get(member, {})
+		if not poses.has(pose):
+			return false
+		pose_path = str(poses[pose])
+	var tex: Texture2D = load(pose_path) as Texture2D
 	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
 	if tex == null or sprite == null:
 		return false
@@ -1681,6 +1684,9 @@ func _beast_suffix_map(rows: Array) -> Dictionary:
 
 
 func _party_display_name(member: String) -> String:
+	var gs: Node = get_node_or_null("/root/GameState")
+	if gs != null:
+		return str(gs.call("hero_display_name", member))
 	if member == "elaia":
 		return _text("echo_elaia_name", "Elaia")
 	if member == "keeper":

@@ -56,7 +56,7 @@ const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 var picker_popup: PanelContainer
 var picker_title: Label
 var picker_scroll: ScrollContainer
-var picker_list: VBoxContainer
+var picker_list: GridContainer
 var picker_tail: TextureRect
 var picker_rows: Array[Button] = []
 var party_slots: Dictionary = {}
@@ -377,10 +377,12 @@ func _build_picker() -> void:
 	picker_scroll.size = Vector2(PICKER_ROW_W, PICKER_SCROLL_MAX_H)
 	_apply_picker_scroll_theme(picker_scroll)
 	vbox.add_child(picker_scroll)
-	picker_list = VBoxContainer.new()
+	picker_list = GridContainer.new()
 	picker_list.name = "PickerList"
+	picker_list.columns = 1
 	picker_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	picker_list.add_theme_constant_override("separation", int(PICKER_ROW_GAP))
+	picker_list.add_theme_constant_override("h_separation", int(PICKER_ROW_GAP))
+	picker_list.add_theme_constant_override("v_separation", int(PICKER_ROW_GAP))
 	picker_scroll.add_child(picker_list)
 	for i: int in range(PICKER_ROW_POOL):
 		var row := _make_picker_row(i)
@@ -867,9 +869,17 @@ func _list_row_stylebox(file: String) -> StyleBoxTexture:
 
 
 func ensure_picker_rows(visible_count: int) -> void:
-	var need: int = clampi(visible_count, 0, picker_rows.size())
+	while picker_rows.size() < visible_count:
+		var row: Button = _make_picker_row(picker_rows.size())
+		picker_list.add_child(row)
+		picker_rows.append(row)
+	var columns: int = 2 if visible_count >= 12 else 1
+	if picker_list != null:
+		picker_list.columns = columns
+	var row_w: float = PICKER_ROW_W if columns == 1 else floorf((PICKER_ROW_W - PICKER_ROW_GAP) / 2.0)
 	for i: int in range(picker_rows.size()):
-		picker_rows[i].visible = i < need
+		picker_rows[i].visible = i < visible_count
+		picker_rows[i].custom_minimum_size = Vector2(row_w, PICKER_ROW_H)
 
 
 func _apply_picker_scroll_theme(scroll: ScrollContainer) -> void:
@@ -1050,11 +1060,17 @@ func _load_tex(path: String) -> Texture2D:
 func place_picker(slot_btn: Button) -> void:
 	if picker_popup == null or slot_btn == null or _panel == null:
 		return
-	var list_h: float = -PICKER_ROW_GAP
+	var visible_n: int = 0
 	for row: Button in picker_rows:
 		if row.visible:
-			list_h += maxf(PICKER_ROW_H, row.get_combined_minimum_size().y) + PICKER_ROW_GAP
-	list_h = maxf(list_h, 0.0)
+			visible_n += 1
+	var columns: int = 2 if visible_n >= 12 else 1
+	if picker_list != null:
+		picker_list.columns = columns
+	var lines: int = int(ceil(float(visible_n) / float(maxi(columns, 1))))
+	var list_h: float = 0.0
+	if lines > 0:
+		list_h = float(lines) * (PICKER_ROW_H + PICKER_ROW_GAP) - PICKER_ROW_GAP
 	var scroll_h: float = minf(list_h, PICKER_SCROLL_MAX_H)
 	var h: float = minf(PICKER_CHROME_H + scroll_h, PICKER_POPUP_MAX_H)
 	if picker_scroll != null:

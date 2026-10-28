@@ -106,6 +106,8 @@ func _ready() -> void:
 	_apply_forge_return()
 	if keeper and keeper.has_method("apply_keeper_presence"):
 		keeper.apply_keeper_presence()
+	if world:
+		Companion.ensure_hub_bodies(world, "clearing")
 	var elaia_body: Node = world.get_node_or_null("Elaia") if world else null
 	if elaia_body and elaia_body.has_method("_apply_presence"):
 		elaia_body.call("_apply_presence")

@@ -123,7 +123,7 @@ func _touch_deselects(event: InputEvent) -> bool:
 	## A second touch on the actor who is already the only selection clears it.
 	if not actor_selected() or not GameInput.touch_mode() or not GameInput.is_touch_pointer(event):
 		return false
-	if actor_id() == "elaia":
+	if actor_id() != "keeper":
 		return not GameState.keeper_selected and GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty()
 	return GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty() and str(GameState.selected_companion_id) == ""
 

@@ -68,14 +68,8 @@ static func _add_party(fight: FightState, sheet: String) -> void:
 	}
 	fight.add_member("keeper", keeper, 0, "front", "keeper")
 	if sheet == _SHEET_DUO:
-		var elaia: Dictionary = {
-			"might": 4,
-			"arcana": 7,
-			"resilience": 5,
-			"ward": 7,
-			"vitality": 6,
-			"swiftness": 6,
-			"fate": 5,
-			"attack": "magic",
-		}
-		fight.add_member("elaia", elaia, 1, "back", "elaia")
+		var duo_id: String = CompanionRoster.sim_duo_id()
+		var elaia: Dictionary = CompanionRoster.sim_sheet(duo_id)
+		if duo_id == "" or elaia.is_empty():
+			return
+		fight.add_member(duo_id, elaia, 1, "back", duo_id)

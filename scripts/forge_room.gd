@@ -46,6 +46,10 @@ func _ready() -> void:
 		keeper.add_to_group("keeper")
 		if not keeper.arrived.is_connected(_on_keeper_arrived):
 			keeper.arrived.connect(_on_keeper_arrived)
+	Companion.ensure_hub_bodies(self, "forge")
+	for body: Node in get_tree().get_nodes_in_group("companion"):
+		if body.has_signal("arrived") and not body.arrived.is_connected(_on_elaia_arrived):
+			body.arrived.connect(_on_elaia_arrived)
 	var elaia: Node = get_node_or_null("Elaia")
 	if elaia and elaia.has_signal("arrived") and not elaia.arrived.is_connected(_on_elaia_arrived):
 		elaia.arrived.connect(_on_elaia_arrived)
@@ -269,9 +273,13 @@ func walk_keeper_to_station(station_id: String) -> void:
 
 
 func present_elaia_at_station(station_id: String) -> void:
+	present_companion_at_station("elaia", station_id)
+
+
+func present_companion_at_station(actor_id: String, station_id: String) -> void:
 	## Opens the same recipe list. Does not clear the Keeper's station job.
 	_dest_station = station_id
-	_station_actor = "elaia"
+	_station_actor = actor_id
 	_open_recipes(station_id)
 
 
@@ -289,17 +297,18 @@ func _on_keeper_arrived() -> void:
 
 
 func _on_elaia_arrived() -> void:
-	if _station_actor != "elaia" or _dest_station == "" or not has_node("/root/ForgeJobs"):
+	if _station_actor == "" or _station_actor == "keeper" or _dest_station == "" or not has_node("/root/ForgeJobs"):
 		return
-	var elaia: Node2D = get_node_or_null("Elaia") as Node2D
+	var actor_id: String = _station_actor
+	var body: Node2D = GameState.find_companion_body(actor_id) as Node2D
 	var station: ForgeStation = _find_station(_dest_station)
-	if station == null or elaia == null:
+	if station == null or body == null:
 		return
 	var stand: Vector2 = station.stand_global()
-	if elaia.has_method("has_station_work_spot") and bool(elaia.call("has_station_work_spot")):
-		stand = elaia.call("work_spot_position")
-	if elaia.global_position.distance_to(stand) <= ForgeJobs.stand_radius():
-		ForgeJobs.set_elaia_working(_dest_station, true)
+	if body.has_method("has_station_work_spot") and bool(body.call("has_station_work_spot")):
+		stand = body.call("work_spot_position")
+	if body.global_position.distance_to(stand) <= ForgeJobs.stand_radius():
+		ForgeJobs.set_actor_working(actor_id, _dest_station, true)
 
 
 func _on_reach_party_changed() -> void:

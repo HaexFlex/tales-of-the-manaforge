@@ -5,7 +5,7 @@
   "assignments": {
     "elaia": "manatree",
     "puff": "harvest_berry",
-    "tortoise": "harvest_stone"
+    "mossback": "harvest_stone"
   },
   "payout_audio": {
     "offset_db": -6.0,

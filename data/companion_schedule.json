@@ -29,7 +29,7 @@
         {"from": 0.82, "to": 1.0, "place": "runestone"}
       ]
     },
-    "tortoise": {
+    "mossback": {
       "lane": 2,
       "routine": [
         {"from": 0.0, "to": 0.32, "place": "runestone"},

@@ -276,11 +276,16 @@ func set_picker_test_extra(ids: Array) -> void:
 
 func available_members() -> Array[String]:
 	var out: Array[String] = ["keeper"]
-	if GameState.elaia_portrait_visible():
-		out.append("elaia")
-	if GameState.bramble_joined():
-		out.append("bramble")
+	for actor_id: String in CompanionRoster.ids():
+		if GameState.companion_portrait_visible(actor_id) and not out.has(actor_id):
+			out.append(actor_id)
 	return out
+
+
+func _party_full(member: String) -> bool:
+	if _member_index(member) >= 0:
+		return false
+	return _members.size() >= CompanionRoster.party_cap()
 
 
 func depth_checkpoints() -> Array[int]:
@@ -311,6 +316,8 @@ func toggle_member(member: String) -> void:
 	if idx >= 0:
 		_members.remove_at(idx)
 	else:
+		if _party_full(member):
+			return
 		var row: String = _pick_row_for_new_member()
 		var cell: int = _pick_cell_for_row(row)
 		_members.append({"member": member, "row": row, "cell": cell})
@@ -339,6 +346,8 @@ func place_member(member: String, row: String, cell: int) -> void:
 		_refresh_shell()
 		return
 	if not available_members().has(member):
+		return
+	if _member_index(member) < 0 and _members.size() >= CompanionRoster.party_cap():
 		return
 	_remove_member(member)
 	_remove_at_slot(picked_row, picked_cell)
@@ -1141,14 +1150,14 @@ func _populate_picker(row: String, cell: int) -> void:
 		title = "Who stands here?"
 	_shell_view.picker_title.text = title
 	var choices: Array[Dictionary] = []
-	choices.append(_picker_choice("keeper", row, cell, current))
-	if GameState.elaia_portrait_visible():
-		choices.append(_picker_choice("elaia", row, cell, current))
-	if GameState.bramble_joined():
-		choices.append(_picker_choice("bramble", row, cell, current))
+	var listed: Dictionary = {}
+	for member: String in available_members():
+		choices.append(_picker_choice(member, row, cell, current))
+		listed[member] = true
 	for extra_id: String in _picker_test_extra:
-		if extra_id != "" and extra_id != "keeper" and extra_id != "elaia" and extra_id != "bramble":
+		if extra_id != "" and not listed.has(extra_id):
 			choices.append(_picker_choice(extra_id, row, cell, current))
+			listed[extra_id] = true
 	choices.append({
 		"member": "",
 		"label": "Leave empty",
@@ -1244,27 +1253,17 @@ func _refresh_party_slots(running: bool) -> void:
 
 
 func _portrait_path(member: String) -> String:
-	match member:
-		"keeper":
-			return "res://assets_extra/shared/keeper_portrait.png"
-		"elaia":
-			return "res://assets_extra/shared/elaia_portrait.png"
-		"bramble":
-			return "res://assets_extra/shared/bramble_portrait.png"
-		_:
-			return BOARD_DIR + "party_slot_empty_60x60.png"
+	var row: Dictionary = CompanionRoster.row(member)
+	var path: String = str(row.get("portrait_52", row.get("portrait_path", "")))
+	if path != "" and ResourceLoader.exists(path):
+		return path
+	return BOARD_DIR + "party_slot_empty_60x60.png"
 
 
 func _member_display(member: String) -> String:
-	match member:
-		"keeper":
-			return ContentStrings.get_text("char_sheet_title")
-		"elaia":
-			return ContentStrings.get_text("echo_elaia_name")
-		"bramble":
-			return ContentStrings.get_text("bramble_name")
-		_:
-			return member.capitalize()
+	if member == "keeper" or CompanionRoster.has_id(member):
+		return GameState.hero_display_name(member)
+	return member.capitalize()
 
 
 func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, font_size: int, color: Color) -> Label:

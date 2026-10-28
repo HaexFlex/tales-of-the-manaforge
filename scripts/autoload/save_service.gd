@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 15 — ascension shop UI + blessing unlock flags. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 16 — companions{id: joined, level, chore, gear}. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -22,7 +22,7 @@ func _hub_life() -> GDScript:
 		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
 	return _hub_life_script
 
-const SAVE_VERSION: int = 15
+const SAVE_VERSION: int = 16
 ## Never read a save newer than this build writes: unknown fields would be dropped silently.
 const SAVE_VERSION_MAX_READ: int = SAVE_VERSION
 const SAVE_SLOT_COUNT: int = 7
@@ -811,9 +811,53 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 	_drop_removed_blessings(out)
 	_normalize_stat_ranks(out)
 	_hub_life().call("migrate_fields", out)
+	if from_version < 16:
+		_migrate_v16(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
 	return out
+
+
+func _migrate_v16(out: Dictionary) -> void:
+	## Per-name fields become companions{id: {joined, level, chore, gear}}.
+	## tortoise is mossback. Legacy elaia_* fields stay so older readers still see them.
+	var chores_v: Variant = out.get("companion_chores", {})
+	var chores: Dictionary = chores_v if typeof(chores_v) == TYPE_DICTIONARY else {}
+	if chores.has("tortoise"):
+		var stone: String = str(chores.get("tortoise", ""))
+		if not chores.has("mossback") or str(chores.get("mossback", "")) == "":
+			chores["mossback"] = stone
+		chores.erase("tortoise")
+		out["companion_chores"] = chores
+	var companions_v: Variant = out.get("companions", {})
+	var companions: Dictionary = companions_v.duplicate(true) if typeof(companions_v) == TYPE_DICTIONARY else {}
+	if companions.has("tortoise"):
+		if not companions.has("mossback"):
+			companions["mossback"] = companions["tortoise"]
+		companions.erase("tortoise")
+	var elaia_joined: bool = bool(out.get("echo_01_redeemed", false)) and (bool(out.get("first_relic_crafted", false)) or bool(out.get("elaia_legacy_joined", false)))
+	var elaia_block: Dictionary = companions.get("elaia", {}) if typeof(companions.get("elaia", {})) == TYPE_DICTIONARY else {}
+	elaia_block["joined"] = elaia_joined
+	elaia_block["level"] = int(elaia_block.get("level", 1))
+	elaia_block["chore"] = str(chores.get("elaia", elaia_block.get("chore", "")))
+	var gear_v: Variant = out.get("elaia_equipped", elaia_block.get("gear", {}))
+	elaia_block["gear"] = (gear_v as Dictionary).duplicate(true) if typeof(gear_v) == TYPE_DICTIONARY else {}
+	companions["elaia"] = elaia_block
+	var reach_v: Variant = out.get("reach", {})
+	var clears: int = int((reach_v as Dictionary).get("reaches_cleared", 0)) if typeof(reach_v) == TYPE_DICTIONARY else 0
+	var bramble_joined: bool = str(out.get("echo_02_outcome", "")) == "spare" and clears >= 30
+	for actor_id: String in ["puff", "mossback", "bramble"]:
+		var block: Dictionary = companions.get(actor_id, {}) if typeof(companions.get(actor_id, {})) == TYPE_DICTIONARY else {}
+		if actor_id == "bramble":
+			block["joined"] = bramble_joined
+		elif not block.has("joined"):
+			block["joined"] = false
+		block["level"] = int(block.get("level", 1))
+		block["chore"] = str(chores.get(actor_id, block.get("chore", "")))
+		if typeof(block.get("gear", {})) != TYPE_DICTIONARY:
+			block["gear"] = {}
+		companions[actor_id] = block
+	out["companions"] = companions
 
 
 func _migrate_v10(out: Dictionary) -> void:

@@ -218,10 +218,10 @@ func sheet_actor() -> String:
 
 func show_actor(actor_id: String) -> void:
 	## Clicking the other party portrait switches this sheet. Gear follows the open sheet.
-	var gs = CharacterSheet._auto("GameState")
-	if actor_id == "elaia" and (gs == null or not bool(gs.call("elaia_portrait_visible"))):
-		actor_id = "keeper"
-	_actor_id = actor_id if actor_id == "elaia" else "keeper"
+	var id: String = actor_id if actor_id != "" else "keeper"
+	if not _available_actors().has(id):
+		id = "keeper"
+	_actor_id = id
 	_apply_actor_chrome()
 	_refresh_gear_tabs()
 	_refresh_actor_nav()
@@ -648,11 +648,13 @@ func _install_portrait_list(sheet: Control) -> void:
 	rail.add_theme_constant_override("separation", 8)
 	rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sheet.add_child(rail)
-	for actor: String in ["keeper", "elaia"]:
+	var rail_ids: Array[String] = ["keeper"]
+	rail_ids.append_array(CompanionRoster.ids())
+	for actor: String in rail_ids:
 		var pick := Button.new()
 		pick.name = "Pick_%s" % actor
 		pick.custom_minimum_size = Vector2(44, 44)
-		pick.icon = load(KEEPER_SHEET_PORTRAIT_PATH if actor == "keeper" else ELAIA_SHEET_PORTRAIT_PATH) as Texture2D
+		pick.icon = load(_portrait_160(actor)) as Texture2D
 		pick.expand_icon = true
 		pick.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		pick.pressed.connect(show_actor.bind(actor))
@@ -802,12 +804,15 @@ func _refresh_actor_nav() -> void:
 	var sheet: Node = get_node_or_null("SheetFit/Sheet")
 	if sheet == null:
 		return
-	for actor: String in ["keeper", "elaia"]:
-		var pick: BaseButton = sheet.get_node_or_null("PortraitRail/Pick_%s" % actor) as BaseButton
-		if pick == null:
-			continue
-		pick.visible = actors.has(actor)
-		pick.button_pressed = actor == _actor_id
+	var rail: Node = sheet.get_node_or_null("PortraitRail")
+	if rail != null:
+		for pick_node: Node in rail.get_children():
+			var pick: BaseButton = pick_node as BaseButton
+			if pick == null or not str(pick.name).begins_with("Pick_"):
+				continue
+			var actor: String = str(pick.name).trim_prefix("Pick_")
+			pick.visible = actors.has(actor)
+			pick.button_pressed = actor == _actor_id
 
 
 func _set_sheet_page(page_id: String) -> void:
@@ -836,14 +841,15 @@ func _apply_actor_chrome() -> void:
 	if sheet == null:
 		return
 	_refresh_actor_nav()
-	var elaia: bool = _actor_id == "elaia"
 	var strings = CharacterSheet._auto("ContentStrings")
+	var title_key: String = CompanionRoster.text_key(_actor_id, "sheet_title_key", "char_sheet_title" if _actor_id != "elaia" else "char_sheet_elaia_title")
+	var role_key: String = CompanionRoster.text_key(_actor_id, "sheet_role_key", "char_sheet_hint" if _actor_id != "elaia" else "char_sheet_elaia_role")
 	var title: Label = sheet.get_node_or_null("Title") as Label
 	if title:
-		title.text = strings.get_text("char_sheet_elaia_title") if elaia else strings.get_text("char_sheet_title")
+		title.text = strings.get_text(title_key)
 	var hint: Label = sheet.get_node_or_null("Hint") as Label
 	if hint:
-		hint.text = strings.get_text("char_sheet_elaia_role") if elaia else strings.get_text("char_sheet_hint")
+		hint.text = strings.get_text(role_key)
 		hint.visible = true
 	var host: Node = sheet.get_node_or_null("PortraitHost")
 	if host:
@@ -858,12 +864,11 @@ func _apply_actor_chrome() -> void:
 		_place_figure()
 	var header_icon: TextureRect = sheet.get_node_or_null("HeaderPortrait") as TextureRect
 	if header_icon:
-		var bust_path: String = ELAIA_SHEET_PORTRAIT_PATH if elaia else KEEPER_SHEET_PORTRAIT_PATH
-		header_icon.texture = load(bust_path) as Texture2D
+		header_icon.texture = load(_portrait_160(_actor_id)) as Texture2D
 		header_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var trait_btn: Button = sheet.get_node_or_null("Stats/TraitRow/TraitButton") as Button
 	if trait_btn:
-		var trait_key: String = "char_sheet_elaia_trait" if elaia else "char_sheet_keeper_trait"
+		var trait_key: String = CompanionRoster.text_key(_actor_id, "sheet_trait_key", "char_sheet_elaia_trait" if _actor_id == "elaia" else "char_sheet_keeper_trait")
 		trait_btn.text = strings.get_text(trait_key)
 
 
@@ -886,7 +891,20 @@ func _place_figure() -> void:
 	_portrait.position = origin - Vector2(used.position) * FIGURE_SCALE
 
 
+func _portrait_160(actor: String) -> String:
+	var row: Dictionary = CompanionRoster.row(actor)
+	var path: String = str(row.get("portrait_160", row.get("portrait_sheet_path", "")))
+	if path != "" and ResourceLoader.exists(path):
+		return path
+	if actor == "elaia":
+		return ELAIA_SHEET_PORTRAIT_PATH
+	return KEEPER_SHEET_PORTRAIT_PATH
+
+
 func _sheet_figure_path() -> String:
+	var path: String = str(CompanionRoster.row(_actor_id).get("sheet_figure", ""))
+	if path != "" and ResourceLoader.exists(path):
+		return path
 	return ELAIA_SHEET_FIGURE if _actor_id == "elaia" else PORTRAIT_PATH
 
 
@@ -938,7 +956,7 @@ func close_trait_popup() -> void:
 
 
 func _trait_sentence() -> String:
-	var key: String = "char_sheet_elaia_trait" if _actor_id == "elaia" else "char_sheet_keeper_trait"
+	var key: String = CompanionRoster.text_key(_actor_id, "sheet_trait_key", "char_sheet_elaia_trait" if _actor_id == "elaia" else "char_sheet_keeper_trait")
 	return CharacterSheet._auto("ContentStrings").get_text(key)
 
 
@@ -1064,9 +1082,9 @@ func _trait_row_specs(actor: String) -> Array[Dictionary]:
 		{"row": "Work", "key": "char_sheet_trait_work", "value": work, "show": true},
 		{"row": "Craft", "key": "char_sheet_trait_craft", "value": craft, "show": true},
 		{"row": "Water", "key": "char_sheet_trait_water", "value": water, "show": true},
-		{"row": "Reliquary", "key": "char_sheet_trait_reliquary", "value": relic, "show": actor == "elaia"},
-		{"row": "Pace", "key": "char_sheet_trait_move", "value": pace, "show": actor == "bramble"},
-		{"row": "Brew", "key": "char_sheet_trait_brew", "value": brew, "show": actor == "puff"},
+		{"row": "Reliquary", "key": "char_sheet_trait_reliquary", "value": relic, "show": CompanionRoster.sheet_traits(actor).has("reliquary")},
+		{"row": "Pace", "key": "char_sheet_trait_move", "value": pace, "show": CompanionRoster.sheet_traits(actor).has("pace")},
+		{"row": "Brew", "key": "char_sheet_trait_brew", "value": brew, "show": CompanionRoster.sheet_traits(actor).has("brew")},
 	]
 
 
@@ -1153,8 +1171,9 @@ func _refresh_slots() -> void:
 func _available_actors() -> Array[String]:
 	var actors: Array[String] = ["keeper"]
 	var gs = CharacterSheet._auto("GameState")
-	if gs != null and bool(gs.call("elaia_portrait_visible")):
-		actors.append("elaia")
+	for actor_id: String in CompanionRoster.ids():
+		if gs != null and bool(gs.call("companion_portrait_visible", actor_id)):
+			actors.append(actor_id)
 	return actors
 
 
@@ -1268,10 +1287,11 @@ func _refresh_stats() -> void:
 		var total: int = base + shown_gear
 		## base = STAT_BASE_START + ranks. Line is base + gear = total.
 		var text: String = "%d + %d = %d" % [base, shown_gear, total]
-		if actor == "elaia":
-			line.tooltip_text = ""
-		else:
+		var note_on: bool = bool(CompanionRoster.row(actor).get("stat_note", actor != "elaia"))
+		if note_on:
 			line.tooltip_text = CharacterSheet._auto("ContentStrings").get_text("stat_base_note")
+		else:
+			line.tooltip_text = ""
 		if _hover_item_id != "" and shown_gear != gear:
 			var delta: int = shown_gear - gear
 			var sign: String = "+" if delta > 0 else ""

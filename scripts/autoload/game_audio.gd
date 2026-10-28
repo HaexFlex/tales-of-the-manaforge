@@ -1298,6 +1298,7 @@ func advance_weather_audio(seconds: float) -> void:
 
 
 func play_chore_payout(companion_id: String, node_id: String) -> bool:
+	companion_id = CompanionRoster.canonical_id(companion_id)
 	var script: GDScript = _hub_life()
 	if script == null:
 		return false
@@ -1319,7 +1320,7 @@ func play_chore_payout(companion_id: String, node_id: String) -> bool:
 
 
 func age_chore_cue(companion_id: String, msec: int) -> void:
-	_chore_cue_at[companion_id] = Time.get_ticks_msec() - msec
+	_chore_cue_at[CompanionRoster.canonical_id(companion_id)] = Time.get_ticks_msec() - msec
 
 
 func clear_chore_cues() -> void:

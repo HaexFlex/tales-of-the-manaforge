@@ -54,9 +54,13 @@ static func set_force_auto(on: bool) -> void:
 	_force_auto = on
 
 
+static func _cid(companion_id: String) -> String:
+	return CompanionRoster.canonical_id(companion_id)
+
+
 static func set_forced_present(companion_id: String, present: bool) -> void:
 	_ensure()
-	_forced[companion_id] = present
+	_forced[_cid(companion_id)] = present
 
 
 static func clear_forced() -> void:
@@ -66,13 +70,13 @@ static func clear_forced() -> void:
 static func set_assignment(companion_id: String, node_id: String) -> void:
 	_ensure()
 	var next: Dictionary = assignments.duplicate()
-	next[companion_id] = node_id
+	next[_cid(companion_id)] = node_id
 	assignments = _enforce(next)
 
 
 static func assignment_of(companion_id: String) -> String:
 	_ensure()
-	return str(assignments.get(companion_id, ""))
+	return str(assignments.get(_cid(companion_id), ""))
 
 
 static func save_fields() -> Dictionary:
@@ -94,12 +98,17 @@ static func apply_save_dict(data: Dictionary) -> void:
 
 static func migrate_fields(out: Dictionary) -> void:
 	## Missing field loads the defaults. A saved map is kept and filled in.
+	## tortoise is mossback's id from before the roster.
 	var defaults: Dictionary = default_assignments()
 	var raw: Variant = out.get("companion_chores", {})
 	var have: Dictionary = raw if typeof(raw) == TYPE_DICTIONARY else {}
 	var merged: Dictionary = defaults.duplicate()
 	for key_v: Variant in have.keys():
-		merged[str(key_v)] = str(have[key_v])
+		var id: String = _cid(str(key_v))
+		var node_id: String = str(have[key_v])
+		if merged.has(id) and str(merged[id]) != "" and node_id == "":
+			continue
+		merged[id] = node_id
 	out["companion_chores"] = _enforce(merged)
 
 
@@ -118,12 +127,24 @@ static func _ordered_ids(source: Dictionary) -> Array[String]:
 	return ids
 
 
+static func _canon_map(source: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for key_v: Variant in source.keys():
+		var id: String = _cid(str(key_v))
+		var node_id: String = str(source.get(key_v, ""))
+		if out.has(id) and str(out[id]) != "" and node_id == "":
+			continue
+		out[id] = node_id
+	return out
+
+
 static func _enforce(source: Dictionary) -> Dictionary:
+	var canon: Dictionary = _canon_map(source)
 	var out: Dictionary = {}
 	var used: Dictionary = {}
 	var cap: int = max_per_node()
-	for companion_id: String in _ordered_ids(source):
-		var node_id: String = str(source.get(companion_id, ""))
+	for companion_id: String in _ordered_ids(canon):
+		var node_id: String = str(canon.get(companion_id, ""))
 		if node_id == "":
 			out[companion_id] = ""
 			continue
@@ -161,7 +182,7 @@ static func node_label_key(node_id: String) -> String:
 	return "companion_chore_manatree"
 
 
-static func node_label(node_id: String) -> String:
+static func node_label(companion_id: String, node_id: String) -> String:
 	var key: String = node_label_key(node_id)
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
@@ -169,7 +190,8 @@ static func node_label(node_id: String) -> String:
 	var strings: Node = tree.root.get_node_or_null("ContentStrings")
 	if strings == null:
 		return key
-	return str(strings.call("get_text", key))
+	var name: String = GameState.hero_display_name(companion_id) if tree.root.has_node("GameState") else companion_id
+	return str(strings.call("get_text", key, {"name": name}))
 
 
 static func work_type_for(node_id: String) -> String:
@@ -193,19 +215,16 @@ static func payout_audio(node_id: String) -> Dictionary:
 
 
 static func is_around(companion_id: String) -> bool:
-	if _forced.has(companion_id):
-		return bool(_forced[companion_id])
+	var id: String = _cid(companion_id)
+	if _forced.has(id):
+		return bool(_forced[id])
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return false
 	var gs: Node = tree.root.get_node_or_null("GameState")
 	if gs == null:
 		return false
-	if companion_id == "elaia":
-		return bool(gs.call("elaia_in_party"))
-	if companion_id == "bramble":
-		return bool(gs.call("bramble_joined"))
-	return false
+	return bool(gs.call("companion_joined", id))
 
 
 static func is_away(companion_id: String) -> bool:
@@ -219,15 +238,14 @@ static func is_away(companion_id: String) -> bool:
 
 
 static func player_task_working(companion_id: String) -> bool:
-	if companion_id != "elaia" and companion_id != "keeper":
-		return false
+	var id: String = _cid(companion_id)
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return false
 	var jobs: Node = tree.root.get_node_or_null("ForgeJobs")
 	if jobs == null:
 		return false
-	var task: Dictionary = jobs.call("elaia_task") if companion_id == "elaia" else jobs.call("keeper_task")
+	var task: Dictionary = jobs.call("task_for", id)
 	return bool(task.get("working", false))
 
 
@@ -327,26 +345,33 @@ static func apply_offline(eff: float, result: Dictionary) -> void:
 	if bool(gs.get("fruit_committed")) or str(gs.get("stage_id")) == "ancient":
 		return
 	var keeper_rate: float = float(gs.call("actor_work_rate", "keeper", ""))
+	var water_count: int = 0
+	var harvest_rates: Dictionary = {}
 	for companion_id: String in active_ids():
 		var node_id: String = assignment_of(companion_id)
 		if is_water_node(node_id):
-			var before_shards: int = int(gs.call("get_resource", &"manashards"))
-			var before_ess: int = int(gs.call("get_resource", &"essence"))
-			var water: Dictionary = jobs.call("_offline_water", eff, rate_mult(), "chore")
-			var shards: int = int(gs.call("get_resource", &"manashards")) - before_shards
-			var ess: int = int(gs.call("get_resource", &"essence")) - before_ess
-			if shards <= 0:
-				shards = int(water.get("shards", 0))
-			if ess <= 0:
-				ess = int(water.get("essence", 0))
-			jobs.call("_note_offline_gain", result, "chores", "manashards", shards)
-			jobs.call("_note_offline_gain", result, "chores", "essence", ess)
-		else:
-			var rid: StringName = resource_for(node_id)
-			if rid == &"":
-				continue
-			var gained: int = int(gs.call("apply_offline_keeper_harvest", eff, rid, keeper_rate * rate_mult()))
-			jobs.call("_note_offline_gain", result, "chores", String(rid), gained)
+			water_count += 1
+			continue
+		var rid: StringName = resource_for(node_id)
+		if rid == &"":
+			continue
+		harvest_rates[rid] = float(harvest_rates.get(rid, 0.0)) + keeper_rate * rate_mult()
+	if water_count > 0:
+		var before_shards: int = int(gs.call("get_resource", &"manashards"))
+		var before_ess: int = int(gs.call("get_resource", &"essence"))
+		var water: Dictionary = jobs.call("_offline_water", eff, rate_mult() * float(water_count), "chore")
+		var shards: int = int(gs.call("get_resource", &"manashards")) - before_shards
+		var ess: int = int(gs.call("get_resource", &"essence")) - before_ess
+		if shards <= 0:
+			shards = int(water.get("shards", 0))
+		if ess <= 0:
+			ess = int(water.get("essence", 0))
+		jobs.call("_note_offline_gain", result, "chores", "manashards", shards)
+		jobs.call("_note_offline_gain", result, "chores", "essence", ess)
+	for rid_v: Variant in harvest_rates.keys():
+		var harvest_id: StringName = rid_v
+		var gained: int = int(gs.call("apply_offline_keeper_harvest", eff, harvest_id, float(harvest_rates[harvest_id])))
+		jobs.call("_note_offline_gain", result, "chores", String(harvest_id), gained)
 
 
 static func find_work_node(node_id: String) -> Node2D:

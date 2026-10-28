@@ -290,17 +290,33 @@ func is_equippable(item_id: String) -> bool:
 
 
 func _normalize_actor(actor: String) -> String:
-	return "elaia" if actor == "elaia" else "keeper"
+	var id: String = CompanionRoster.canonical_id(actor)
+	if id == "keeper" or id == "elaia":
+		return id
+	if CompanionRoster.has_id(id):
+		return id
+	return "keeper"
 
 
 func _other_actor(actor: String) -> String:
 	return "keeper" if _normalize_actor(actor) == "elaia" else "elaia"
 
 
+func _gear_actor_ids() -> Array[String]:
+	var out: Array[String] = ["keeper", "elaia"]
+	for actor_id: String in CompanionRoster.ids():
+		if not out.has(actor_id):
+			out.append(actor_id)
+	return out
+
+
 func _doll(actor: String) -> Dictionary:
-	if _normalize_actor(actor) == "elaia":
+	var id: String = _normalize_actor(actor)
+	if id == "elaia":
 		return elaia_equipped
-	return equipped
+	if id == "keeper":
+		return equipped
+	return GameState.companion_gear(id)
 
 
 func equipped_id_for(actor: String, slot_id: String) -> String:
@@ -451,11 +467,14 @@ func _take_for_equip(who: String, doll: Dictionary, sid: String, item_id: String
 	if unequipped_count(item_id) > 0:
 		return _take_unequipped(item_id, 1)
 	## A copy someone is already wearing stays on them.
-	var other: Dictionary = _doll(_other_actor(who))
-	for slot_name: StringName in SLOT_ORDER:
-		var key: String = String(slot_name)
-		if str(other.get(key, "")) == item_id:
-			return false
+	for other_id: String in _gear_actor_ids():
+		if other_id == who:
+			continue
+		var other: Dictionary = _doll(other_id)
+		for slot_name: StringName in SLOT_ORDER:
+			var key: String = String(slot_name)
+			if str(other.get(key, "")) == item_id:
+				return false
 	for slot_name: StringName in SLOT_ORDER:
 		var key: String = String(slot_name)
 		if key == sid:
@@ -785,7 +804,7 @@ func _spend_gear_anywhere(item_id: String, need: int) -> bool:
 		need -= from_bag
 	if need <= 0:
 		return true
-	for actor_name: String in ["keeper", "elaia"]:
+	for actor_name: String in _gear_actor_ids():
 		if need <= 0:
 			break
 		var doll: Dictionary = _doll(actor_name)
