@@ -27,11 +27,11 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/mossbac
 | `idle_e.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `idle_w.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `battle_idle.png` | 1 | — | 128×128 west-facing |
-| `battle_attack/frame_0000..0007.png` | 8 | 125 each | west; hit_frame=3; Imagine try2 |
-| `battle_hit/frame_0000..0003.png` | 4 | 100 each | west; Imagine try1 |
+| `battle_attack/frame_0000..0007.png` | 8 | 125 each | west; hit_frame=3; **canvas 152×128** native h=90 |
+| `battle_hit/frame_0000..0003.png` | 4 | 100 each | west; **canvas 128×128** native h=90 |
 | `portrait_52.png` | 1 | — | 52×52 HUD |
 | `portrait_160.png` | 1 | — | 160×160 sheet |
-| `work_stone/frame_0000..0007.png` | 8 | 100 each | side/east; Imagine try1 |
+| `work_stone/frame_0000..0007.png` | 8 | 100 each | east; **canvas 146×128** native h=90 |
 
 ## Missing (no existing source)
 
@@ -151,3 +151,20 @@ Non-integer scale forbidden. Restored legacy `walk8` **1:1** onto 128×128:
 Canvas remains **128×128** for stills (fits native walk8 with ≥1px margin).
 Clip animations may use a wider canvas if motion overhangs; see clip CODE_NOTES.
 Scaled-078 refs → `assets/library/legacy/companions_scaled078_2026-10-28/`.
+
+
+## Native-scale clips (2026-10-28, replaces 0.78 + mid-clip flip)
+
+**Rule:** finished Mossback art never uses non-integer scale. Body stays walk-native **h=90**, sole **y=123**, feet centre x. If motion overhangs 128, **widen canvas** (never shrink the sprite).
+
+| clip | canvas | facing (every frame) | hist mean (vs walk) | min hist | colours | gate |
+|---|---|---|---|---|---|---|
+| battle_attack | **152×128** | WEST ×8 | 0.862 | 0.832 | ≤40 | PASS |
+| battle_hit | **128×128** | WEST ×4 | 0.904 | 0.872 | ≤40 | PASS |
+| work_stone | **146×128** | EAST ×8 | 0.852 | 0.820 | ≤40 | PASS |
+
+Per-frame facing gate: extremity (neck-band left_ext vs right_ext) vs walk_w / walk_e frame 0; auto-flip before place if wrong.
+
+**Code:** stills stay 128×128 → offset `(-64, -128)`. Wider clips keep feet near canvas centre — use offset `(-canvas_w/2, -128)` (attack −76, work_stone −73). Replaced 0.78/flip clips → `assets/library/legacy/companions_scaled078_clips_2026-10-28/`.
+Contacts: `assets/library/companions_r7_2026-10-28/mossback_{battle_attack,battle_hit,work_stone}_contact_{1x,4x}.png` and `/workspace/sprint_art/previews/`.
+
