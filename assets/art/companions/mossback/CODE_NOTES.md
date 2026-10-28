@@ -27,13 +27,15 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/mossbac
 | `idle_e.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `idle_w.png` | 1 still | 100 hold | 128×128; from source idle/still |
 | `battle_idle.png` | 1 | — | 128×128 west-facing |
+| `battle_attack/frame_0000..0007.png` | 8 | 125 each | west; hit_frame=3; Imagine try2 |
+| `battle_hit/frame_0000..0003.png` | 4 | 100 each | west; Imagine try1 |
 | `portrait_52.png` | 1 | — | 52×52 HUD |
 | `portrait_160.png` | 1 | — | 160×160 sheet |
 
 ## Missing (no existing source)
 
 - `work_<mechanic>` (mechanic null; no work loop source) — ~2–3 Imagine runs when mechanic lands.
-- `battle_attack`, `battle_hit` — ~5–6 Imagine runs for full battle set with existing idle.
+- ~~`battle_attack`, `battle_hit`~~ **SHIPPED** 2026-10-28.
 - Animated idle loops (12f) + `walk8/` archived in legacy; locked walk uses 9×100 from source `anim/walk/`.
 
 ## Inventory
@@ -81,3 +83,29 @@ When Code wires paths, set e.g. `anim.root = res://assets/art/companions/mossbac
 - `walk_w/frame_0006.png` — 128×128 RGBA
 - `walk_w/frame_0007.png` — 128×128 RGBA
 - `walk_w/frame_0008.png` — 128×128 RGBA
+
+
+## Battle ship (2026-10-28)
+
+West-facing like `battle_idle.png`. No mirroring.
+
+| clip | frames | ms | hit_frame | source indices | runs | gate |
+|---|---|---|---|---|---|---|
+| battle_attack | 8 | 125 | 3 | 5,14,23,32,40,49,58,67 (try2) | 2 (try1 style-drift; try2 shipped) | PASS hist_mean=0.818 vs clean24; h=93; sole=123; clean |
+| battle_hit | 4 | 100 | — | 3,17,31,45 (try1) | 1 | PASS hist_mean=0.731 vs clean24; h=93; sole=123; clean |
+
+Note: raw battle_idle has ~3000 unique colours; identity hist gated vs median-cut clean24. Anchor sole y=123.
+Contacts: `assets/library/companions_r7_2026-10-28/mossback_battle_contact_{1x,4x}.png`
+
+- `battle_attack/frame_0000.png` — 128×128 RGBA
+- `battle_attack/frame_0001.png` — 128×128 RGBA
+- `battle_attack/frame_0002.png` — 128×128 RGBA
+- `battle_attack/frame_0003.png` — 128×128 RGBA
+- `battle_attack/frame_0004.png` — 128×128 RGBA
+- `battle_attack/frame_0005.png` — 128×128 RGBA
+- `battle_attack/frame_0006.png` — 128×128 RGBA
+- `battle_attack/frame_0007.png` — 128×128 RGBA
+- `battle_hit/frame_0000.png` — 128×128 RGBA
+- `battle_hit/frame_0001.png` — 128×128 RGBA
+- `battle_hit/frame_0002.png` — 128×128 RGBA
+- `battle_hit/frame_0003.png` — 128×128 RGBA
