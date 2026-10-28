@@ -1,0 +1,28 @@
+{
+  "source": "imp_calm_try1.mp4",
+  "src_indices": [
+    0,
+    24,
+    48,
+    72,
+    96,
+    120
+  ],
+  "phases": [
+    "bob",
+    "bob",
+    "bob",
+    "bob",
+    "bob",
+    "bob"
+  ],
+  "ms_per_frame": 100,
+  "hit_frame": 3,
+  "sole": 123,
+  "live": "battle_acorn_imp_idle.png",
+  "mirror": false,
+  "note": "UNMIRRORED: stem matches live west",
+  "frames": 6,
+  "actor": "acorn_imp",
+  "clip": "calm"
+}

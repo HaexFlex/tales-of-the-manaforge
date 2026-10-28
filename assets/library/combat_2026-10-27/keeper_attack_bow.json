@@ -1,0 +1,47 @@
+{
+  "name": "keeper_attack_bow",
+  "frames": 10,
+  "frame_ms": 100,
+  "phases": {
+    "nock": [
+      0,
+      1
+    ],
+    "draw": [
+      2,
+      3,
+      4
+    ],
+    "hold": [
+      5
+    ],
+    "release": [
+      6
+    ],
+    "recover": [
+      7,
+      8,
+      9
+    ]
+  },
+  "src_video": "bow_try3.mp4",
+  "src_indices": [
+    24,
+    36,
+    60,
+    72,
+    84,
+    96,
+    108,
+    120,
+    132,
+    144
+  ],
+  "grip": [
+    4,
+    20
+  ],
+  "weapon": "wpn_bow_t*",
+  "arrow": "wpn_arrow_t0",
+  "gate_pass": true
+}
