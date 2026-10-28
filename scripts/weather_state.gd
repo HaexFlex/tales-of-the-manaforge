@@ -75,13 +75,13 @@ static func label_key() -> String:
 
 static func label_text() -> String:
 	var key: String = label_key()
-	if not has_node_autoloads():
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
 		return key
-	return ContentStrings.get_text(key)
-
-
-static func has_node_autoloads() -> bool:
-	return Engine.get_main_loop() != null and (Engine.get_main_loop() as SceneTree).root.get_node_or_null("ContentStrings") != null
+	var strings: Node = tree.root.get_node_or_null("ContentStrings")
+	if strings == null:
+		return key
+	return str(strings.call("get_text", key))
 
 
 static func push_test_roll(next: String) -> void:
@@ -96,7 +96,7 @@ static func on_save_loaded() -> void:
 	var next: String = ""
 	if not _roll_queue.is_empty():
 		next = _roll_queue.pop_front()
-	elif OS.has_feature("headless"):
+	elif _is_headless():
 		next = str(_data.get("default", "clear"))
 	else:
 		var states: Array = _states()
@@ -171,8 +171,12 @@ static func active_watering() -> bool:
 	return false
 
 
+static func _is_headless() -> bool:
+	return DisplayServer.get_name() == "headless"
+
+
 static func tick(delta: float) -> void:
-	if not _force_auto and OS.has_feature("headless"):
+	if not _force_auto and _is_headless():
 		return
 	tick_rain(delta)
 

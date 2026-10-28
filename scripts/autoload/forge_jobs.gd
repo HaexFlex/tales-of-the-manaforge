@@ -28,6 +28,14 @@ var _hero_claims: Dictionary = {}
 var _silent: bool = false
 var _pending_toast: String = ""
 var _return_to_clearing: bool = false
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 var _dev_override: float = -1.0
 var _autosave_enabled: bool = true
 var _autosave_accum: float = 0.0
@@ -1112,9 +1120,9 @@ func apply_offline_seconds(closed_sec: float) -> Dictionary:
 	## Weather bonuses stay off for a closed game.
 	if closed_sec <= 0.0:
 		return _empty_offline()
-	WeatherState.push_offline()
+	_hub_life().call("push_offline")
 	var granted_now: Dictionary = _apply_offline_seconds_open(closed_sec)
-	WeatherState.pop_offline()
+	_hub_life().call("pop_offline")
 	return granted_now
 
 
@@ -1136,9 +1144,9 @@ func _apply_offline_seconds_open(closed_sec: float) -> Dictionary:
 func apply_saved_offline_gap(gap_sec: float) -> Dictionary:
 	## Load path. Continues the curve unless this session already played offline_reset_active_sec.
 	## Weather bonuses stay off for a closed game.
-	WeatherState.push_offline()
+	_hub_life().call("push_offline")
 	var granted_now: Dictionary = _apply_saved_offline_gap_open(gap_sec)
-	WeatherState.pop_offline()
+	_hub_life().call("pop_offline")
 	return granted_now
 
 
@@ -1276,7 +1284,7 @@ func _grant_offline(eff: float, raw_sec: float = -1.0) -> Dictionary:
 	result["forge_completed"] = int(craft.get("total", 0))
 	result["forge_stations"] = craft.get("stations", {})
 	_offline_wisp_grants(eff, result)
-	CompanionChores.apply_offline(eff, result)
+	_hub_life().call("apply_offline", eff, result)
 	_silent = was_silent
 	_keeper_working = false
 	_keeper_station = ""

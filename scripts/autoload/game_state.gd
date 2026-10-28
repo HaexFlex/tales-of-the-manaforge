@@ -206,9 +206,17 @@ func _process(delta: float) -> void:
 	if is_world_frozen():
 		return
 	var play_delta: float = active_play_delta(delta)
-	WeatherState.tick(play_delta)
-	CompanionChores.tick(play_delta)
-	CompanionSchedule.tick(play_delta)
+	_hub_life().call("tick_open", play_delta)
+
+
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 
 
 func reset_play_speed() -> void:
@@ -1370,7 +1378,7 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, re
 	if grant_essence:
 		## A 1.0 Keeper pulse stays a whole Essence. Any other mult banks the fraction.
 		## Blossom scales Essence only, and only while the game is open.
-		var ess_mult: float = reward_mult * WeatherState.water_essence_mult()
+		var ess_mult: float = reward_mult * float(_hub_life().call("water_essence_mult"))
 		if essence_bank == "" and is_equal_approx(ess_mult, 1.0):
 			ess = get_water_essence_amount()
 			add_resource(&"essence", ess)
@@ -1402,7 +1410,8 @@ func _roll_frostberry(resource_id: StringName, grant: int) -> void:
 	## One roll per berry harvest that actually yields. Offline harvest does not call this.
 	if grant <= 0 or resource_id != &"food":
 		return
-	var spec: Dictionary = WeatherState.frostberry_spec()
+	var spec_v: Variant = _hub_life().call("frostberry_spec")
+	var spec: Dictionary = spec_v if typeof(spec_v) == TYPE_DICTIONARY else {}
 	if spec.is_empty():
 		return
 	if randf() >= float(spec.get("chance", 0.0)):
@@ -2231,7 +2240,7 @@ func to_save_dict() -> Dictionary:
 		"forge_visited": forge_visited,
 	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
 		Reach.capture_save_fields() if has_node("/root/Reach") else {}
-	).merged(CompanionChores.save_fields())
+	).merged(_hub_life().call("save_fields") as Dictionary)
 
 
 func apply_save_dict(data: Dictionary) -> void:
@@ -2317,7 +2326,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	keeper_facing = str(data.get("keeper_facing", "south"))
 	elaia_water_essence_frac = maxf(0.0, float(data.get("elaia_water_essence_frac", 0.0)))
 	_water_essence_banks["chore"] = maxf(0.0, float(data.get("companion_chore_water_frac", 0.0)))
-	CompanionChores.apply_save_dict(data)
+	_hub_life().call("apply_save_dict", data)
 	_hero_water_accum.clear()
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
@@ -2522,8 +2531,7 @@ func reset_for_new_game() -> void:
 	elaia_water_essence_frac = 0.0
 	_water_essence_banks.clear()
 	_hero_water_accum.clear()
-	WeatherState.reset_default()
-	CompanionChores.reset_for_new_game()
+	_hub_life().call("reset_new_game")
 	forge_key = false
 	echo_01_narrator_heard = false
 	echo_02_fee_paid = false

@@ -8,6 +8,7 @@ const DATA_PATH: String = "res://data/companion_schedule.json"
 
 static var _loaded: bool = false
 static var _data: Dictionary = {}
+static var _spots: Dictionary = {}
 static var _force_drive: bool = false
 
 
@@ -70,9 +71,12 @@ static func place_label_key(place: String) -> String:
 static func place_label(place: String) -> String:
 	var key: String = place_label_key(place)
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
-	if tree == null or tree.root.get_node_or_null("ContentStrings") == null:
+	if tree == null:
 		return key
-	return ContentStrings.get_text(key)
+	var strings: Node = tree.root.get_node_or_null("ContentStrings")
+	if strings == null:
+		return key
+	return str(strings.call("get_text", key))
 
 
 static func lane_of(companion_id: String) -> int:
@@ -82,7 +86,7 @@ static func lane_of(companion_id: String) -> int:
 static func tick(delta: float) -> void:
 	if delta < 0.0:
 		return
-	if not _force_drive and OS.has_feature("headless"):
+	if not _force_drive and DisplayServer.get_name() == "headless":
 		return
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
@@ -92,10 +96,10 @@ static func tick(delta: float) -> void:
 		return
 	var phase: float = HubTimePhase.sample_phase01()
 	for node: Node in tree.get_nodes_in_group("companion"):
-		if not (node is Keeper):
+		if not node.has_method("hold_schedule_spot"):
 			continue
-		var body: Keeper = node as Keeper
-		if not body.visible:
+		var body: Node2D = node as Node2D
+		if body == null or not body.visible:
 			continue
 		var companion_id: String = str(body.get("companion_id"))
 		if companion_id == "" or CompanionChores.is_away(companion_id):
@@ -111,7 +115,7 @@ static func tick(delta: float) -> void:
 			_hold_routine(body, companion_id, phase)
 
 
-static func _hold_chore(body: Keeper, companion_id: String) -> void:
+static func _hold_chore(body: Node2D, companion_id: String) -> void:
 	var node_id: String = CompanionChores.assignment_of(companion_id)
 	var target: Node2D = CompanionChores.find_work_node(node_id)
 	if target == null:
@@ -119,10 +123,10 @@ static func _hold_chore(body: Keeper, companion_id: String) -> void:
 	var type_id: String = CompanionChores.work_type_for(node_id)
 	if type_id == "":
 		return
-	body.hold_chore_node(target, type_id)
+	body.call("hold_chore_node", target, type_id)
 
 
-static func _hold_routine(body: Keeper, companion_id: String, phase: float) -> void:
+static func _hold_routine(body: Node2D, companion_id: String, phase: float) -> void:
 	var place: String = place_for(companion_id, phase)
 	var anchor: Vector2 = _anchor(place, companion_id)
 	if anchor == Vector2.INF:
@@ -131,7 +135,7 @@ static func _hold_routine(body: Keeper, companion_id: String, phase: float) -> v
 	var face: String = "south"
 	if place == "bench" or place == "tree":
 		face = "north"
-	body.hold_schedule_spot(stand, face)
+	body.call("hold_schedule_spot", stand, face)
 
 
 static func _anchor(place: String, companion_id: String) -> Vector2:
@@ -207,26 +211,75 @@ static func forbidden_rects() -> Array[Rect2]:
 	if manatree != null:
 		## Forge door at the sill. The arch is the only way into the Forge.
 		out.append(Rect2(manatree.global_position + Vector2(-40.0, -24.0), Vector2(80.0, 56.0)))
-	var blocked := func(_pos: Vector2) -> bool:
-		return false
 	for node: Node in tree.get_nodes_in_group("gatherable"):
 		if node is Node2D and node.has_method("work_footprint"):
 			var fp: Rect2 = node.call("work_footprint")
-			var type_id: String = String((node as Gatherable).resource_id) if node is Gatherable else "wood"
-			var solved: Dictionary = Keeper.solve_work_spot(fp, Vector2.ZERO, type_id, blocked, "", "keeper")
-			var spot: Vector2 = solved.get("position", (node as Node2D).global_position)
+			var type_id: String = str(node.get("resource_id"))
+			if type_id == "":
+				type_id = "wood"
+			var spot: Vector2 = _solved_stand(fp, type_id, (node as Node2D).global_position)
 			out.append(Rect2(spot + Vector2(-20.0, -16.0), Vector2(40.0, 32.0)))
 	if manatree != null and manatree.has_method("work_footprint"):
 		var tree_fp: Rect2 = manatree.call("work_footprint")
-		var water: Dictionary = Keeper.solve_work_spot(tree_fp, Vector2.ZERO, "manatree", blocked, "", "keeper")
-		var water_spot: Vector2 = water.get("position", manatree.global_position)
+		var water_spot: Vector2 = _solved_stand(tree_fp, "manatree", manatree.global_position)
 		out.append(Rect2(water_spot + Vector2(-22.0, -16.0), Vector2(44.0, 36.0)))
 	if bench != null and bench.has_method("work_footprint"):
 		var bench_fp: Rect2 = bench.call("work_footprint")
-		var seat: Dictionary = Keeper.solve_work_spot(bench_fp, Vector2.ZERO, "bench", blocked, "", "keeper")
-		var seat_spot: Vector2 = seat.get("position", bench.global_position)
+		var seat_spot: Vector2 = _solved_stand(bench_fp, "bench", bench.global_position)
 		out.append(Rect2(seat_spot + Vector2(-24.0, -12.0), Vector2(48.0, 28.0)))
 	return out
+
+
+static func _solved_stand(footprint: Rect2, type_id: String, fallback: Vector2) -> Vector2:
+	## Same nearest-to-origin pick as Keeper.solve_work_spot with an empty approach.
+	## Read from the spot table so this file does not depend on the Keeper script.
+	var types: Variant = _spot_table().get("types", {})
+	if typeof(types) != TYPE_DICTIONARY:
+		return fallback
+	var spec: Dictionary = (types as Dictionary).get(type_id, {})
+	if spec.is_empty():
+		return fallback
+	var forced: String = str(spec.get("force_side", ""))
+	var sides: Array = [forced] if forced != "" else (spec.get("sides", ["west", "east"]) as Array)
+	var best: Vector2 = fallback
+	var best_d: float = INF
+	var found: bool = false
+	for side_v: Variant in sides:
+		var pos: Vector2 = _spot_for_side(footprint, str(side_v), spec)
+		var dist: float = pos.distance_squared_to(Vector2.ZERO)
+		if not found or dist < best_d:
+			best = pos
+			best_d = dist
+			found = true
+	return best if found else fallback
+
+
+static func _spot_table() -> Dictionary:
+	if not _spots.is_empty():
+		return _spots
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/keeper_work_spots.json"))
+	if typeof(parsed) == TYPE_DICTIONARY:
+		_spots = parsed
+	return _spots
+
+
+static func _spot_for_side(footprint: Rect2, side: String, spec: Dictionary) -> Vector2:
+	var side_px: float = float(spec.get("side_px", 0.0))
+	var y_px: float = float(spec.get("y_px", 0.0))
+	var measure: String = str(spec.get("measure", "edge"))
+	var bottom: float = footprint.position.y + footprint.size.y
+	var center: Vector2 = footprint.get_center()
+	match side:
+		"west":
+			var x: float = center.x - side_px if measure == "center" else footprint.position.x - side_px
+			return Vector2(x, bottom + y_px)
+		"east":
+			var x_east: float = center.x + side_px if measure == "center" else footprint.position.x + footprint.size.x + side_px
+			return Vector2(x_east, bottom + y_px)
+		"north":
+			return Vector2(center.x, footprint.position.y - side_px + y_px)
+		_:
+			return Vector2(center.x, bottom + side_px + y_px)
 
 
 static func _stand_hits_forbidden(stand: Vector2, actor_id: String) -> bool:

@@ -164,9 +164,12 @@ static func node_label_key(node_id: String) -> String:
 static func node_label(node_id: String) -> String:
 	var key: String = node_label_key(node_id)
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
-	if tree == null or tree.root.get_node_or_null("ContentStrings") == null:
+	if tree == null:
 		return key
-	return ContentStrings.get_text(key)
+	var strings: Node = tree.root.get_node_or_null("ContentStrings")
+	if strings == null:
+		return key
+	return str(strings.call("get_text", key))
 
 
 static func work_type_for(node_id: String) -> String:
@@ -239,7 +242,7 @@ static func follows_routine(companion_id: String) -> bool:
 
 
 static func tick(delta: float) -> void:
-	if not _force_auto and OS.has_feature("headless"):
+	if not _force_auto and DisplayServer.get_name() == "headless":
 		return
 	if delta <= 0.0:
 		return
@@ -320,8 +323,8 @@ static func find_work_node(node_id: String) -> Node2D:
 	if is_water_node(node_id):
 		var tree_node: Node = tree.get_first_node_in_group("manatree")
 		return tree_node as Node2D
-	var want: StringName = resource_for(node_id)
+	var want: String = String(resource_for(node_id))
 	for node: Node in tree.get_nodes_in_group("gatherable"):
-		if node is Gatherable and (node as Gatherable).resource_id == want:
+		if node is Node2D and str(node.get("resource_id")) == want:
 			return node as Node2D
 	return null

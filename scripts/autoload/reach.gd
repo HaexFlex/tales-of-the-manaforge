@@ -17,6 +17,14 @@ const ROOM_SEC: float = 720.0
 const BIG_DELTA_SEC: float = 5.0
 const REST_SEC: float = 1440.0
 const HOURS: Array[int] = [1, 2, 4, 8]
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 
 const PACK_ITEM_IDS: Array[String] = ["briarwood", "herbs", "heart_salve", "bile_vial"]
 
@@ -455,9 +463,9 @@ func apply_offline_seconds(closed_sec: float) -> void:
 	## Weather bonuses stay off for a closed game.
 	if closed_sec <= 0.0 or not running:
 		return
-	WeatherState.push_offline()
+	_hub_life().call("push_offline")
 	catch_up(closed_sec, "load")
-	WeatherState.pop_offline()
+	_hub_life().call("pop_offline")
 
 
 func process_frame_delta(step: float) -> void:
