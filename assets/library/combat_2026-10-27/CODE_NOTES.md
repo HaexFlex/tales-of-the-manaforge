@@ -43,8 +43,8 @@ elaia,cast,3,85,72,0,front
 
 Also JSON: `hand_anchors.json` beside this note.
 
-## Acorn Imp — `assets/art/battle/modular/acorn_imp/{attack,hit,calm}/frame_0000..0003.png`
-Gentle lean-poke attack, hurt nudge, calm breathe. From live `battle_acorn_imp_*`.
+## Acorn Imp — `assets/art/battle/modular/acorn_imp/{attack,hit,calm}/`
+Attack 8f Imagine west lunge-poke (try2); hit 4f; calm 6f. Sole 123, stem RIGHT (unmirrored).
 
 ## Budget note
 Keeper + Imp shipped. Elaia attack/cast partial if present on main. Puff / moss_tortoise combat deferred.
@@ -267,9 +267,11 @@ Pipeline: magenta key → nearest to live 128² / sole 123 → palette-snap live
 | elaia | hit | 4 | 100 | **1** | 0,24,48,72 | rest→hunch→deep→recover |
 | acorn_imp | hit | 4 | 100 | **1** | 0,12,28,36 | early tilt only; f3 blended to idle; **not mirrored** (stem matches live west) |
 | acorn_imp | calm | 6 | 100 | 3 | 0,24,48,72,96,120 | soft bob loop; **not mirrored** |
+| acorn_imp | attack | 8 | 125 | **3** (impact @375ms ≈ REACT_SEC) | 12,48,78,90,96,108,120,132 | west lunge-poke from `imp_attack_try2.mp4`; **not mirrored** (stem RIGHT); try1 STOP'd |
 
-**STOP — acorn_imp/attack:** `imp_attack_try1.mp4` pokes EAST. H-mirror makes a west poke but flips the cap stem LEFT (live west idle stem is RIGHT) and breaks face lean. Unmirrored rest matches live but poke is wrong-way. Do not ship. Use a spare run with an explicit west lean-poke in the prompt.
+**try1 STOP (archived):** `imp_attack_try1.mp4` poked EAST; H-mirror flipped cap stem LEFT. Spare try2 lunges WEST with stem RIGHT — shipped unmirrored.
 
-Paths: `assets/art/battle/modular/elaia/{attack,hit}/`, `assets/art/battle/modular/acorn_imp/{hit,calm}/`.
-Legacy placeholders: `assets/library/legacy/{elaia_attack,elaia_hit,acorn_imp_hit,acorn_imp_calm}_placeholder_2026-10-27/`.
-Contact: `combat_elaia_imp_wave1_contact_1x.png`. GIFs beside this note.
+Paths: `assets/art/battle/modular/elaia/{attack,hit}/`, `assets/art/battle/modular/acorn_imp/{attack,hit,calm}/`.
+Legacy placeholders: `assets/library/legacy/{elaia_attack,elaia_hit,acorn_imp_hit,acorn_imp_calm}_placeholder_2026-10-27/`, `imp_attack_2026-10-28/`.
+Contacts: `combat_elaia_imp_wave1_contact_1x.png`, `acorn_imp_attack_contact_{1x,4x}.png`. GIFs beside this note.
+Identity/clean gates: `acorn_imp_attack_identity_gate_4x.png`, `acorn_imp_attack_clean_gate_4x.png`.
