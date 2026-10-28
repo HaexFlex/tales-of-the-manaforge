@@ -12635,7 +12635,21 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 	failed += _assert(manual != null, "mix reload: manual FightState")
 	var actual: Array[String] = _reach_fight_species_list(manual)
 	failed += _assert(str(actual) == str(expected), "mix reload: species match build_room (got %s)" % str(actual))
-	failed += _assert(await _reach_one_strike_keeps_run(reach, manual), "mix reload: one Strike does not end the run")
+	failed += _assert(await _reach_one_strike_step_keeps_run(reach, manual), "mix reload: one Strike step does not end the run")
+	## Fresh mix reload for the UI path (adventure fight snapshot must not leak from the step assert).
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", 1)
+	game_state.call("set_resource", &"essence", 50)
+	failed += _assert(str(reach.call("depart_slots", mix_depart)) == "ok", "mix reload UI: idle depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload UI: save mid-run to slot 7")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload UI: load slot 7")
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "mix reload UI: the run is still out")
+	reach.call("set_control", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "mix reload UI: Join manual opens the fight")
+	manual = reach.call("manual_fight") as FightState
+	failed += _assert(manual != null, "mix reload UI: manual FightState")
+	failed += _assert(await _reach_one_strike_ui_keeps_run(reach, manual), "mix reload: one Strike UI does not end the run")
 	reach.call("reset_for_new_game")
 	save_service.call("delete_slot", 7)
 	save_service.set("session_active", session_was)
@@ -12740,7 +12754,7 @@ func _reach_step_strike_for_me(view: BattleView, fight: FightState, max_steps: i
 			continue
 
 
-func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
+func _reach_one_strike_step_keeps_run(reach: Node, manual: FightState) -> bool:
 	if manual == null:
 		return false
 	var guard: int = 0
@@ -12758,6 +12772,44 @@ func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
 		BattleViewScript.close_arena()
 		return false
 	manual.step(AutoPolicyScript.strike_for_me_action(manual, "keeper"))
+	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
+	BattleViewScript.close_arena()
+	return ok
+
+
+func _reach_one_strike_ui_keeps_run(reach: Node, manual: FightState) -> bool:
+	var view: BattleView = await _reach_open_manual_view(reach)
+	if view == null or manual == null:
+		return false
+	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+	if strike_btn == null:
+		BattleViewScript.close_arena()
+		return false
+	for _wait_party: int in 600:
+		if manual.outcome() != "":
+			break
+		var actor_id: String = manual.current_actor()
+		if actor_id != "" and str(manual.fighter_dict(actor_id).get("side", "")) == "party":
+			break
+		var playback: BattlePlayback = view.get_playback()
+		if playback != null and playback.is_busy():
+			await process_frame
+			continue
+		view.call("_advance")
+		await process_frame
+	strike_btn.emit_signal("pressed")
+	await process_frame
+	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	var picked: Button = null
+	if target_layer != null:
+		for child: Node in target_layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				picked = child as Button
+				break
+	if picked != null:
+		picked.emit_signal("pressed")
+	for _settle: int in 30:
+		await process_frame
 	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
 	BattleViewScript.close_arena()
 	return ok
@@ -21159,6 +21211,19 @@ func _reach_live_view() -> BattleView:
 	return views[0] as BattleView
 
 
+func _reach_advance_until_party(view: BattleView, fight: FightState, max_frames: int = 80) -> void:
+	if view == null or fight == null:
+		return
+	for _i: int in max_frames:
+		if fight.outcome() != "":
+			return
+		var actor_id: String = fight.current_actor()
+		if actor_id != "" and str(fight.fighter_dict(actor_id).get("side", "")) == "party":
+			return
+		view.call("_advance")
+		await process_frame
+
+
 func _adventure_one_strike(view: BattleView) -> bool:
 	if view == null or not is_instance_valid(view):
 		return false
@@ -21294,6 +21359,7 @@ func _adventure_slot_resume(tree_root: Window, game_state: Node, save_service: N
 		return failed
 	for _swing: int in 3:
 		failed += _assert(await _adventure_one_strike(view), "resume strike %d" % (_swing + 1))
+		await _reach_advance_until_party(view, fight)
 		if fight.outcome() != "":
 			failed += _assert(false, "resume fight ended before the snapshot")
 			break
@@ -21364,6 +21430,7 @@ func _adventure_no_scum(tree_root: Window, game_state: Node, save_service: Node)
 		mtimes[str(path_v)] = _save_mtime(str(path_v))
 	for step_i: int in 5:
 		failed += _assert(await _adventure_one_strike(view), "saved action %d" % (step_i + 1))
+		await _reach_advance_until_party(view, fight)
 		var adv: Dictionary = save_service.call("read_adventure")
 		var file_fight: Variant = adv.get("fight", null)
 		failed += _assert(file_fight is Dictionary, "adventure fight after action %d" % (step_i + 1))

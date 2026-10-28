@@ -3211,7 +3211,12 @@ func _on_target_pressed(target_id: String) -> void:
 	if stepped:
 		_note_reach_fight_action()
 	_enqueue_step(packet)
-	_advance()
+	## Instant reach playback (headless): do not auto-run the enemy phase here; callers
+	## that need it (resume tests, Strike-for-me) call _advance() explicitly.
+	if _reach_mode and _playback != null and _playback.instant:
+		_finish_turn_ui()
+	else:
+		_advance()
 
 
 func _note_reach_fight_action() -> void:
