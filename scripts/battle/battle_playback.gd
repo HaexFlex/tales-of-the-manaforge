@@ -104,6 +104,7 @@ func advance(sec: float) -> void:
 		return
 	clock_sec += sec
 	_tick(sec)
+	_sample_combat_clips()
 
 
 func _process(delta: float) -> void:
@@ -113,6 +114,44 @@ func _process(delta: float) -> void:
 	var dt: float = delta * float(speed)
 	clock_sec += dt
 	_tick(dt)
+	_sample_combat_clips()
+
+
+func _sample_combat_clips() -> void:
+	if _view != null and _view.has_method("sample_combat_clips"):
+		_view.call("sample_combat_clips")
+
+
+## Strike react. Wave-1 attack clips use hit_frame * ms. Every other strike keeps REACT_SEC.
+func react_delay_sec() -> float:
+	if str(_event.get("kind", "")) != "strike" or _fight == null:
+		return REACT_SEC
+	var actor_id: String = str(_event.get("actor", ""))
+	var row: Dictionary = _fight.fighter_dict(actor_id)
+	var side: String = str(row.get("side", ""))
+	var key: String = str(row.get("member", "")) if side == "party" else str(row.get("species", ""))
+	return strike_react_sec_for(side, key)
+
+
+static func strike_react_sec_for(side: String, key: String) -> float:
+	var actor_key: String = key
+	if side != "party":
+		actor_key = BattleView._beast_base_species(key)
+	var hit: float = CombatClips.strike_react_sec(actor_key)
+	if hit < 0.0:
+		return REACT_SEC
+	return hit
+
+
+## Clock time the clip's frame 0 belongs to. Hurt lines up with the strike's hit.
+func clip_origin_sec(pose: String) -> float:
+	if not _active:
+		return clock_sec
+	if pose == "hurt" or pose == "hit":
+		return _event_started_at + _scaled(react_delay_sec())
+	if pose == "attack":
+		return _event_started_at
+	return clock_sec
 
 
 func _tick(dt: float) -> void:
@@ -126,7 +165,7 @@ func _tick(dt: float) -> void:
 	if _phase == 0 and local_t >= 0.0:
 		_phase = 1
 		_on_event_start()
-	if _phase == 1 and _needs_react() and local_t >= _scaled(REACT_SEC):
+	if _phase == 1 and _needs_react() and local_t >= _scaled(react_delay_sec()):
 		_phase = 2
 		_on_target_react()
 	if _phase == 2 and _needs_hurt_end() and local_t >= _scaled(HURT_END_SEC):
@@ -325,7 +364,7 @@ func _on_hurt_end_instant(target_id: String) -> void:
 func _schedule_event_sounds() -> void:
 	if not _sound_allowed():
 		return
-	for cue: Dictionary in cues_for_event(_event, speed):
+	for cue: Dictionary in cues_for_event(_event, speed, react_delay_sec()):
 		_scheduled_sounds.append({
 			"at": clock_sec + float(cue.get("at_sec", 0.0)),
 			"id": str(cue.get("id", "")),
@@ -460,7 +499,7 @@ func _apply_rules(rules: Dictionary) -> void:
 	_throttle_sec = rules.get("throttle_sec", {}) as Dictionary
 
 
-static func cues_for_event(event: Dictionary, speed: int) -> Array[Dictionary]:
+static func cues_for_event(event: Dictionary, speed: int, react_base: float = -1.0) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	_ensure_rules_static()
 	var rules: Dictionary = _rules_cache
@@ -473,7 +512,8 @@ static func cues_for_event(event: Dictionary, speed: int) -> Array[Dictionary]:
 	var beast_delay: float = float(beast_hurt.get("delay_sec", 0.06))
 	var fast: bool = speed == 2 or speed == 4
 	var kind: String = str(event.get("kind", ""))
-	var react: float = REACT_SEC / float(maxi(1, speed))
+	var react_nominal: float = REACT_SEC if react_base < 0.0 else react_base
+	var react: float = react_nominal / float(maxi(1, speed))
 	match kind:
 		"strike":
 			var band: String = str(event.get("band", "hit"))
