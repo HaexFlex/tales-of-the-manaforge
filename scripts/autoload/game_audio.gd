@@ -14,7 +14,7 @@ const HUB_AMBIENCE_FILTER_DAY_CUTOFF_HZ: float = HubTimePhase.HUB_AMBIENCE_DAY_C
 const HUB_AMBIENCE_FILTER_NIGHT_CUTOFF_HZ: float = HubTimePhase.HUB_AMBIENCE_NIGHT_CUTOFF_HZ
 const HUB_AMBIENCE_FILTER_RESONANCE: float = 0.5
 const HUB_AMBIENCE_FILTER_DISCONTINUITY_SEC: float = 2.0
-## Fade floor for a weather bed that is fully out. The 2 s crossfade time lives in data.
+## Fade floor for a weather bed that is fully out. Crossfade and clear fade times live in data.
 const WEATHER_BED_SILENCE_DB: float = -80.0
 ## Matches HubDayNightCycle.CYCLE_SEC (phase jump detection).
 const HUB_DAY_NIGHT_CYCLE_SEC: float = 1200.0
@@ -1291,9 +1291,10 @@ func advance_weather_audio(seconds: float) -> void:
 		_snap_weather(state, held)
 		return
 	if state != _weather_state or held != _beds_held:
+		var from_state: String = _weather_state
 		_weather_state = state
 		_beds_held = held
-		_begin_weather_fade(state, held)
+		_begin_weather_fade(from_state, state, held)
 	_step_weather_fade(maxf(seconds, 0.0))
 
 
@@ -1343,6 +1344,26 @@ func _weather_audio_block() -> Dictionary:
 
 func _weather_fade_sec() -> float:
 	return maxf(float(_weather_audio_block().get("crossfade_sec", 2.0)), 0.0)
+
+
+func _bed_fade_in_sec() -> float:
+	return maxf(float(_weather_audio_block().get("bed_fade_in_sec", 3.0)), 0.0)
+
+
+func _bed_fade_out_sec() -> float:
+	return maxf(float(_weather_audio_block().get("bed_fade_out_sec", 4.0)), 0.0)
+
+
+func _bed_fade_sec(from_state: String, to_state: String, held: bool) -> float:
+	if held:
+		return _weather_fade_sec()
+	var from_active: bool = _bed_cue_for(from_state) != ""
+	var to_active: bool = _bed_cue_for(to_state) != "" if not held else false
+	if not from_active and to_active:
+		return _bed_fade_in_sec()
+	if from_active and not to_active:
+		return _bed_fade_out_sec()
+	return _weather_fade_sec()
 
 
 func _weather_beds_held() -> bool:
@@ -1428,19 +1449,19 @@ func _snap_weather(state: String, held: bool) -> void:
 	_apply_bed_volumes(_bed_vol)
 
 
-func _begin_weather_fade(state: String, held: bool) -> void:
+func _begin_weather_fade(from_state: String, to_state: String, held: bool) -> void:
 	if _weather_fx.is_empty():
 		_weather_fx = _neutral_fx()
 	_weather_from = _weather_fx.duplicate()
-	_weather_to = _fx_row(state)
+	_weather_to = _fx_row(to_state)
 	_weather_span = _weather_fade_sec()
 	_weather_left = _weather_span
 	if _bed_vol.is_empty():
 		for cue_id: String in _bed_ids():
 			_bed_vol[cue_id] = WEATHER_BED_SILENCE_DB
 	_bed_from = _bed_vol.duplicate()
-	_bed_to = _target_bed_volumes(state, held)
-	_bed_span = _weather_span
+	_bed_to = _target_bed_volumes(to_state, held)
+	_bed_span = _bed_fade_sec(from_state, to_state, held)
 	_bed_left = _bed_span
 
 

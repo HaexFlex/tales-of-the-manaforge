@@ -17,10 +17,18 @@ func weather(tree_root: Window, game_state: Node, save_service: Node, backpack: 
 		"item_frostberry", "frostberry_tooltip",
 		"weather_clear", "weather_soft_rain", "weather_mist", "weather_snow", "weather_blossom",
 	])
+	var expect_v2: Dictionary = {
+		"item_frostberry": "Frostberry",
+		"frostberry_tooltip": "Frostberry. A snow-kissed berry, kept for brewing.",
+		"weather_clear": "Clear",
+		"weather_soft_rain": "Soft rain",
+		"weather_mist": "Mist",
+		"weather_snow": "Light snow",
+		"weather_blossom": "Blossom fall",
+	}
 	for key: String in keys:
-		var expect: String = "Frostberry" if key == "item_frostberry" else "TODO:%s" % key
-		failed += _assert(str(content_strings.call("get_text", key)) == expect, "string %s" % key)
-	failed += _assert(str(content_strings.call("get_text", WeatherState.label_key())) == "TODO:weather_clear", "weather label key")
+		failed += _assert(str(content_strings.call("get_text", key)) == str(expect_v2.get(key, "TODO:%s" % key)), "string %s" % key)
+	failed += _assert(str(content_strings.call("get_text", WeatherState.label_key())) == "Clear", "weather label key")
 	failed += _assert(bool(backpack.call("is_known_item", "frostberry")), "frostberry is a known item")
 	failed += _assert(str(backpack.call("item_kind", "frostberry")) == "brew_ingredient", "frostberry is a brewing ingredient")
 	var frost_def: Dictionary = backpack.call("get_item_def", "frostberry")
@@ -122,7 +130,16 @@ func chores(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	CompanionChores.clear_forced()
 	var strings: Node = tree_root.get_node_or_null("ContentStrings")
 	for key: String in ["companion_chore_manatree", "companion_chore_berries", "companion_chore_stone"]:
-		failed += _assert(strings != null and str(strings.call("get_text", key)) == "TODO:%s" % key, "string %s" % key)
+		var node_id: String = "manatree"
+		var companion_id: String = "elaia"
+		if key == "companion_chore_berries":
+			node_id = "harvest_berry"
+			companion_id = "puff"
+		elif key == "companion_chore_stone":
+			node_id = "harvest_stone"
+			companion_id = "tortoise"
+		var line: String = CompanionChores.node_label(companion_id, node_id)
+		failed += _assert(line.find("{name}") < 0 and line.find(GameState.hero_display_name(companion_id)) >= 0, "string %s (%s)" % [key, line])
 	failed += _assert(is_equal_approx(CompanionChores.rate_mult(), 0.5), "chore rate_mult is 0.5")
 	failed += _assert(CompanionChores.assignment_of("elaia") == "manatree", "elaia defaults to the manatree")
 	failed += _assert(CompanionChores.assignment_of("puff") == "harvest_berry", "puff defaults to berries")
@@ -220,7 +237,15 @@ func schedule(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	CompanionChores.clear_forced()
 	var strings: Node = tree_root.get_node_or_null("ContentStrings")
 	for key: String in ["companion_schedule_bench", "companion_schedule_runestone", "companion_schedule_tree", "companion_schedule_chore"]:
-		failed += _assert(strings != null and str(strings.call("get_text", key)) == "TODO:%s" % key, "string %s" % key)
+		var place: String = "bench"
+		if key == "companion_schedule_runestone":
+			place = "runestone"
+		elif key == "companion_schedule_tree":
+			place = "tree"
+		elif key == "companion_schedule_chore":
+			place = "chore"
+		var line: String = CompanionSchedule.place_label("elaia", place)
+		failed += _assert(line.find("{name}") < 0 and line.find("Elaia") >= 0, "string %s (%s)" % [key, line])
 	failed += _assert(not CompanionChores.follows_routine("elaia"), "a chore companion does not follow the clock")
 	failed += _assert(CompanionSchedule.place_for("elaia", 0.10) == "chore", "chore companion stays put by day")
 	failed += _assert(CompanionSchedule.place_for("elaia", 0.60) == "chore", "chore companion stays put at night")
@@ -336,7 +361,13 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	var block_v: Variant = harvest.get("audio", {})
 	var block: Dictionary = block_v if typeof(block_v) == TYPE_DICTIONARY else {}
 	var fade: float = float(block.get("crossfade_sec", -1.0))
+	var bed_in: float = float(block.get("bed_fade_in_sec", -1.0))
+	var bed_out: float = float(block.get("bed_fade_out_sec", -1.0))
 	failed += _assert(is_equal_approx(fade, 2.0), "weather crossfade is 2 s in data")
+	failed += _assert(is_equal_approx(bed_in, 3.0), "weather bed fade in is 3 s in data")
+	failed += _assert(is_equal_approx(bed_out, 4.0), "weather bed fade out is 4 s in data")
+	var rain_level: float = -6.0
+	var mist_level: float = -8.0
 	var hub_v: Variant = block.get("hub_bed", {})
 	var hub: Dictionary = hub_v if typeof(hub_v) == TYPE_DICTIONARY else {}
 	var rain_row: Dictionary = hub.get("soft_rain", {})
@@ -365,8 +396,9 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	for cue_id: String in [rain_id, mist_id]:
 		var cue: Dictionary = cues.get(cue_id, {})
 		failed += _assert(str(cue.get("bus", "")) == "SFX_World" and bool(cue.get("loop", false)), "bed %s bus and loop" % cue_id)
-		failed += _assert(is_equal_approx(float(cue.get("volume_db", -99.0)), 0.0), "bed %s level" % cue_id)
 		failed += _assert(FileAccess.file_exists(str(cue.get("path", ""))), "bed file %s" % cue_id)
+	failed += _assert(is_equal_approx(float((cues.get(rain_id, {}) as Dictionary).get("volume_db", -99.0)), rain_level), "rain bed level")
+	failed += _assert(is_equal_approx(float((cues.get(mist_id, {}) as Dictionary).get("volume_db", -99.0)), mist_level), "mist bed level")
 	var chore_v: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/companion_chores.json"))
 	var chore_root: Dictionary = chore_v if typeof(chore_v) == TYPE_DICTIONARY else {}
 	var payout: Dictionary = chore_root.get("payout_audio", {})
@@ -387,18 +419,20 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(not bool(clear_now.get("lowpass_enabled", true)) and not bool(clear_now.get("gain_enabled", true)) and not bool(clear_now.get("reverb_enabled", true)), "clear bus effect is off")
 	failed += _assert(not bool(audio.call("weather_bed_playing", rain_id)) and not bool(audio.call("weather_bed_playing", mist_id)), "clear plays no weather bed")
 	WeatherState.set_state("soft_rain")
-	audio.call("advance_weather_audio", half)
+	audio.call("advance_weather_audio", fade * 0.5)
 	var mid_rain: Dictionary = audio.call("weather_hub_bus_params")
 	var silence: float = float(audio.call("weather_bed_silence_db"))
 	failed += _assert(bool(mid_rain.get("lowpass_enabled", false)) and is_equal_approx(float(mid_rain.get("lowpass_hz", 0.0)), lerpf(open_hz, 3000.0, 0.5)), "rain low-pass is halfway through 2 s (got %s)" % str(mid_rain.get("lowpass_hz", 0.0)))
 	failed += _assert(bool(mid_rain.get("gain_enabled", false)) and is_equal_approx(float(mid_rain.get("gain_db", 0.0)), -1.5), "rain gain is halfway to -3 dB")
 	failed += _assert(bool(audio.call("weather_bed_playing", rain_id)) and not bool(audio.call("weather_bed_playing", mist_id)), "only the rain bed is in the rain crossfade")
-	failed += _assert(is_equal_approx(float(audio.call("weather_bed_volume_db", rain_id)), lerpf(silence, 0.0, 0.5)), "rain bed is halfway up")
+	failed += _assert(is_equal_approx(float(audio.call("weather_bed_volume_db", rain_id)), lerpf(silence, rain_level, (fade * 0.5) / bed_in)), "rain bed is one third up at 1 s")
 	failed += _assert(str(audio.call("weather_bed_bus", rain_id)) == "SFX_World", "rain bed bus")
-	audio.call("advance_weather_audio", half)
+	audio.call("advance_weather_audio", fade * 0.5)
 	var rain_done: Dictionary = audio.call("weather_hub_bus_params")
 	failed += _assert(is_equal_approx(float(rain_done.get("lowpass_hz", 0.0)), 3000.0) and is_equal_approx(float(rain_done.get("gain_db", 0.0)), -3.0) and not bool(rain_done.get("reverb_enabled", true)), "soft rain bus effect settled")
-	failed += _assert(bool(audio.call("weather_bed_playing", rain_id)) and is_equal_approx(float(audio.call("weather_bed_volume_db", rain_id)), 0.0), "rain bed is fully up")
+	failed += _assert(bool(audio.call("weather_bed_playing", rain_id)) and is_equal_approx(float(audio.call("weather_bed_volume_db", rain_id)), lerpf(silence, rain_level, (fade * 2.0) / bed_in)), "rain bed is two thirds up at 2 s")
+	audio.call("advance_weather_audio", bed_in - (fade * 2.0))
+	failed += _assert(bool(audio.call("weather_bed_playing", rain_id)) and is_equal_approx(float(audio.call("weather_bed_volume_db", rain_id)), rain_level), "rain bed is fully up")
 	WeatherState.set_state("mist")
 	audio.call("advance_weather_audio", half)
 	var mid_mist: Dictionary = audio.call("weather_hub_bus_params")
@@ -407,10 +441,10 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	audio.call("advance_weather_audio", half)
 	var mist_done: Dictionary = audio.call("weather_hub_bus_params")
 	failed += _assert(not bool(audio.call("weather_bed_playing", rain_id)) and bool(audio.call("weather_bed_playing", mist_id)), "mist bed plays only in mist")
-	failed += _assert(is_equal_approx(float(audio.call("weather_bed_volume_db", mist_id)), 0.0), "mist bed is fully up")
+	failed += _assert(is_equal_approx(float(audio.call("weather_bed_volume_db", mist_id)), mist_level), "mist bed is fully up")
 	failed += _assert(is_equal_approx(float(mist_done.get("lowpass_hz", 0.0)), 2500.0) and is_equal_approx(float(mist_done.get("gain_db", 0.0)), -2.0), "mist bus effect settled")
 	WeatherState.set_state("snow")
-	audio.call("advance_weather_audio", fade)
+	audio.call("advance_weather_audio", bed_out)
 	var snow_fx: Dictionary = audio.call("weather_hub_bus_params")
 	failed += _assert(not bool(audio.call("weather_bed_playing", rain_id)) and not bool(audio.call("weather_bed_playing", mist_id)), "snow plays no weather bed")
 	failed += _assert(not bool(snow_fx.get("lowpass_enabled", true)) and not bool(snow_fx.get("gain_enabled", true)) and bool(snow_fx.get("reverb_enabled", false)), "snow uses reverb only")

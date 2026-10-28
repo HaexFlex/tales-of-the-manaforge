@@ -467,7 +467,16 @@ func hero_display_name(actor: String) -> String:
 	## Display name from companions.json. "The Keeper" only when that string is missing.
 	var row: Dictionary = _companion_row(actor)
 	var key: String = str(row.get("display_name_key", ""))
-	var fallback: String = "The Keeper" if actor == "keeper" else "Elaia"
+	var fallback: String = "The Keeper"
+	match actor:
+		"elaia":
+			fallback = "Elaia"
+		"puff":
+			fallback = "Puff"
+		"tortoise":
+			fallback = "Mossback"
+		"keeper":
+			fallback = "The Keeper"
 	if key == "":
 		return fallback
 	var text: String = ContentStrings.get_text(key)

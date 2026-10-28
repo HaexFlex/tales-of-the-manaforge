@@ -161,7 +161,7 @@ static func node_label_key(node_id: String) -> String:
 	return "companion_chore_manatree"
 
 
-static func node_label(node_id: String) -> String:
+static func node_label(companion_id: String, node_id: String) -> String:
 	var key: String = node_label_key(node_id)
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
@@ -169,7 +169,8 @@ static func node_label(node_id: String) -> String:
 	var strings: Node = tree.root.get_node_or_null("ContentStrings")
 	if strings == null:
 		return key
-	return str(strings.call("get_text", key))
+	var name: String = GameState.hero_display_name(companion_id) if tree.root.has_node("GameState") else companion_id
+	return str(strings.call("get_text", key, {"name": name}))
 
 
 static func work_type_for(node_id: String) -> String:
