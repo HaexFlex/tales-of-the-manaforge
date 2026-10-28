@@ -139,3 +139,15 @@ New refs derived from legacy `moss_tortoise/anim/walk8/{dir}/frame_0000` (≤40 
 ## True-size fix (2026-10-28)
 
 battle_attack/hit/work_stone true-size fix 2026-10-28: gated vs clean walk8-derived battle_idle/idle_e. See legacy/companions_bad_clips_2026-10-28/.
+
+
+## Native-scale refs (2026-10-28, replaces 9defc7c 0.78 shrink)
+
+Non-integer scale forbidden. Restored legacy `walk8` **1:1** onto 128×128:
+- `battle_idle` / `idle_w`: walk8 west — h=90, sole=123, 40 colours, bbox x 3–116
+- `idle_e`: walk8 east — h=90, sole=123, 40 colours, bbox x 11–124
+- `idle_s`/`idle_n`: walk8 south/north — h=96
+
+Canvas remains **128×128** for stills (fits native walk8 with ≥1px margin).
+Clip animations may use a wider canvas if motion overhangs; see clip CODE_NOTES.
+Scaled-078 refs → `assets/library/legacy/companions_scaled078_2026-10-28/`.
