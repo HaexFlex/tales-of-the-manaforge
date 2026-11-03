@@ -96,6 +96,7 @@
       "users": ["keeper"],
       "bonuses": { "might": 2 },
       "damage_kind": "physical",
+      "abilities": ["sweeping_arc"],
       "color": "#b7b1a8",
       "art_name": "icon_stone_sword"
     },
@@ -151,6 +152,7 @@
       "users": ["keeper", "elaia"],
       "bonuses": { "might": 5 },
       "damage_kind": "physical",
+      "abilities": ["sweeping_arc"],
       "color": "#6e8f62",
       "art_name": "icon_rootsteel_edge"
     },

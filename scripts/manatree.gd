@@ -20,6 +20,10 @@ signal care_menu_requested
 
 var _watering: bool = false
 var _hovered: bool = false
+var _damp_sprite: Sprite2D
+var _damp_active: bool = false
+var _damp_elapsed: float = 0.0
+var _damp_step: int = -1
 ## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/native/manatree_meta.json
 var _meta_stages: Dictionary = {}
 var _anim_frames: int = 1
@@ -29,8 +33,24 @@ var _anim_time: float = 0.0
 var _tile_textures: Array[Texture2D] = []
 var _frames_per_tile: int = 1
 var _shown_tile: int = -1
+## Mood idle frames, when art is present. Empty keeps the stage strip.
+var _mood_textures: Array[Texture2D] = []
+var _mood_override: Array[Texture2D] = []
 
 const META_PATH: String = "res://assets/art/manatree/native/manatree_meta.json"
+const BREATH_SHADER: Shader = preload("res://assets/art/manatree/manatree_breath.gdshader")
+const BREATH_SWAY_AMP: Dictionary = {
+	"sapling": 1.0, "young": 1.0, "mature": 1.0, "elder": 2.0, "ancient": 2.0,
+}
+const BREATH_SWAY_HZ: Dictionary = {
+	"sapling": 0.30, "young": 0.26, "mature": 0.22, "elder": 0.19, "ancient": 0.16,
+}
+const BREATH_LEAF_AMOUNT: Dictionary = {
+	"sapling": 1, "young": 2, "mature": 3, "elder": 5, "ancient": 7,
+}
+const LEAF_DRIFT_ATLAS: String = "res://assets/art/manatree/leaf_drift/leaf_drift_atlas_4x3.png"
+const BREATH_LEAF_LIFETIME: float = 5.0
+var _leaf_tex: Texture2D
 const STAGE_TEXTURES: Dictionary = {
 	&"sapling": "res://assets/art/manatree/native/manatree_sapling.png",
 	&"young": "res://assets/art/manatree/native/manatree_young.png",
@@ -38,6 +58,43 @@ const STAGE_TEXTURES: Dictionary = {
 	&"elder": "res://assets/art/manatree/native/manatree_elder.png",
 	&"ancient": "res://assets/art/manatree/native/manatree_ancient.png",
 }
+const TINT_FOLDER_IDS: PackedStringArray = ["default", "blossom", "autumn"]
+const TINT_LUT_PATH: String = "res://assets/art/manatree/native/tints/canopy_tint_lut.json"
+
+
+func _auto(node_name: String) -> Variant:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+func _pack() -> Variant:
+	return _auto("Backpack")
+
+
+func _strings() -> Variant:
+	return _auto("ContentStrings")
+
+
+func _jobs() -> Variant:
+	return _auto("ForgeJobs")
+
+
+func _audio() -> Variant:
+	return _auto("GameAudio")
+
+
+func _ginput() -> Variant:
+	return _auto("GameInput")
+
+
+func _gs() -> Variant:
+	return _auto("GameState")
+
+
+func _minigames() -> Variant:
+	return _auto("MinigameHost")
 
 
 func _ready() -> void:
@@ -57,17 +114,24 @@ func _ready() -> void:
 	input_event.connect(_on_input_event)
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
-	GameState.stage_changed.connect(_on_stage_changed)
-	GameState.fruit_ready_changed.connect(_on_fruit_changed)
-	GameState.needs_changed.connect(_refresh_label)
-	GameState.selection_changed.connect(_refresh_label)
+	_gs().stage_changed.connect(_on_stage_changed)
+	_apply_manatree_tint()
+	if not _gs().load_completed.is_connected(_on_tint_or_save):
+		_gs().load_completed.connect(_on_tint_or_save)
+	if not _gs().echo_flags_changed.is_connected(_on_tint_or_save):
+		_gs().echo_flags_changed.connect(_on_tint_or_save)
+	_gs().fruit_ready_changed.connect(_on_fruit_changed)
+	_gs().needs_changed.connect(_refresh_label)
+	_gs().selection_changed.connect(_refresh_label)
 	add_to_group("manatree")
 	add_to_group("interactable")
 	_ensure_trunk()
 	_ensure_door_trigger()
 	_ensure_veins()
+	_ensure_leaf_drift()
+	_ensure_stage_bloom()
 	_refresh_visual()
-	_on_fruit_changed(GameState.fruit_ready)
+	_on_fruit_changed(_gs().fruit_ready)
 
 
 func _load_meta() -> void:
@@ -94,7 +158,7 @@ func _load_meta() -> void:
 
 ## D7 visual scale only — multiplies the stage canvas. Gather and costs stay on the stage row.
 func visual_scale_for(stage: StringName) -> float:
-	var def: Dictionary = GameState.get_stage_def(stage)
+	var def: Dictionary = _gs().get_stage_def(stage)
 	if def.has("visual_scale"):
 		return float(def.get("visual_scale", 1.0))
 	return 1.0
@@ -109,7 +173,7 @@ func _stage_size(stage: StringName) -> Vector2:
 			return Vector2(float(arr[0]), float(arr[1]))
 	if Engine.is_editor_hint():
 		return Vector2(128, 192)
-	var def: Dictionary = GameState.get_stage_def(stage)
+	var def: Dictionary = _gs().get_stage_def(stage)
 	var size_v2: Variant = def.get("size", [128, 192])
 	if typeof(size_v2) == TYPE_ARRAY and (size_v2 as Array).size() >= 2:
 		var arr2: Array = size_v2
@@ -123,14 +187,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			if GameInput.yields_touch_double_tap(mb):
+			if _ginput().yields_touch_double_tap(mb):
 				return
 			if _click_is_door():
 				_request_door()
 			# LMB on the tree is not empty ground — swallow so Main does not deselect.
 			get_viewport().set_input_as_handled()
 			return
-		if GameInput.is_command(mb):
+		if _ginput().is_command(mb):
 			apply_player_command()
 			get_viewport().set_input_as_handled()
 
@@ -153,29 +217,32 @@ func work_footprint() -> Rect2:
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
 	## Watering stops, then he walks to the tree and the tending window opens on arrival.
-	if not GameState.selected_wisp_list().is_empty():
-		var node_id: String = GameState.NODE_ID_MANATREE
-		var result: String = GameState.command_selected_wisps(node_id)
-		GameState.toast_wisp_assign(result, node_id)
-		if GameState.selected_hero_id() != "":
-			GameState.command_selected_hero(self, "manatree")
+	if not _gs().selected_wisp_list().is_empty():
+		var node_id: String = _gs().NODE_ID_MANATREE
+		var result: String = _gs().command_selected_wisps(node_id)
+		_gs().toast_wisp_assign(result, node_id)
+		if _gs().selected_hero_id() != "":
+			_gs().command_selected_hero(self, "manatree")
 		return
-	if GameState.selected_hero_id() == "":
-		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
+	if _gs().selected_hero_id() == "":
+		_gs().status_message.emit(_strings().get_text("keeper_required_tree"))
 		return
-	GameState.command_selected_hero(self, "manatree")
+	_gs().command_selected_hero(self, "manatree")
 
 
 func on_interact(_keeper: Node) -> void:
 	## Pending Ascend → paused shop. Fruit ready (uncommitted) → care with Water + Harvest CTA.
-	if GameState.fruit_harvested_pending_ascend:
+	if _gs().fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
 	care_menu_requested.emit()
 
 
 func set_watering(active: bool) -> void:
+	var was_watering: bool = _watering
 	_watering = active
+	if active and not was_watering:
+		_restart_damp_decal()
 	if active:
 		label.modulate = Color(0.85, 0.95, 1.1, 1.0)
 	else:
@@ -185,12 +252,13 @@ func set_watering(active: bool) -> void:
 
 func do_water() -> void:
 	## Start / continue water channel on the selected hero (income only).
-	if GameState.fruit_harvested_pending_ascend:
+	if _gs().fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
 	var hero: Node = null
-	if GameState.selected_hero_id() == "elaia":
-		hero = get_tree().get_first_node_in_group("elaia")
+	var hero_id: String = _gs().selected_hero_id()
+	if hero_id != "" and hero_id != "keeper":
+		hero = _gs().find_selected_hero()
 	if hero == null:
 		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 		if not keepers.is_empty():
@@ -198,23 +266,23 @@ func do_water() -> void:
 	if hero == null or not hero.has_method("start_water_channel"):
 		return
 	## The channel's gain line is the toast that stays. Ancient used to replace it.
-	if GameState.stage_id == &"ancient":
-		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
+	if _gs().stage_id == &"ancient":
+		_gs().status_message.emit(_strings().get_text("tree_water_ancient_ok"))
 	hero.call("start_water_channel", self)
 
 
 func do_pay_stage() -> String:
 	## Spend needs to advance. Audio stage-up fires via GameAudio on stage_changed.
-	var result: String = GameState.try_pay_stage()
+	var result: String = _gs().try_pay_stage()
 	match result:
 		"ok":
 			pass
 		"cant_afford":
-			GameAudio.play_tree_deny()
+			_audio().play_tree_deny()
 		"ancient":
-			if GameState.fruit_harvested_pending_ascend:
+			if _gs().fruit_harvested_pending_ascend:
 				fruit_menu_requested.emit()
-			elif GameState.fruit_ready:
+			elif _gs().fruit_ready:
 				care_menu_requested.emit()
 	_refresh_visual()
 	return result
@@ -228,14 +296,90 @@ func _on_stage_changed(_id: StringName) -> void:
 	_refresh_visual()
 
 
+func mood_stage_number(stage: StringName = &"") -> int:
+	var id: StringName = stage if stage != &"" else _gs().stage_id
+	var idx: int = _gs().STAGE_ORDER.find(id)
+	return idx + 1 if idx >= 0 else 1
+
+
+func mood_idle_frame_paths(stage_n: int) -> PackedStringArray:
+	## art not delivered. A folder or loose frames named mood_idle_stage{N} turn the loop on.
+	var paths: PackedStringArray = PackedStringArray()
+	var folder: String = "res://assets/art/manatree/mood_idle_stage%d" % stage_n
+	var packed: PackedStringArray = _pngs_in(folder)
+	if not packed.is_empty():
+		return packed
+	var prefix: String = "mood_idle_stage%d" % stage_n
+	for path: String in _pngs_in("res://assets/art/manatree"):
+		var base: String = path.get_file().get_basename()
+		if base == prefix or base.begins_with(prefix + "_"):
+			paths.append(path)
+	paths.sort()
+	return paths
+
+
+func _pngs_in(folder: String) -> PackedStringArray:
+	var paths: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open(folder)
+	if dir == null:
+		return paths
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".png"):
+			paths.append("%s/%s" % [folder, file_name])
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	paths.sort()
+	return paths
+
+
+func using_mood_idle() -> bool:
+	return not _mood_textures.is_empty()
+
+
+func debug_set_mood_frames(frames: Array) -> void:
+	_mood_override.clear()
+	for entry: Variant in frames:
+		if entry is Texture2D:
+			_mood_override.append(entry)
+	_refresh_visual()
+
+
+func _load_mood_textures(stage: StringName) -> void:
+	_mood_textures.clear()
+	if not _mood_override.is_empty():
+		_mood_textures = _mood_override.duplicate()
+		return
+	if Engine.is_editor_hint():
+		return
+	for path: String in mood_idle_frame_paths(mood_stage_number(stage)):
+		var tex: Texture2D = load(path) as Texture2D
+		if tex != null:
+			_mood_textures.append(tex)
+
+
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
+		return
+	_tick_damp_decal(delta)
+	if using_mood_idle() and sprite != null:
+		if _mood_textures.size() <= 1:
+			return
+		_anim_time += delta
+		var frame: int = int(_anim_time * _anim_fps) % _mood_textures.size()
+		var tex: Texture2D = _mood_textures[frame]
+		if sprite.texture != tex:
+			sprite.texture = tex
+			sprite.hframes = 1
+			sprite.vframes = 1
+			sprite.frame = 0
 		return
 	if _anim_frames <= 1 or sprite == null:
 		return
 	_anim_time += delta
-	var frame: int = int(_anim_time * _anim_fps) % _anim_frames
-	_show_frame(frame)
+	var strip_frame: int = int(_anim_time * _anim_fps) % _anim_frames
+	_show_frame(strip_frame)
 
 
 ## One frame of the stage strip. Tiled stages swap a ≤2048-wide texture and use a local hframe.
@@ -260,16 +404,16 @@ func _show_frame(frame: int) -> void:
 
 func _on_fruit_changed(ready: bool) -> void:
 	if ready:
-		fruit_hint.text = ContentStrings.get_text("fruit_ready_prompt")
-	elif GameState.fruit_harvested_pending_ascend:
-		fruit_hint.text = ContentStrings.get_text("ascension_paused_hint")
+		fruit_hint.text = _strings().get_text("fruit_ready_prompt")
+	elif _gs().fruit_harvested_pending_ascend:
+		fruit_hint.text = _strings().get_text("ascension_paused_hint")
 	else:
 		fruit_hint.text = ""
 	_apply_label_visibility()
 
 
 func world_hover_name() -> String:
-	return ContentStrings.get_text("tree_menu_title")
+	return _strings().get_text("tree_menu_title")
 
 
 func _on_hover(inside: bool) -> void:
@@ -277,24 +421,24 @@ func _on_hover(inside: bool) -> void:
 	_apply_label_visibility()
 	WorldHover.sync(self, inside, world_hover_name())
 	if has_node("/root/MinigameHost"):
-		MinigameHost.call("show_prompt", "manatree", global_position + Vector2(0, -72), inside)
+		_minigames().call("show_prompt", "manatree", global_position + Vector2(0, -72), inside)
 
 
 func _refresh_label() -> void:
 	var suffix: String = ""
 	if _watering:
-		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
-		if Backpack.owns_watering_can():
-			suffix += "\n" + ContentStrings.get_text("tool_water_hint")
-		if has_node("/root/MinigameHost") and str(MinigameHost.call("hero_for", "manatree")) == "keeper":
-			suffix += "\n" + ContentStrings.get_text("minigame_lend_a_hand")
-	if GameState.selected_wisp_id >= 0:
-		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
+		suffix = "\n" + _strings().get_text("tree_water_channel_hud")
+		if _pack().owns_watering_can():
+			suffix += "\n" + _strings().get_text("tool_water_hint")
+		if has_node("/root/MinigameHost") and str(_minigames().call("hero_for", "manatree")) == "keeper":
+			suffix += "\n" + _strings().get_text("minigame_lend_a_hand")
+	if _gs().selected_wisp_id >= 0:
+		label.text = "%s%s" % [_strings().get_text("wisp_assign_to_manatree"), suffix]
 		_apply_label_visibility()
 		return
-	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
-	var ascension: String = ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions})
-	if GameState.stage_id == &"ancient":
+	var stage_name: String = str(_gs().get_stage_def().get("display_name", _gs().stage_id))
+	var ascension: String = _strings().get_text("ascend_count_hud", {"count": _gs().ascensions})
+	if _gs().stage_id == &"ancient":
 		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
 	else:
 		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
@@ -310,7 +454,7 @@ func _apply_label_visibility() -> void:
 
 
 func _stage_meta() -> Dictionary:
-	var meta: Variant = _meta_stages.get(String(GameState.stage_id), {})
+	var meta: Variant = _meta_stages.get(String(_gs().stage_id), {})
 	if typeof(meta) == TYPE_DICTIONARY:
 		return meta
 	return {}
@@ -319,7 +463,7 @@ func _stage_meta() -> Dictionary:
 ## Frame-pixel midpoint of the door sill. Measured on frame 0 of each strip:
 ## the last row where the trunk still bridges the center, above the root split.
 func door_floor_px(stage: StringName = &"") -> Vector2:
-	var sid: StringName = stage if stage != &"" else GameState.stage_id
+	var sid: StringName = stage if stage != &"" else _gs().stage_id
 	var meta: Dictionary = {}
 	var raw: Variant = _meta_stages.get(String(sid), {})
 	if typeof(raw) == TYPE_DICTIONARY:
@@ -336,7 +480,7 @@ func door_floor_px(stage: StringName = &"") -> Vector2:
 func door_anchor_offset() -> Vector2:
 	if sprite == null:
 		return Vector2(9999, 9999)
-	var door: Vector2 = door_floor_px(GameState.stage_id)
+	var door: Vector2 = door_floor_px(_gs().stage_id)
 	return (sprite.offset + door) * sprite.scale
 
 
@@ -347,14 +491,29 @@ func _display_scale(stage: StringName) -> float:
 			return float((raw as Dictionary).get("display_scale", 1.0))
 		return 1.0
 	var meta: Dictionary = _stage_meta()
-	if stage == GameState.stage_id and meta.has("display_scale"):
+	if stage == _gs().stage_id and meta.has("display_scale"):
 		return float(meta.get("display_scale", 1.0))
 	return visual_scale_for(stage)
 
 
+func _on_tint_or_save() -> void:
+	if Engine.is_editor_hint():
+		return
+	_refresh_visual()
+
+
+func _tint_texture_path(stage: StringName) -> String:
+	var idx: int = clampi(_gs().manatree_tint, 0, TINT_FOLDER_IDS.size() - 1)
+	var folder: String = TINT_FOLDER_IDS[idx]
+	var tinted: String = "res://assets/art/manatree/native/tints/%s/manatree_%s.png" % [folder, String(stage)]
+	if ResourceLoader.exists(tinted):
+		return tinted
+	return str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
+
+
 func _refresh_visual() -> void:
-	var stage: StringName = StringName(preview_stage) if Engine.is_editor_hint() else GameState.stage_id
-	var path: String = str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
+	var stage: StringName = StringName(preview_stage) if Engine.is_editor_hint() else _gs().stage_id
+	var path: String = _tint_texture_path(stage) if not Engine.is_editor_hint() else str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
 	var meta: Dictionary = {}
 	var raw_meta: Variant = _meta_stages.get(String(stage), {})
 	if typeof(raw_meta) == TYPE_DICTIONARY:
@@ -395,6 +554,12 @@ func _refresh_visual() -> void:
 		sprite.texture = tex
 		sprite.frame = 0
 	_anim_time = 0.0
+	_load_mood_textures(stage)
+	if using_mood_idle():
+		sprite.texture = _mood_textures[0]
+		sprite.hframes = 1
+		sprite.vframes = 1
+		sprite.frame = 0
 	var scale_v: float = _display_scale(stage)
 	sprite.scale = Vector2(scale_v, scale_v)
 	# Door sill is the world anchor. Offset is in frame pixels; scale grows the crown up from that point.
@@ -411,7 +576,17 @@ func _refresh_visual() -> void:
 	fruit_hint.position = Vector2(-140, 12)
 	_apply_trunk(String(stage))
 	_apply_veins(String(stage))
+	_apply_breath(String(stage))
+	if _damp_active and _damp_sprite != null and _damp_sprite.visible:
+		_apply_damp_step(_damp_step)
+		_update_damp_position()
 
+
+const DAMP_SOIL_PATH: String = "res://assets/art/hub/ground/damp/"
+const DAMP_FADE_STEPS: Array[String] = ["0_full", "1_66", "2_33", "3_faint"]
+const DAMP_FADE_AT: Array[float] = [8.0, 16.0, 24.0]
+const DAMP_HIDE_SEC: float = 30.0
+const DAMP_TOP_PAD: float = 4.0
 
 const TRUNK_SIZE: Dictionary = {
 	"sapling": Vector2(28, 40),
@@ -538,7 +713,7 @@ func _on_door_hover(inside: bool) -> void:
 	var door: Area2D = get_node_or_null("DoorHit") as Area2D
 	if door == null:
 		return
-	WorldHover.sync(door, inside, ContentStrings.get_text("hover_forge_door"))
+	WorldHover.sync(door, inside, _strings().get_text("hover_forge_door"))
 
 
 func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -552,7 +727,7 @@ func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void
 
 
 func wisp_orbit_center() -> Vector2:
-	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	var sz: Vector2 = TRUNK_SIZE.get(String(_gs().stage_id), Vector2(28, 40))
 	var third: float = sz.y / 3.0
 	var keeper_half_h: float = Keeper.BODY_SIZE.y * 0.5
 	if not Engine.is_editor_hint() and is_inside_tree():
@@ -568,12 +743,12 @@ func wisp_orbit_radius() -> float:
 
 
 func wisp_orbit_radii() -> Vector2:
-	if String(GameState.stage_id) == "elder" or String(GameState.stage_id) == "ancient":
+	if String(_gs().stage_id) == "elder" or String(_gs().stage_id) == "ancient":
 		return Vector2(280.0, 140.0)
-	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	var sz: Vector2 = TRUNK_SIZE.get(String(_gs().stage_id), Vector2(28, 40))
 	var ry: float = sz.x * 0.5 + 14.0
 	if has_node("/root/ForgeJobs"):
-		ry = ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
+		ry = _jobs().wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
 	return Vector2(ry, ry * 0.5)
 
 
@@ -616,6 +791,17 @@ func _check_door_feet() -> void:
 	return
 
 
+func _ensure_stage_bloom() -> void:
+	if get_node_or_null("StageBloom") != null:
+		return
+	var bloom := Node2D.new()
+	bloom.name = "StageBloom"
+	var script_res: Script = load("res://scripts/manatree_stage_bloom.gd") as Script
+	if script_res != null:
+		bloom.set_script(script_res)
+	add_child(bloom)
+
+
 func _ensure_veins() -> void:
 	if get_node_or_null("VeinMotes") != null:
 		return
@@ -653,3 +839,166 @@ func _apply_veins(stage: String) -> void:
 	motes.position = VEIN_POS.get(stage, Vector2(0, -45))
 	motes.emission_rect_extents = VEIN_EXTENT.get(stage, Vector2(10, 30))
 	motes.emitting = true
+
+
+func _leaf_placeholder_tex() -> Texture2D:
+	if _leaf_tex != null:
+		return _leaf_tex
+	_leaf_tex = load(LEAF_DRIFT_ATLAS) as Texture2D
+	return _leaf_tex
+
+
+func _ensure_leaf_drift() -> void:
+	if get_node_or_null("LeafDrift") != null:
+		return
+	var leaves := CPUParticles2D.new()
+	leaves.name = "LeafDrift"
+	leaves.texture = _leaf_placeholder_tex()
+	leaves.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	leaves.local_coords = true
+	leaves.explosiveness = 0.0
+	leaves.randomness = 0.45
+	leaves.lifetime = BREATH_LEAF_LIFETIME
+	leaves.direction = Vector2(0, 1)
+	leaves.spread = 28.0
+	leaves.gravity = Vector2(0, 18)
+	leaves.initial_velocity_min = 4.0
+	leaves.initial_velocity_max = 14.0
+	leaves.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	leaves.z_index = 1
+	var leaf_mat := CanvasItemMaterial.new()
+	leaf_mat.particles_animation = true
+	leaf_mat.particles_anim_h_frames = 4
+	leaf_mat.particles_anim_v_frames = 3
+	leaves.material = leaf_mat
+	add_child(leaves)
+
+
+func _apply_breath(stage: String) -> void:
+	if Engine.is_editor_hint():
+		if sprite != null:
+			sprite.material = null
+		return
+	if sprite == null:
+		return
+	var mat: ShaderMaterial
+	if sprite.material is ShaderMaterial and (sprite.material as ShaderMaterial).shader == BREATH_SHADER:
+		mat = sprite.material as ShaderMaterial
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = BREATH_SHADER
+		sprite.material = mat
+	var door: Vector2 = door_floor_px(StringName(stage))
+	var sc: float = _display_scale(StringName(stage))
+	var sz: Vector2 = TRUNK_SIZE.get(stage, Vector2(28, 40))
+	var box: Vector2 = FeetBox.size_for(sz)
+	var canopy_base_y: float = -maxf(box.y, 56.0)
+	var crown_h: float = maxf(canopy_base_y + door.y * sc, 8.0)
+	mat.set_shader_parameter("sway_amp_px", float(BREATH_SWAY_AMP.get(stage, 1.0)))
+	mat.set_shader_parameter("sway_hz", float(BREATH_SWAY_HZ.get(stage, 0.25)))
+	mat.set_shader_parameter("canopy_base_y", canopy_base_y)
+	mat.set_shader_parameter("crown_h_px", crown_h)
+	var leaves: CPUParticles2D = get_node_or_null("LeafDrift") as CPUParticles2D
+	if leaves == null:
+		return
+	leaves.amount = int(BREATH_LEAF_AMOUNT.get(stage, 2))
+	leaves.position = Vector2(0, -crown_h * 0.55)
+	leaves.emission_rect_extents = Vector2(door.x * sc * 0.42, crown_h * 0.14)
+	leaves.emitting = true
+
+
+func _damp_decal_size_key(stage: StringName) -> String:
+	match String(stage):
+		"sapling":
+			return "sapling"
+		"young":
+			return "young"
+		"mature":
+			return "mature"
+		"elder", "ancient":
+			return "ancient"
+		_:
+			return "sapling"
+
+
+func _ensure_damp_decal() -> void:
+	if _damp_sprite != null:
+		return
+	var world: Node = get_parent()
+	if world == null:
+		return
+	_damp_sprite = Sprite2D.new()
+	_damp_sprite.name = &"WateredGroundDecal"
+	_damp_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_damp_sprite.centered = true
+	_damp_sprite.visible = false
+	_damp_sprite.y_sort_enabled = true
+	world.add_child(_damp_sprite)
+	world.move_child(_damp_sprite, get_index())
+
+
+func _restart_damp_decal() -> void:
+	if Engine.is_editor_hint():
+		return
+	_ensure_damp_decal()
+	if _damp_sprite == null:
+		return
+	_damp_active = true
+	_damp_elapsed = 0.0
+	_damp_step = 0
+	_apply_damp_step(0)
+	_update_damp_position()
+	_damp_sprite.visible = true
+
+
+func _apply_damp_step(step: int) -> void:
+	if _damp_sprite == null:
+		return
+	var idx: int = clampi(step, 0, DAMP_FADE_STEPS.size() - 1)
+	_damp_step = idx
+	var size_key: String = _damp_decal_size_key(_gs().stage_id)
+	var step_key: String = DAMP_FADE_STEPS[idx]
+	var path: String = "%sdamp_soil_%s_%s.png" % [DAMP_SOIL_PATH, size_key, step_key]
+	_damp_sprite.texture = load(path) as Texture2D
+
+
+func _update_damp_position() -> void:
+	if _damp_sprite == null:
+		return
+	_damp_sprite.z_index = z_index - 1
+	var door: Vector2 = door_floor_px(_gs().stage_id)
+	var scale_v: float = _display_scale(_gs().stage_id)
+	var door_local: Vector2 = door * scale_v
+	var tex_h: float = 16.0
+	if _damp_sprite.texture != null:
+		tex_h = float(_damp_sprite.texture.get_height())
+	_damp_sprite.global_position = global_position + Vector2(door_local.x, door_local.y - DAMP_TOP_PAD - tex_h * 0.5)
+
+
+func _tick_damp_decal(delta: float) -> void:
+	if not _damp_active or _damp_sprite == null:
+		return
+	_damp_elapsed += delta
+	if _damp_elapsed >= DAMP_HIDE_SEC:
+		_damp_active = false
+		_damp_sprite.visible = false
+		return
+	if _damp_elapsed >= DAMP_FADE_AT[2] and _damp_step < 3:
+		_apply_damp_step(3)
+	elif _damp_elapsed >= DAMP_FADE_AT[1] and _damp_step < 2:
+		_apply_damp_step(2)
+	elif _damp_elapsed >= DAMP_FADE_AT[0] and _damp_step < 1:
+		_apply_damp_step(1)
+	_update_damp_position()
+
+
+func _exit_tree() -> void:
+	if _damp_sprite != null and is_instance_valid(_damp_sprite):
+		_damp_sprite.queue_free()
+		_damp_sprite = null
+
+
+func _apply_manatree_tint() -> void:
+	if Engine.is_editor_hint():
+		return
+	_refresh_visual()

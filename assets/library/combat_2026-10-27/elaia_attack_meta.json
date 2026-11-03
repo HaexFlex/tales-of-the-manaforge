@@ -1,0 +1,32 @@
+{
+  "source": "elaia_attack_try1.mp4",
+  "src_indices": [
+    12,
+    24,
+    36,
+    48,
+    60,
+    72,
+    108,
+    132
+  ],
+  "phases": [
+    "rest",
+    "step",
+    "step",
+    "push",
+    "push",
+    "hold",
+    "recover",
+    "rest"
+  ],
+  "ms_per_frame": 125,
+  "hit_frame": 3,
+  "sole": 123,
+  "live": "battle_elaia_idle_e.png",
+  "mirror": false,
+  "note": null,
+  "frames": 8,
+  "actor": "elaia",
+  "clip": "attack"
+}

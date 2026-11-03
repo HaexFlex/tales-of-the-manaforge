@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "rate_mult": 0.5,
+  "max_per_node": 1,
+  "assignments": {
+    "elaia": "manatree",
+    "puff": "harvest_berry",
+    "mossback": "harvest_stone"
+  },
+  "payout_audio": {
+    "offset_db": -6.0,
+    "gap_sec": 2.0,
+    "bus": "SFX_World",
+    "by_node": {
+      "manatree": "sfx_water_pulse",
+      "harvest_berry": "sfx_gather_food",
+      "harvest_stone": "sfx_gather_stone",
+      "harvest_tree": "sfx_gather_wood"
+    }
+  }
+}

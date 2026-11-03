@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "notes": "Phase bands match HubTimePhase. A companion with a chore does not follow this. stand_offsets are pixels from the anchor, then lane_px spaces companions. Nudge keeps the body off the Bench, the Forge door, work spots, and the path into them.",
+  "lane_px": 36,
+  "nudge_px": 8,
+  "nudge_steps": 12,
+  "stand_offsets": {
+    "bench": {"x": 140, "y": 110},
+    "runestone": {"x": 110, "y": 80},
+    "tree": {"x": 180, "y": 120},
+    "chore": {"x": 72, "y": 88}
+  },
+  "companions": {
+    "elaia": {
+      "lane": 0,
+      "routine": [
+        {"from": 0.0, "to": 0.32, "place": "tree"},
+        {"from": 0.32, "to": 0.48, "place": "bench"},
+        {"from": 0.48, "to": 0.82, "place": "runestone"},
+        {"from": 0.82, "to": 1.0, "place": "chore"}
+      ]
+    },
+    "puff": {
+      "lane": 1,
+      "routine": [
+        {"from": 0.0, "to": 0.32, "place": "chore"},
+        {"from": 0.32, "to": 0.48, "place": "tree"},
+        {"from": 0.48, "to": 0.82, "place": "bench"},
+        {"from": 0.82, "to": 1.0, "place": "runestone"}
+      ]
+    },
+    "mossback": {
+      "lane": 2,
+      "routine": [
+        {"from": 0.0, "to": 0.32, "place": "runestone"},
+        {"from": 0.32, "to": 0.48, "place": "chore"},
+        {"from": 0.48, "to": 0.82, "place": "tree"},
+        {"from": 0.82, "to": 1.0, "place": "bench"}
+      ]
+    }
+  }
+}

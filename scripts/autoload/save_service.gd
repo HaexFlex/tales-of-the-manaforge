@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 15 — ascension shop UI + blessing unlock flags. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 16 — companions{id: joined, level, chore, gear} plus R5 ranks_by_actor. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -13,8 +13,15 @@ var boot_slot: int = 0
 var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
+var _hub_life_script: GDScript
 
-const SAVE_VERSION: int = 15
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
+
+const SAVE_VERSION: int = 16
 ## Never read a save newer than this build writes: unknown fields would be dropped silently.
 const SAVE_VERSION_MAX_READ: int = SAVE_VERSION
 const SAVE_SLOT_COUNT: int = 7
@@ -441,6 +448,7 @@ func _load_path(path: String) -> bool:
 	current_save_id = int(root.get("save_id", 0))
 	_apply_loaded_adventure()
 	_apply_offline_catchup(root)
+	_hub_life().call("on_save_loaded")
 	load_completed.emit(true)
 	return true
 
@@ -518,7 +526,7 @@ func _apply_loaded_adventure() -> void:
 	if typeof(reach_v) == TYPE_DICTIONARY:
 		Reach.apply_run_block(reach_v)
 	var fight_v: Variant = adv.get("fight", null)
-	if typeof(fight_v) == TYPE_DICTIONARY:
+	if typeof(fight_v) == TYPE_DICTIONARY and str((fight_v as Dictionary).get("outcome", "")) == "":
 		Reach.restore_manual_fight(FightState.from_dict(fight_v))
 
 
@@ -801,9 +809,88 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v15(out)
 	_drop_removed_blessings(out)
 	_normalize_stat_ranks(out)
+	_hub_life().call("migrate_fields", out)
+	if from_version < 16:
+		_migrate_v16(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
 	return out
+
+
+func _migrate_v16(out: Dictionary) -> void:
+	## Per-name fields become companions{id: {joined, level, chore, gear}}.
+	## tortoise is only a save alias for mossback. It is not a roster id.
+	## Puff and Mossback join from data/companions.json hooks on load when the save
+	## already meets manatree_stage or reach_cleared. joined in the blob may stay false;
+	## companion_joined() evaluates hooks live (no SAVE_VERSION bump).
+	## elaia_* keys stay on the blob. This migration is what copies her join, chore,
+	## and gear into companions{}. Pose, the join dialogue, footsteps, and the water
+	## fraction still live on those keys, so apply_save_dict keeps reading them.
+	var chores_v: Variant = out.get("companion_chores", {})
+	var chores: Dictionary = chores_v if typeof(chores_v) == TYPE_DICTIONARY else {}
+	if chores.has("tortoise"):
+		var stone: String = str(chores.get("tortoise", ""))
+		if not chores.has("mossback") or str(chores.get("mossback", "")) == "":
+			chores["mossback"] = stone
+		chores.erase("tortoise")
+		out["companion_chores"] = chores
+	var companions_v: Variant = out.get("companions", {})
+	var companions: Dictionary = companions_v.duplicate(true) if typeof(companions_v) == TYPE_DICTIONARY else {}
+	if companions.has("tortoise"):
+		if not companions.has("mossback"):
+			companions["mossback"] = companions["tortoise"]
+		companions.erase("tortoise")
+	var elaia_joined: bool = bool(out.get("echo_01_redeemed", false)) and (bool(out.get("first_relic_crafted", false)) or bool(out.get("elaia_legacy_joined", false)))
+	var elaia_block: Dictionary = companions.get("elaia", {}) if typeof(companions.get("elaia", {})) == TYPE_DICTIONARY else {}
+	elaia_block["joined"] = elaia_joined
+	elaia_block["level"] = int(elaia_block.get("level", 1))
+	elaia_block["chore"] = str(chores.get("elaia", elaia_block.get("chore", "")))
+	var gear_v: Variant = out.get("elaia_equipped", elaia_block.get("gear", {}))
+	elaia_block["gear"] = (gear_v as Dictionary).duplicate(true) if typeof(gear_v) == TYPE_DICTIONARY else {}
+	companions["elaia"] = elaia_block
+	var reach_v: Variant = out.get("reach", {})
+	var clears: int = int((reach_v as Dictionary).get("reaches_cleared", 0)) if typeof(reach_v) == TYPE_DICTIONARY else 0
+	var bramble_joined: bool = str(out.get("echo_02_outcome", "")) == "spare" and clears >= 30
+	for actor_id: String in ["puff", "mossback", "bramble"]:
+		var block: Dictionary = companions.get(actor_id, {}) if typeof(companions.get(actor_id, {})) == TYPE_DICTIONARY else {}
+		if actor_id == "bramble":
+			block["joined"] = bramble_joined
+		elif not block.has("joined"):
+			block["joined"] = false
+		block["level"] = int(block.get("level", 1))
+		block["chore"] = str(chores.get(actor_id, block.get("chore", "")))
+		if typeof(block.get("gear", {})) != TYPE_DICTIONARY:
+			block["gear"] = {}
+		companions[actor_id] = block
+	out["companions"] = companions
+	var stats_v: Variant = out.get("keeper_stats", {})
+	var stats: Dictionary = stats_v if typeof(stats_v) == TYPE_DICTIONARY else {}
+	if not stats.has("ranks_by_actor"):
+		var legacy: Dictionary = {}
+		for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+			if stats.has(sid):
+				legacy[sid] = maxi(0, int(stats[sid]))
+		stats["ranks_by_actor"] = {"keeper": legacy}
+		out["keeper_stats"] = stats
+	for key: String in [
+		"echo_03_resolved", "echo_03_fee_paid", "puff_in_party", "puff_join_seen", "brewing_unlocked",
+		"lifetime_t2_tool_arch_seen", "echo_04_resolved", "echo_04_fee_paid", "moss_tortoise_in_party",
+		"moss_tortoise_join_seen",
+	]:
+		if not out.has(key):
+			out[key] = false
+	if not out.has("echo_04_outcome"):
+		out["echo_04_outcome"] = ""
+	if not out.has("regrowth_defeat_mult"):
+		out["regrowth_defeat_mult"] = 1.0
+	if not out.has("firefly_jar_count"):
+		out["firefly_jar_count"] = 0
+	if not out.has("manatree_tint"):
+		out["manatree_tint"] = 0
+	if not out.has("moss_tonic_until_ms"):
+		out["moss_tonic_until_ms"] = 0
+	if not out.has("brewing_job"):
+		out["brewing_job"] = {}
 
 
 func _migrate_v10(out: Dictionary) -> void:
@@ -1057,15 +1144,31 @@ func _migrate_gear_v7(out: Dictionary) -> void:
 
 
 func _normalize_stat_ranks(out: Dictionary) -> void:
+	## Every path through v16 keeps might, arcana, resilience, ward, vitality,
+	## swiftness and fate on keeper_stats. A missing rank becomes 0. Values are
+	## not remapped. ranks_by_actor.keeper mirrors those same numbers, and any
+	## other actor already stored there is left in place.
 	var raw_v: Variant = out.get("keeper_stats", {})
-	var src: Dictionary = raw_v if typeof(raw_v) == TYPE_DICTIONARY else {}
-	var stats: Dictionary = {}
+	var src: Dictionary = raw_v.duplicate(true) if typeof(raw_v) == TYPE_DICTIONARY else {}
+	var by_actor_v: Variant = src.get("ranks_by_actor", null)
+	var by_actor: Dictionary = (by_actor_v as Dictionary).duplicate(true) if typeof(by_actor_v) == TYPE_DICTIONARY else {}
+	var keeper_v: Variant = by_actor.get("keeper", {})
+	var keeper_src: Dictionary = keeper_v if typeof(keeper_v) == TYPE_DICTIONARY else {}
+	var flat: Dictionary = {}
 	for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
-		if not src.has(sid):
-			stats[sid] = 0
+		if keeper_src.has(sid):
+			flat[sid] = maxi(0, int(keeper_src[sid]))
+		elif src.has(sid):
+			flat[sid] = maxi(0, int(src[sid]))
 		else:
-			stats[sid] = maxi(0, int(src[sid]))
-	out["keeper_stats"] = stats
+			flat[sid] = 0
+	var keeper_out: Dictionary = keeper_src.duplicate(true)
+	for sid: String in flat.keys():
+		keeper_out[sid] = flat[sid]
+		src[sid] = flat[sid]
+	by_actor["keeper"] = keeper_out
+	src["ranks_by_actor"] = by_actor
+	out["keeper_stats"] = src
 
 
 func delete_slot(slot: int) -> void:
@@ -1087,6 +1190,7 @@ func _remove_slot_files(path: String) -> void:
 
 
 func delete_save() -> void:
+	clear_adventure()
 	for slot: int in range(1, SAVE_SLOT_COUNT + 1):
 		delete_slot(slot)
 	for slot: int in range(1, AUTOSAVE_SLOT_COUNT + 1):
@@ -1129,6 +1233,9 @@ func _apply_offline_gap(closed: float) -> void:
 		reach_before = Reach.capture_offline_snapshot()
 	var forge: Dictionary = ForgeJobs.apply_saved_offline_gap(closed)
 	order.append("forge")
+	if has_node("/root/BrewingJobs"):
+		var brew: Dictionary = BrewingJobs.apply_offline_seconds(closed)
+		forge["brew_completed"] = int(brew.get("brew_completed", 0))
 	## Road time is the raw gap. Play speed and Rush do not stretch a closed game.
 	var reach_after: Dictionary = reach_before
 	if has_node("/root/Reach"):

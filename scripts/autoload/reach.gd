@@ -17,6 +17,14 @@ const ROOM_SEC: float = 720.0
 const BIG_DELTA_SEC: float = 5.0
 const REST_SEC: float = 1440.0
 const HOURS: Array[int] = [1, 2, 4, 8]
+var _hub_life_script: GDScript
+
+
+func _hub_life() -> GDScript:
+	if _hub_life_script == null:
+		var script_name := "hub_life.gd"
+		_hub_life_script = load("res://scripts/%s" % script_name) as GDScript
+	return _hub_life_script
 
 const PACK_ITEM_IDS: Array[String] = ["briarwood", "herbs", "heart_salve", "bile_vial"]
 
@@ -250,15 +258,28 @@ func _party_cfg_error(cfg: Dictionary) -> String:
 	var raw_party: Variant = cfg.get("party", [])
 	if typeof(raw_party) != TYPE_ARRAY or (raw_party as Array).is_empty():
 		return "bad_party"
+	if (raw_party as Array).size() > GameState.party_cap():
+		return "bad_party"
 	var occupied: Dictionary = {}
+	var members_seen: Dictionary = {}
 	for entry_v: Variant in raw_party as Array:
 		if typeof(entry_v) != TYPE_DICTIONARY:
 			return "bad_party"
 		var entry: Dictionary = entry_v as Dictionary
 		var member: String = str(entry.get("member", ""))
-		if member != "keeper" and member != "elaia" and member != "bramble":
+		if members_seen.has(member):
+			return "bad_party"
+		members_seen[member] = true
+		## moss_tortoise is the Echo/hub body id. Party slots use companions.json ids only.
+		if member == "moss_tortoise":
+			return "bad_party"
+		if member != "keeper" and not CompanionRoster.has_id(member):
 			return "bad_party"
 		if member == "bramble" and (not has_node("/root/GameState") or not GameState.bramble_joined()):
+			return "bad_party"
+		if member == "puff" and (not has_node("/root/GameState") or not GameState.puff_in_party_active()):
+			return "bad_party"
+		if member == "mossback" and (not has_node("/root/GameState") or not GameState.companion_joined("mossback")):
 			return "bad_party"
 		if SlotEngine.member_stats(member).is_empty():
 			return "bad_party"
@@ -452,9 +473,12 @@ func hand_to_idle() -> String:
 
 func apply_offline_seconds(closed_sec: float) -> void:
 	## Wall-clock seconds only. The play-speed button does not apply.
+	## Weather bonuses stay off for a closed game.
 	if closed_sec <= 0.0 or not running:
 		return
+	_hub_life().call("push_offline")
 	catch_up(closed_sec, "load")
+	_hub_life().call("pop_offline")
 
 
 func process_frame_delta(step: float) -> void:
@@ -880,10 +904,17 @@ func _begin_room() -> void:
 
 
 func _start_fight() -> bool:
-	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, is_boss_room())
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, is_boss_room(), party.size())
 	if room.is_empty():
 		push_error("Reach: refusing to start a fight with no enemies")
 		return false
+	## Join manual after save/load: re-freeze sheets so weapon abilities match equipment.
+	for i: int in party.size():
+		var entry: Dictionary = party[i]
+		var member: String = str(entry.get("member", ""))
+		if member != "":
+			entry["stats"] = SlotEngine.member_stats(member)
+			party[i] = entry
 	_manual = SlotEngine.fight_for_room(party, loadout, room, room_seed)
 	_manual.start_fight()
 	_manual.controller = "manual"
@@ -1017,6 +1048,8 @@ func _apply_win(loot: Dictionary, exp_mult: int, boss: bool) -> void:
 	exp_gained += gained
 	reaches_cleared += 1
 	run_clears += 1
+	if has_node("/root/GameState"):
+		GameState.notify_companion_reach_progress()
 	if depth > deepest_depth:
 		deepest_depth = depth
 	if boss and not boss_paid.has(rooms_attempted):
@@ -1120,7 +1153,8 @@ func _clean_loadout(raw: Variant) -> Dictionary:
 	if typeof(raw) != TYPE_DICTIONARY:
 		return out
 	for key_v: Variant in (raw as Dictionary).keys():
-		out[str(key_v)] = int((raw as Dictionary)[key_v])
+		var key: String = str(key_v)
+		out[key] = _party_stat_int((raw as Dictionary)[key_v], key, 0)
 	return out
 
 
@@ -1132,21 +1166,37 @@ func _clean_party(raw: Variant) -> Array[Dictionary]:
 		if typeof(entry_v) != TYPE_DICTIONARY:
 			continue
 		var entry: Dictionary = entry_v
+		var member: String = str(entry.get("member", ""))
+		if member == "moss_tortoise":
+			member = "mossback"
 		var stats_v: Variant = entry.get("stats", {})
 		var stats: Dictionary = {}
 		if typeof(stats_v) == TYPE_DICTIONARY:
 			for key_v: Variant in (stats_v as Dictionary).keys():
 				var key: String = str(key_v)
+				var stat_v: Variant = (stats_v as Dictionary)[key_v]
 				if key == "attack":
-					stats[key] = str((stats_v as Dictionary)[key_v])
+					stats[key] = str(stat_v)
+				elif key == "weapon_abilities":
+					if stat_v is Array:
+						stats[key] = (stat_v as Array).duplicate()
 				else:
-					stats[key] = int((stats_v as Dictionary)[key_v])
+					stats[key] = _party_stat_int(stat_v, key)
 		out.append({
-			"member": str(entry.get("member", "")),
+			"member": member,
 			"row": "back" if str(entry.get("row", "")) == "back" else "front",
 			"stats": stats,
 		})
 	return out
+
+
+static func _party_stat_int(raw: Variant, key: String, default_v: int = 5) -> int:
+	if raw is int:
+		return raw
+	if raw is float:
+		return int(raw)
+	push_warning("Reach: party stat %s had non-numeric value %s; using %d" % [key, str(raw), default_v])
+	return default_v
 
 
 func _clean_boss_paid(raw: Variant) -> Array[int]:
@@ -1154,7 +1204,7 @@ func _clean_boss_paid(raw: Variant) -> Array[int]:
 	if typeof(raw) != TYPE_ARRAY:
 		return out
 	for entry_v: Variant in raw as Array:
-		out.append(int(entry_v))
+		out.append(_party_stat_int(entry_v, "boss_paid", 0))
 	return out
 
 

@@ -6,6 +6,9 @@ class_name Keeper
 signal arrived
 signal interaction_finished(target: Node)
 signal channel_changed(kind: StringName, active: bool)
+## Bench idle sit: sit_down finished, or stand_up finished / sit cancelled at the bench.
+signal keeper_bench_sat
+signal keeper_bench_stood
 
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var label: Label = $Label
@@ -67,10 +70,65 @@ var _pose_finish_left: float = 0.0
 ## Runestone pluck pauses on this berry frame (hand extended). Data-free: the long mid hold.
 const BERRY_REACH_FRAME: int = 4
 
+enum IdleMomentKind { NONE, STRETCH, LOOK_TREE, SIT }
+const IDLE_MOMENT_WAIT_BASE_SEC: float = 20.0
+const IDLE_MOMENT_WAIT_JITTER_SEC: float = 8.0
+const IDLE_MOMENT_STRETCH_SEC: float = 2.4
+const IDLE_MOMENT_LOOK_SEC: float = 3.0
+const IDLE_MOMENT_SIT_SEC: float = 2.6
+const IDLE_MOMENT_FRAME_MS: float = 100.0
+const IDLE_MOMENT_STRETCH_FRAMES: int = 11
+const IDLE_MOMENT_LOOK_FRAMES: int = 17
+const IDLE_MOMENT_SIT_DOWN_FRAMES: int = 6
+const IDLE_MOMENT_SIT_BREATHE_FRAMES: int = 16
+const IDLE_MOMENT_STAND_UP_FRAMES: int = 6
+
+enum IdleMomentSitPhase { NONE, DOWN, BREATHE, STAND_UP }
+
+var _idle_moment_kind: int = IdleMomentKind.NONE
+var _idle_moment_left: float = 0.0
+var _idle_moment_face: String = ""
+var _idle_moment_sit_phase: int = IdleMomentSitPhase.NONE
+var _idle_moment_bench: Node2D = null
+var _idle_stand_accum: float = 0.0
+var _idle_moment_wait_sec: float = -1.0
+
 static var _spots_cache: Dictionary = {}
 
 ## Empty on the Keeper. Elaia sets "elaia" so focus can find her without the keeper group.
 var companion_id: String = ""
+
+
+
+func _auto(node_name: String) -> Variant:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+func _gs() -> Variant:
+	return _auto("GameState")
+
+
+func _strings() -> Variant:
+	return _auto("ContentStrings")
+
+
+func _audio() -> Variant:
+	return _auto("GameAudio")
+
+
+func _saves() -> Variant:
+	return _auto("SaveService")
+
+
+func _jobs() -> Variant:
+	return _auto("ForgeJobs")
+
+
+func _ginput() -> Variant:
+	return _auto("GameInput")
 
 
 func actor_id() -> String:
@@ -86,61 +144,61 @@ func _join_groups() -> void:
 
 
 func actor_selected() -> bool:
-	return GameState.keeper_selected
+	return _gs().keeper_selected
 
 
 func actor_select() -> void:
-	GameState.select_keeper()
+	_gs().select_keeper()
 
 
 func _touch_deselects(event: InputEvent) -> bool:
 	## A second touch on the actor who is already the only selection clears it.
-	if not actor_selected() or not GameInput.touch_mode() or not GameInput.is_touch_pointer(event):
+	if not actor_selected() or not _ginput().touch_mode() or not _ginput().is_touch_pointer(event):
 		return false
-	if actor_id() == "elaia":
-		return not GameState.keeper_selected and GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty()
-	return GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty() and str(GameState.selected_companion_id) == ""
+	if actor_id() != "keeper":
+		return not _gs().keeper_selected and _gs().selected_wisp_id < 0 and _gs().selected_wisp_ids.is_empty()
+	return _gs().selected_wisp_id < 0 and _gs().selected_wisp_ids.is_empty() and str(_gs().selected_companion_id) == ""
 
 
 func _clear_touch_selection() -> void:
-	if actor_id() == "elaia":
-		GameState.selected_companion_id = ""
-		GameState.selection_changed.emit()
+	if actor_id() != "keeper":
+		_gs().selected_companion_id = ""
+		_gs().selection_changed.emit()
 		return
-	GameState.set_keeper_selected(false)
+	_gs().set_keeper_selected(false)
 
 
 func actor_label_idle() -> String:
-	return ContentStrings.get_text("keeper_select")
+	return _strings().get_text("keeper_select")
 
 
 func actor_label_selected() -> String:
-	return ContentStrings.get_text("keeper_selected")
+	return _strings().get_text("keeper_selected")
 
 
 func walk_reference_speed() -> float:
 	## Art reference px/s. Keeper is 80 in data/companions.json. Stride changes velocity, not this.
 	if has_node("/root/GameState"):
-		return GameState.actor_walk_ref_speed(actor_id())
+		return _gs().actor_walk_ref_speed(actor_id())
 	return WALK_REF_SPEED
 
 
 func actor_move_speed() -> float:
 	var mult: float = 1.0
 	if has_node("/root/GameState"):
-		mult = GameState.actor_move_mult(actor_id())
-	return GameState.get_move_speed() * mult
+		mult = _gs().actor_move_mult(actor_id())
+	return _gs().get_move_speed() * mult
 
 
 func actor_work_rate(station_id: String = "") -> float:
 	if has_node("/root/GameState"):
-		return GameState.actor_work_rate(actor_id(), station_id)
+		return _gs().actor_work_rate(actor_id(), station_id)
 	return 1.0
 
 
 func actor_water_mult() -> float:
 	if has_node("/root/GameState"):
-		return GameState.actor_water_mult(actor_id())
+		return _gs().actor_water_mult(actor_id())
 	return 1.0
 
 
@@ -152,30 +210,30 @@ func publish_task(kind: String, target: String, working: bool) -> void:
 	if not has_node("/root/ForgeJobs"):
 		return
 	if actor_id() == "keeper":
-		ForgeJobs.set_keeper_task(kind, target, working)
+		_jobs().set_keeper_task(kind, target, working)
 	else:
-		ForgeJobs.set_elaia_task(kind, target, working)
+		_jobs().set_elaia_task(kind, target, working)
 
 
 func clear_published_task() -> void:
 	if not has_node("/root/ForgeJobs"):
 		return
-	ForgeJobs.release_hero_claim(actor_id())
+	_jobs().release_hero_claim(actor_id())
 	if actor_id() == "keeper":
-		var task: Dictionary = ForgeJobs.keeper_task()
+		var task: Dictionary = _jobs().keeper_task()
 		var task_kind: String = str(task.get("kind", ""))
 		if task_kind == "harvest" or task_kind == "water" or task_kind == "forge" or task_kind == "bench" or task_kind == "runestone":
-			ForgeJobs.note_keeper_idle()
+			_jobs().note_keeper_idle()
 	else:
-		ForgeJobs.note_elaia_idle()
+		_jobs().note_elaia_idle()
 
 
 func read_published_task() -> Dictionary:
 	if not has_node("/root/ForgeJobs"):
 		return {}
 	if actor_id() == "keeper":
-		return ForgeJobs.keeper_task()
-	return ForgeJobs.elaia_task()
+		return _jobs().keeper_task()
+	return _jobs().elaia_task()
 
 
 class WorkSpotGate:
@@ -217,10 +275,11 @@ func _ready() -> void:
 		click_area.monitoring = false
 		click_area.monitorable = true
 		click_area.add_to_group("interactable")
-	GameState.selection_changed.connect(_on_selection_changed)
+	_gs().selection_changed.connect(_on_selection_changed)
 	_on_selection_changed()
 	_apply_body_box()
 	if actor_id() == "keeper":
+		sprite.animation_finished.connect(_on_idle_moment_animation_finished)
 		apply_keeper_presence()
 
 
@@ -276,6 +335,11 @@ func _build_frames() -> SpriteFrames:
 	_add_timed(frames, &"harvest_water_east", "water/east", WATER_MS)
 	_add_timed(frames, &"harvest_water_west", "water/west", WATER_MS)
 	_add_timed(frames, &"station_work_north", "station/north", STATION_MS)
+	_add_timed_uniform(frames, &"idle_stretch_south", "idle_moments/stretch/south", IDLE_MOMENT_STRETCH_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_look_south", "idle_moments/look/south", IDLE_MOMENT_LOOK_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_sit_down_south", "idle_moments/sit_down/south", IDLE_MOMENT_SIT_DOWN_FRAMES, IDLE_MOMENT_FRAME_MS, false)
+	_add_timed_uniform(frames, &"idle_sit_breathe_south", "idle_moments/sit_breathe/south", IDLE_MOMENT_SIT_BREATHE_FRAMES, IDLE_MOMENT_FRAME_MS, true)
+	_add_timed_uniform(frames, &"idle_stand_up_south", "idle_moments/stand_up/south", IDLE_MOMENT_STAND_UP_FRAMES, IDLE_MOMENT_FRAME_MS, false)
 	_add_anim(frames, &"walk_back", [
 		"res://assets/art/keeper/keeper_walk_back_0000.png",
 		"res://assets/art/keeper/keeper_walk_back_0001.png",
@@ -342,8 +406,22 @@ func _add_timed(frames: SpriteFrames, anim: StringName, folder: String, duration
 		frames.add_frame(anim, tex, durations[i])
 
 
+func _add_timed_uniform(frames: SpriteFrames, anim: StringName, folder: String, frame_count: int, ms: float, loop: bool) -> void:
+	var durations: Array[float] = []
+	durations.resize(frame_count)
+	for i: int in range(frame_count):
+		durations[i] = ms
+	frames.add_animation(anim)
+	frames.set_animation_loop(anim, loop)
+	frames.set_animation_speed(anim, 1000.0)
+	for i: int in range(frame_count):
+		var path := "res://assets/art/keeper/anim/%s/frame_%04d.png" % [folder, i]
+		var tex: Texture2D = load(path) as Texture2D
+		frames.add_frame(anim, tex, ms)
+
+
 func _physics_process(delta: float) -> void:
-	if GameState.is_world_frozen():
+	if _gs().is_world_frozen():
 		if _moving or _channel_kind != ChannelKind.NONE:
 			halt()
 		velocity = Vector2.ZERO
@@ -370,6 +448,7 @@ func _physics_process(delta: float) -> void:
 				_facing = _face_on_arrive
 				_face_on_arrive = ""
 			_update_anim(Vector2.ZERO)
+			_play_arrive_cue()
 			if _water_pending:
 				_water_pending = false
 				_pending_interact = null
@@ -392,6 +471,7 @@ func _physics_process(delta: float) -> void:
 	velocity = Vector2.ZERO
 	move_and_slide()
 	_tick_pose_finish(delta)
+	_tick_idle_moments(delta)
 	_update_anim(Vector2.ZERO)
 	_tick_channel(delta)
 	_remember_keeper_pose()
@@ -399,6 +479,9 @@ func _physics_process(delta: float) -> void:
 
 func _update_anim(intended: Vector2) -> void:
 	if sprite == null:
+		return
+	if _idle_moment_kind != IdleMomentKind.NONE:
+		_apply_idle_moment_visual()
 		return
 	sprite.flip_h = false
 	if _moving and intended.length_squared() > 0.01:
@@ -408,19 +491,19 @@ func _update_anim(intended: Vector2) -> void:
 		var scale: float = walk_speed_scale_for(velocity.length(), walk_reference_speed())
 		if actor_id() == "keeper":
 			assert(is_equal_approx(scale, velocity.length() / WALK_REF_SPEED))
-			var stride_speed: float = GameState.get_move_speed()
+			var stride_speed: float = _gs().get_move_speed()
 			assert(is_equal_approx(walk_speed_scale_for(stride_speed), stride_speed / WALK_REF_SPEED))
 		_play_loop(StringName("walk_%s" % _facing), scale, OFFSET_BODY)
 		return
 	if _pose_hold or _pose_finish_left > 0.0:
 		return
 	if _should_work_loop():
-		var anim := StringName(work_anim_for(_work_tool, _work_facing))
+		var anim := StringName(actor_work_anim(_work_tool, _work_facing))
 		var scale: float = 1.0
 		if _work_tool == "station":
 			## Walk speed_scale must not drive station work. Engine.time_scale still scales playback.
 			scale = station_work_anim_speed()
-		_play_loop(anim, scale, _offset_for_anim(String(anim)))
+		_play_loop(anim, scale, actor_work_anim_offset(String(anim)))
 		return
 	if actor_idle_uses_facing():
 		_play_loop(StringName("idle_%s" % _facing), 1.0, OFFSET_BODY)
@@ -504,25 +587,27 @@ func _actor_in_this_scene() -> bool:
 		return true
 	if not has_node("/root/GameState"):
 		return true
-	return GameState.keeper_area == scene_home()
+	return _gs().keeper_area == scene_home()
 
 
 func _remember_keeper_pose() -> void:
 	if actor_id() != "keeper" or not visible:
 		return
+	if _idle_moment_kind != IdleMomentKind.NONE:
+		return
 	if not has_node("/root/GameState"):
 		return
-	if GameState.keeper_area != scene_home():
+	if _gs().keeper_area != scene_home():
 		return
-	GameState.keeper_pos = global_position
-	GameState.keeper_has_pos = true
-	GameState.keeper_facing = _facing
+	_gs().keeper_pos = global_position
+	_gs().keeper_has_pos = true
+	_gs().keeper_facing = _facing
 
 
 func apply_keeper_presence() -> void:
 	if actor_id() != "keeper":
 		return
-	var here: bool = GameState.keeper_area == scene_home() and not GameState.member_away("keeper")
+	var here: bool = _gs().keeper_area == scene_home() and not _gs().member_away("keeper")
 	visible = here
 	set_physics_process(here)
 	var body_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
@@ -537,11 +622,11 @@ func apply_keeper_presence() -> void:
 		_moving = false
 		velocity = Vector2.ZERO
 		return
-	if GameState.keeper_has_pos:
-		global_position = GameState.keeper_pos
+	if _gs().keeper_has_pos:
+		global_position = _gs().keeper_pos
 		_target = global_position
-	if GameState.keeper_facing != "":
-		_facing = GameState.keeper_facing
+	if _gs().keeper_facing != "":
+		_facing = _gs().keeper_facing
 	_resume_saved_task()
 
 
@@ -637,8 +722,8 @@ func _find_station(station_id: String) -> Node2D:
 
 func station_work_anim_speed() -> float:
 	## forge_tuning.json station_work_anim_speed. Not crafting speed. Not walk speed_scale.
-	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("station_work_anim_speed"):
-		return ForgeJobs.station_work_anim_speed()
+	if has_node("/root/ForgeJobs") and _jobs().has_method("station_work_anim_speed"):
+		return _jobs().station_work_anim_speed()
 	return 0.5
 
 
@@ -656,6 +741,14 @@ static func work_anim_for(tool: String, facing: String) -> String:
 	if tool == "axe" or tool == "pickaxe" or tool == "berries":
 		return "harvest_%s_%s" % [tool, facing]
 	return "idle_south"
+
+
+func actor_work_anim(tool: String, facing: String) -> String:
+	return work_anim_for(tool, facing)
+
+
+func actor_work_anim_offset(anim: String) -> Vector2:
+	return _offset_for_anim(anim)
 
 
 static func tool_for_type(type_id: String) -> String:
@@ -874,13 +967,15 @@ func has_station_work_spot() -> bool:
 
 
 func command_work(target: Node2D, type_id: String, claim_key: String = "") -> void:
+	note_player_order()
+	_cancel_idle_moment()
 	if target == null:
 		return
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if not _actor_in_this_scene():
-		GameState.status_message.emit(ContentStrings.get_text("hud_activity_idle"))
+		_gs().status_message.emit(_strings().get_text("hud_activity_idle"))
 		return
 	## Watering stops, then the same click walks him to the tree and opens tending.
 	if type_id == "manatree" and target is Manatree and _watering_this(target as Manatree):
@@ -905,10 +1000,12 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 
 
 func command_station(station: Node2D) -> void:
+	note_player_order()
+	_cancel_idle_moment()
 	if station == null:
 		return
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	var sid := ""
 	if "station_id" in station:
@@ -928,12 +1025,12 @@ func _claim_target(key: String) -> bool:
 		return true
 	if not has_node("/root/ForgeJobs"):
 		return true
-	var blocker: String = ForgeJobs.hero_block_name(actor_id(), key)
+	var blocker: String = _jobs().hero_block_name(actor_id(), key)
 	if blocker != "":
-		GameState.status_message.emit(ContentStrings.get_text("hud_companion_target_busy", {"name": blocker}))
+		_gs().status_message.emit(_strings().get_text("hud_companion_target_busy", {"name": blocker}))
 		return false
 	clear_published_task()
-	ForgeJobs.claim_hero_target(actor_id(), key)
+	_jobs().claim_hero_target(actor_id(), key)
 	return true
 
 
@@ -946,6 +1043,7 @@ func end_work_loop() -> void:
 
 
 func begin_reach_pose() -> void:
+	_cancel_idle_moment()
 	## Berry pluck, frozen on the hand-extended frame while a confirm is open.
 	_pose_finish_left = 0.0
 	_pose_hold = true
@@ -1126,6 +1224,7 @@ func _ensure_work_spot(target: Node2D, type_id: String) -> Vector2:
 
 func gather_at(spot: Vector2) -> void:
 	## Drop the current job, then walk to the tree if this body is the one on screen.
+	_cancel_idle_moment()
 	halt()
 	cancel_reach_pose()
 	_face_on_arrive = "north"
@@ -1140,12 +1239,330 @@ func _present_in_clearing() -> bool:
 		return false
 	if not has_node("/root/GameState"):
 		return false
-	if actor_id() == "elaia":
-		return GameState.elaia_in_party() and GameState.elaia_area == "clearing"
-	return GameState.keeper_area == "clearing"
+	if actor_id() == "keeper":
+		return _gs().keeper_area == "clearing"
+	return _gs().companion_joined(actor_id()) and _gs().companion_area(actor_id()) == "clearing"
+
+
+func _keeper_standing_idle() -> bool:
+	if actor_id() != "keeper" or not visible:
+		return false
+	if _gs().is_world_frozen():
+		return false
+	if _moving or _water_pending or _pose_hold or _pose_finish_left > 0.0:
+		return false
+	if _channel_kind != ChannelKind.NONE or _work_loop:
+		return false
+	if _has_work_spot:
+		return false
+	if _should_work_loop():
+		return false
+	var task: Dictionary = read_published_task()
+	if bool(task.get("working", false)):
+		return false
+	return true
+
+
+func _schedule_idle_moment_wait() -> void:
+	_idle_moment_wait_sec = IDLE_MOMENT_WAIT_BASE_SEC + randf() * IDLE_MOMENT_WAIT_JITTER_SEC
+	_idle_stand_accum = 0.0
+
+
+func _player_input_active() -> bool:
+	if Input.is_anything_pressed():
+		return true
+	return false
+
+
+func _facing_toward_manatree() -> String:
+	var tree := _find_manatree()
+	if tree == null:
+		return "north"
+	return facing_for_velocity(tree.global_position - global_position, _facing)
+
+
+func _idle_moment_clips_ready() -> bool:
+	return sprite != null and sprite.sprite_frames != null and sprite.sprite_frames.has_animation(&"idle_stretch_south")
+
+
+func _bench_for_idle_sit() -> Node2D:
+	if not is_inside_tree():
+		return null
+	var bench: Node2D = get_tree().get_first_node_in_group("keepers_bench") as Node2D
+	if bench == null or not bench.has_method("keeper_at_stand") or not bench.has_method("seat_global"):
+		return null
+	if not bool(bench.call("keeper_at_stand")):
+		return null
+	return bench
+
+
+func _snap_bench_idle_seat(bench: Node2D) -> void:
+	global_position = bench.call("seat_global")
+	_target = global_position
+
+
+func _release_bench_idle_seat(bench: Node2D) -> void:
+	global_position = bench.call("stand_global")
+	_target = global_position
+
+
+func _start_idle_moment(kind: int) -> void:
+	_idle_moment_kind = kind
+	_idle_moment_face = ""
+	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
+	_idle_moment_bench = null
+	if _idle_moment_clips_ready():
+		_facing = "south"
+	match kind:
+		IdleMomentKind.STRETCH:
+			_idle_moment_left = IDLE_MOMENT_STRETCH_SEC
+		IdleMomentKind.LOOK_TREE:
+			if not _idle_moment_clips_ready():
+				_idle_moment_face = _facing_toward_manatree()
+			_idle_moment_left = IDLE_MOMENT_LOOK_SEC
+		IdleMomentKind.SIT:
+			_idle_moment_left = IDLE_MOMENT_SIT_SEC
+			if _idle_moment_clips_ready():
+				_idle_moment_sit_phase = IdleMomentSitPhase.DOWN
+				var bench_sit: Node2D = _bench_for_idle_sit()
+				if bench_sit != null:
+					_idle_moment_bench = bench_sit
+					_snap_bench_idle_seat(bench_sit)
+		_:
+			_idle_moment_kind = IdleMomentKind.NONE
+			_idle_moment_left = 0.0
+			return
+	_apply_idle_moment_visual()
+
+
+func _pick_idle_moment_kind() -> int:
+	var roll: int = randi() % 3
+	match roll:
+		0:
+			return IdleMomentKind.STRETCH
+		1:
+			return IdleMomentKind.LOOK_TREE
+		_:
+			return IdleMomentKind.SIT
+
+
+func _play_idle_moment_clip(anim: StringName) -> void:
+	sprite.flip_h = false
+	sprite.speed_scale = 1.0
+	sprite.offset = OFFSET_BODY
+	if sprite.animation != anim:
+		sprite.play(anim)
+
+
+func _apply_idle_moment_visual() -> void:
+	if sprite == null:
+		return
+	if _idle_moment_clips_ready():
+		match _idle_moment_kind:
+			IdleMomentKind.STRETCH:
+				_play_idle_moment_clip(&"idle_stretch_south")
+			IdleMomentKind.LOOK_TREE:
+				_play_idle_moment_clip(&"idle_look_south")
+			IdleMomentKind.SIT:
+				match _idle_moment_sit_phase:
+					IdleMomentSitPhase.DOWN:
+						_play_idle_moment_clip(&"idle_sit_down_south")
+					IdleMomentSitPhase.BREATHE:
+						_play_idle_moment_clip(&"idle_sit_breathe_south")
+					IdleMomentSitPhase.STAND_UP:
+						_play_idle_moment_clip(&"idle_stand_up_south")
+		return
+	var face: String = _idle_moment_face if _idle_moment_face != "" else _facing
+	match _idle_moment_kind:
+		IdleMomentKind.STRETCH:
+			_play_loop(StringName("idle_%s" % face), 1.0, OFFSET_BODY)
+		IdleMomentKind.LOOK_TREE:
+			sprite.flip_h = false
+			sprite.speed_scale = 1.0
+			sprite.offset = OFFSET_BODY
+			var look_anim := StringName("idle_%s" % face)
+			if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(look_anim):
+				if sprite.animation != look_anim:
+					sprite.play(look_anim)
+					sprite.frame = 0
+					sprite.pause()
+		IdleMomentKind.SIT:
+			sprite.flip_h = false
+			sprite.speed_scale = 1.0
+			sprite.offset = OFFSET_BODY
+			var sit_anim := StringName("idle_%s" % face)
+			if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(sit_anim):
+				if sprite.animation != sit_anim:
+					sprite.play(sit_anim)
+					sprite.frame = mini(2, sprite.sprite_frames.get_frame_count(sit_anim) - 1)
+					sprite.pause()
+
+
+func _clear_idle_moment_state() -> void:
+	_idle_moment_kind = IdleMomentKind.NONE
+	_idle_moment_left = 0.0
+	_idle_moment_face = ""
+	_idle_moment_sit_phase = IdleMomentSitPhase.NONE
+	_idle_moment_bench = null
+	if sprite != null:
+		sprite.flip_h = false
+		sprite.speed_scale = 1.0
+		sprite.offset = OFFSET_BODY
+	_schedule_idle_moment_wait()
+
+
+func _begin_sit_stand_up() -> void:
+	if _idle_moment_kind != IdleMomentKind.SIT or not _idle_moment_clips_ready():
+		_clear_idle_moment_state()
+		return
+	_idle_moment_sit_phase = IdleMomentSitPhase.STAND_UP
+	_play_idle_moment_clip(&"idle_stand_up_south")
+
+
+func _on_idle_moment_animation_finished() -> void:
+	if actor_id() != "keeper" or _idle_moment_kind == IdleMomentKind.NONE:
+		return
+	if not _idle_moment_clips_ready():
+		return
+	if _idle_moment_kind != IdleMomentKind.SIT:
+		return
+	match _idle_moment_sit_phase:
+		IdleMomentSitPhase.DOWN:
+			if _idle_moment_bench != null:
+				_emit_keeper_bench_sat()
+			_idle_moment_sit_phase = IdleMomentSitPhase.BREATHE
+			_apply_idle_moment_visual()
+		IdleMomentSitPhase.STAND_UP:
+			_finish_bench_idle_sit()
+			_clear_idle_moment_state()
+			_update_anim(Vector2.ZERO)
+
+
+func _emit_keeper_bench_sat() -> void:
+	keeper_bench_sat.emit()
+	if has_node("/root/GameState"):
+		_gs().on_keeper_bench_sat()
+	if has_node("/root/GameAudio"):
+		_audio().on_keeper_bench_sat()
+
+
+func _emit_keeper_bench_stood() -> void:
+	keeper_bench_stood.emit()
+	if has_node("/root/GameState"):
+		_gs().on_keeper_bench_stood()
+	if has_node("/root/GameAudio"):
+		_audio().on_keeper_bench_stood()
+
+
+func _finish_bench_idle_sit() -> void:
+	var bench: Node2D = _idle_moment_bench
+	if bench == null:
+		return
+	_emit_keeper_bench_stood()
+	_release_bench_idle_seat(bench)
+
+
+func _cancel_idle_moment() -> void:
+	if _idle_moment_kind == IdleMomentKind.NONE:
+		return
+	var bench_sit: bool = _idle_moment_kind == IdleMomentKind.SIT and _idle_moment_bench != null
+	var bench: Node2D = _idle_moment_bench
+	_clear_idle_moment_state()
+	if bench_sit and bench != null:
+		_emit_keeper_bench_stood()
+		_release_bench_idle_seat(bench)
+
+
+func _tick_idle_moments(delta: float) -> void:
+	if actor_id() != "keeper":
+		return
+	if _idle_moment_kind == IdleMomentKind.SIT and _idle_moment_sit_phase == IdleMomentSitPhase.BREATHE:
+		return
+	if _idle_moment_kind != IdleMomentKind.NONE:
+		if not _keeper_standing_idle() or _player_input_active():
+			_cancel_idle_moment()
+			_update_anim(Vector2.ZERO)
+			return
+		if _idle_moment_kind == IdleMomentKind.SIT and _idle_moment_clips_ready():
+			if _idle_moment_sit_phase == IdleMomentSitPhase.BREATHE:
+				_idle_moment_left -= delta
+				if _idle_moment_left <= 0.0:
+					_begin_sit_stand_up()
+			elif _idle_moment_sit_phase == IdleMomentSitPhase.STAND_UP:
+				pass
+			return
+		_idle_moment_left -= delta
+		if _idle_moment_left <= 0.0:
+			_clear_idle_moment_state()
+			_update_anim(Vector2.ZERO)
+		return
+	if not _keeper_standing_idle():
+		_idle_stand_accum = 0.0
+		return
+	if _idle_moment_wait_sec < 0.0:
+		_schedule_idle_moment_wait()
+	_idle_stand_accum += delta
+	if _idle_stand_accum < _idle_moment_wait_sec:
+		return
+	_start_idle_moment(_pick_idle_moment_kind())
+
+
+var _player_order: bool = false
+
+
+func note_player_order() -> void:
+	_player_order = true
+
+
+func player_order_active() -> bool:
+	if not _player_order:
+		return false
+	if _channel_kind != ChannelKind.NONE:
+		return true
+	if _moving:
+		return true
+	var task: Dictionary = read_published_task()
+	if bool(task.get("working", false)):
+		return true
+	_player_order = false
+	return false
+
+
+func hold_schedule_spot(world_pos: Vector2, face: String) -> void:
+	## Routine walk. Uses move_to, so the existing walk clips play. Does not publish a job.
+	if player_order_active():
+		return
+	y_sort_enabled = true
+	if global_position.distance_to(world_pos) > ARRIVE_DIST:
+		if not _moving or _target.distance_to(world_pos) > 4.0:
+			_suppress_work_clear = true
+			move_to(world_pos, null)
+			_suppress_work_clear = false
+		return
+	if face != "":
+		_facing = face
+	end_work_loop()
+
+
+func hold_chore_node(target: Node2D, type_id: String) -> void:
+	## Stay on the chore node and play the work clip. Yield is paid by CompanionChores, not this channel.
+	if player_order_active() or target == null:
+		return
+	y_sort_enabled = true
+	var solved: Dictionary = _solve_for(target, type_id)
+	var spot: Vector2 = solved.get("position", global_position)
+	if global_position.distance_to(spot) > ARRIVE_DIST + WORK_ARRIVE_SLACK:
+		if not _moving or _target.distance_to(spot) > 4.0:
+			_suppress_work_clear = true
+			move_to(spot, null)
+			_suppress_work_clear = false
+		return
+	_apply_solved(target, type_id, solved)
+	begin_work_loop()
 
 
 func halt() -> void:
+	_cancel_idle_moment()
 	_moving = false
 	_route_points.clear()
 	_pending_interact = null
@@ -1157,8 +1574,9 @@ func halt() -> void:
 
 
 func move_to(world_pos: Vector2, interact: Node = null) -> void:
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	_cancel_idle_moment()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if _channel_kind != ChannelKind.NONE:
 		if interact != _channel_target:
@@ -1207,8 +1625,9 @@ static func bench_approach_route(from: Vector2, spot: Vector2, footprint: Rect2)
 
 
 func start_harvest_channel(node: Gatherable) -> void:
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	_cancel_idle_moment()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if node == null:
 		return
@@ -1220,16 +1639,17 @@ func start_harvest_channel(node: Gatherable) -> void:
 	_channel_target = node
 	_channel_accum = 0.0
 	node.set_channeling(true)
-	GameAudio.play_channel_start()
-	GameState.status_message.emit(ContentStrings.get_text("harvest_start"))
+	_audio().play_channel_start()
+	_gs().status_message.emit(_strings().get_text("harvest_start"))
 	channel_changed.emit(&"harvest", true)
 	publish_task("harvest", String(node.resource_id), true)
 	_channel_accum = 0.0
 
 
 func start_water_channel(tree: Manatree) -> void:
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	_cancel_idle_moment()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if tree == null:
 		return
@@ -1254,8 +1674,8 @@ func _begin_water_channel(tree: Manatree) -> void:
 	_channel_target = tree
 	_channel_accum = 0.0
 	tree.set_watering(true)
-	GameAudio.play_channel_start()
-	GameState.status_message.emit(ContentStrings.get_text("tree_water_start"))
+	_audio().play_channel_start()
+	_gs().status_message.emit(_strings().get_text("tree_water_start"))
 	channel_changed.emit(&"water", true)
 	publish_task("water", "manatree", true)
 	_do_water_pulse()
@@ -1305,7 +1725,7 @@ func cancel_channel(emit_status: bool = true) -> void:
 		var t: Manatree = target as Manatree
 		t.set_watering(false)
 		if emit_status:
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_cancel"))
+			_gs().status_message.emit(_strings().get_text("tree_water_cancel"))
 		channel_changed.emit(&"water", false)
 	if not _suppress_work_clear:
 		clear_published_task()
@@ -1365,14 +1785,14 @@ func _check_channel_range() -> void:
 		if _channel_kind != ChannelKind.NONE:
 			cancel_channel()
 		return
-	var range_px: float = GameState.get_harvest_range() + 24.0
+	var range_px: float = _gs().get_harvest_range() + 24.0
 	if global_position.distance_to(_channel_stand_pos(_channel_target)) > range_px * 2.0:
 		var was_harvest: bool = _channel_kind == ChannelKind.HARVEST
 		cancel_channel(false)
 		if was_harvest:
-			GameState.status_message.emit(ContentStrings.get_text("harvest_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("harvest_out_of_range"))
 		else:
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("tree_water_out_of_range"))
 
 
 func _tick_channel(delta: float) -> void:
@@ -1381,22 +1801,22 @@ func _tick_channel(delta: float) -> void:
 	if _channel_target == null or not is_instance_valid(_channel_target):
 		cancel_channel(false)
 		return
-	var range_px: float = GameState.get_harvest_range() + 32.0
+	var range_px: float = _gs().get_harvest_range() + 32.0
 	if global_position.distance_to(_channel_stand_pos(_channel_target)) > range_px:
 		var was_harvest: bool = _channel_kind == ChannelKind.HARVEST
 		cancel_channel(false)
 		if was_harvest:
-			GameState.status_message.emit(ContentStrings.get_text("harvest_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("harvest_out_of_range"))
 		else:
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("tree_water_out_of_range"))
 		return
-	var play_delta: float = GameState.active_play_delta(delta)
+	var play_delta: float = _gs().active_play_delta(delta)
 	if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
 		var rid: StringName = (_channel_target as Gatherable).resource_id
-		GameState.accumulate_keeper_harvest(rid, play_delta, actor_work_rate())
+		_gs().accumulate_keeper_harvest(rid, play_delta, actor_work_rate() * _gs().keeper_rested_mult())
 	elif _channel_kind == ChannelKind.WATER:
 		_channel_accum += play_delta
-		var pulse: float = GameState.get_water_essence_pulse_sec()
+		var pulse: float = _gs().get_water_essence_pulse_sec()
 		if pulse <= 0.0:
 			return
 		while _channel_accum >= pulse:
@@ -1405,17 +1825,31 @@ func _tick_channel(delta: float) -> void:
 
 
 func _do_water_pulse() -> void:
-	var result: Dictionary = GameState.apply_water_pulse(true, true, actor_water_mult())
+	var result: Dictionary = _gs().apply_water_pulse(true, true, actor_water_mult())
 	if not bool(result.get("ok", false)):
 		cancel_channel(false)
 		return
-	GameAudio.play_water_pulse()
-	GameState.status_message.emit(ContentStrings.get_text("tree_water_pulse_hud", {
+	_audio().play_water_pulse()
+	if int(result.get("shards", 0)) > 0:
+		_play_shard_collect()
+	_gs().status_message.emit(_strings().get_text("tree_water_pulse_hud", {
 		"shards": int(result.get("shards", 0)),
 		"essence": int(result.get("essence", 0)),
 	}))
 	if _channel_target is Manatree:
 		(_channel_target as Manatree).refresh_after_care()
+
+
+func _play_arrive_cue() -> void:
+	if has_node("/root/GameAudio"):
+		_audio().play(&"sfx_interact_arrive")
+
+
+func _play_shard_collect() -> void:
+	if has_node("/root/SaveService") and bool(_saves().catchup_running):
+		return
+	if has_node("/root/GameAudio"):
+		_audio().play(&"sfx_gather_manashards")
 
 
 func _try_interact() -> void:
@@ -1432,30 +1866,33 @@ func _try_interact() -> void:
 
 
 func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+	if _idle_moment_kind != IdleMomentKind.NONE:
+		_cancel_idle_moment()
+		_update_anim(Vector2.ZERO)
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			if GameInput.is_double_tap(mb):
+			if _ginput().is_double_tap(mb):
 				return
 			if _touch_deselects(mb):
 				_clear_touch_selection()
 			else:
 				actor_select()
 				if actor_id() == "keeper":
-					GameState.status_message.emit(ContentStrings.get_text("keeper_select_hint"))
+					_gs().status_message.emit(_strings().get_text("keeper_select_hint"))
 				else:
-					GameState.status_message.emit(ContentStrings.get_text("echo_elaia_name"))
+					_gs().status_message.emit(_gs().hero_display_name(actor_id()))
 			get_viewport().set_input_as_handled()
-		elif GameInput.is_command(mb):
+		elif _ginput().is_command(mb):
 			get_viewport().set_input_as_handled()
 
 
 func world_hover_name() -> String:
-	if actor_id() == "elaia":
-		return ContentStrings.get_text("echo_elaia_name")
-	return ContentStrings.get_text("keeper_select")
+	if actor_id() == "keeper":
+		return _strings().get_text("keeper_select")
+	return _gs().hero_display_name(actor_id())
 
 
 func _on_hover(inside: bool) -> void:

@@ -24,6 +24,7 @@ const MANATREE_DECOR_RADIUS: float = 200.0
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
 const PORTAL_SCENE: PackedScene = preload("res://scenes/echo_portal.tscn")
+const BREWING_STAND_SCENE: PackedScene = preload("res://scenes/brewing_stand.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
@@ -106,6 +107,8 @@ func _ready() -> void:
 	_apply_forge_return()
 	if keeper and keeper.has_method("apply_keeper_presence"):
 		keeper.apply_keeper_presence()
+	if world:
+		Companion.ensure_hub_bodies(world, "clearing")
 	var elaia_body: Node = world.get_node_or_null("Elaia") if world else null
 	if elaia_body and elaia_body.has_method("_apply_presence"):
 		elaia_body.call("_apply_presence")
@@ -129,6 +132,91 @@ func _ready() -> void:
 	hud.maybe_show_welcome()
 	if hud.has_method("maybe_show_elaia_join"):
 		hud.call("maybe_show_elaia_join")
+	_attach_hub_day_night()
+	_ensure_glade_fireflies()
+	_ensure_glade_weather_fx()
+	_setup_r5_hub()
+
+
+func _attach_hub_day_night() -> void:
+	var cycle := HubDayNightCycle.new()
+	cycle.dusk_ground_changed.connect(_on_hub_dusk_ground_changed)
+	add_child(cycle)
+	move_child(cycle, 0)
+
+
+func _setup_r5_hub() -> void:
+	if has_node("/root/BrewingJobs"):
+		BrewingJobs.note_hub_scene(true)
+	if world and world.get_node_or_null("BrewingStand") == null and BREWING_STAND_SCENE != null:
+		var stand: Node2D = BREWING_STAND_SCENE.instantiate() as Node2D
+		stand.name = "BrewingStand"
+		stand.global_position = BrewingJobs.hub_pos() if has_node("/root/BrewingJobs") else Vector2(1688, 2580)
+		world.add_child(stand)
+	if get_node_or_null("FireflyRing") == null:
+		var ring := preload("res://scripts/hub/firefly_ring.gd").new()
+		ring.name = "FireflyRing"
+		add_child(ring)
+	_ensure_r5_companion_bodies()
+
+
+func _ensure_r5_companion_bodies() -> void:
+	if world == null:
+		return
+	var keeper_scene: PackedScene = preload("res://scenes/keeper.tscn")
+	if world.get_node_or_null("Puff") == null:
+		var puff: CharacterBody2D = keeper_scene.instantiate() as CharacterBody2D
+		puff.name = "Puff"
+		puff.set_script(preload("res://scripts/puff.gd"))
+		world.add_child(puff)
+	if world.get_node_or_null("MossTortoise") == null:
+		var tortoise: CharacterBody2D = keeper_scene.instantiate() as CharacterBody2D
+		tortoise.name = "MossTortoise"
+		tortoise.set_script(preload("res://scripts/moss_tortoise.gd"))
+		world.add_child(tortoise)
+
+
+func _ensure_glade_fireflies() -> void:
+	if get_node_or_null("GladeFireflies") != null:
+		return
+	var fx := GladeFireflies.new()
+	fx.name = "GladeFireflies"
+	fx.z_index = 2
+	add_child(fx)
+	fx.setup(glade)
+
+
+func _ensure_glade_weather_fx() -> void:
+	if world == null or world.get_node_or_null("GladeWeatherFx") != null:
+		return
+	var wx := GladeWeatherFx.new()
+	wx.name = "GladeWeatherFx"
+	world.add_child(wx)
+	wx.setup(play_size, clearing_center, clearing_rx, clearing_ry)
+
+
+func _on_hub_dusk_ground_changed(use_dusk: bool) -> void:
+	_apply_grass_tileset_dusk(use_dusk)
+	_sync_hub_ground_deco_dusk(use_dusk)
+
+
+func _apply_grass_tileset_dusk(use_dusk: bool) -> void:
+	if ground == null or ground.tile_set == null:
+		return
+	var src: TileSetAtlasSource = ground.tile_set.get_source(0) as TileSetAtlasSource
+	if src == null:
+		return
+	var path: String = HubGroundDusk.TILESET_DUSK if use_dusk else HubGroundDusk.TILESET_DAY
+	var tex: Texture2D = load(path) as Texture2D
+	if tex != null:
+		src.texture = tex
+
+
+func _sync_hub_ground_deco_dusk(use_dusk: bool) -> void:
+	for node: Node in get_tree().get_nodes_in_group("hub_ground_deco"):
+		var prop: ForestProp = node as ForestProp
+		if prop != null:
+			prop.apply_dusk_variant(use_dusk)
 
 
 func _load_hub_map() -> void:
@@ -279,11 +367,7 @@ func _apply_forge_return() -> void:
 func focus_actor(actor_id: String) -> void:
 	if camera == null:
 		return
-	var node: Node2D = null
-	if actor_id == "elaia":
-		node = get_tree().get_first_node_in_group("elaia") as Node2D
-	elif actor_id == "keeper":
-		node = keeper
+	var node: Node2D = keeper if actor_id == "keeper" else (GameState.find_companion_body(actor_id) as Node2D)
 	if node == null or not node.visible:
 		return
 	camera.position = _clamped_camera_pos(node.global_position)
@@ -502,8 +586,9 @@ func _on_viewport_resized() -> void:
 
 
 func _handle_zoom_input(event: InputEvent) -> bool:
+	var photo: bool = PhotoMode.is_active()
 	if event is InputEventMagnifyGesture:
-		if world_input_blocked() or _gui_blocks_drag():
+		if not photo and (world_input_blocked() or _gui_blocks_drag()):
 			return true
 		var mag := event as InputEventMagnifyGesture
 		_pinch_accum *= mag.factor
@@ -520,7 +605,7 @@ func _handle_zoom_input(event: InputEvent) -> bool:
 	var mb := event as InputEventMouseButton
 	if mb.button_index != MOUSE_BUTTON_WHEEL_UP and mb.button_index != MOUSE_BUTTON_WHEEL_DOWN:
 		return false
-	if not mb.pressed or world_input_blocked() or _gui_blocks_drag() or _drag_active:
+	if not mb.pressed or (not photo and (world_input_blocked() or _gui_blocks_drag() or _drag_active)):
 		get_viewport().set_input_as_handled()
 		return true
 	var notch := mb.factor if absf(mb.factor) > 0.01 else 1.0
@@ -549,7 +634,7 @@ func pan_camera(delta: Vector2) -> void:
 func _process(delta: float) -> void:
 	if camera == null:
 		return
-	if world_input_blocked():
+	if world_input_blocked() and not PhotoMode.is_active():
 		return
 	var dir := Vector2.ZERO
 	if Input.is_action_pressed("ui_left"):
@@ -951,6 +1036,8 @@ func _landmark_radius(index: int) -> float:
 
 func world_input_blocked() -> bool:
 	## The arena overlay sits above the clearing. Clicks and world hotkeys stop here.
+	if PhotoMode.is_active():
+		return true
 	if BattleView.is_open():
 		return true
 	if hud == null or pause_menu == null:
@@ -1104,12 +1191,13 @@ func handle_lmb_ground() -> void:
 func _on_reach_party_changed() -> void:
 	if keeper and keeper.has_method("apply_keeper_presence"):
 		keeper.apply_keeper_presence()
-	var elaia_body: Node = world.get_node_or_null("Elaia") if world else null
-	if elaia_body and elaia_body.has_method("_apply_presence"):
-		elaia_body.call("_apply_presence")
+	for body: Node in get_tree().get_nodes_in_group("companion"):
+		if body.has_method("_apply_presence"):
+			body.call("_apply_presence")
 	if GameState.member_away("keeper"):
 		GameState.set_keeper_selected(false)
-	if GameState.member_away("elaia") and GameState.selected_companion_id == "elaia":
+	var selected: String = str(GameState.selected_companion_id)
+	if selected != "" and GameState.member_away(selected):
 		GameState.selected_companion_id = ""
 		GameState.selection_changed.emit()
 	if has_node("/root/Reach"):
@@ -1135,14 +1223,16 @@ func handle_rmb_ground(world_pos: Vector2) -> void:
 				unassigned = true
 		if unassigned:
 			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
-	if GameState.selected_hero_id() == "elaia":
-		var elaia: Node = get_tree().get_first_node_in_group("elaia")
-		if elaia and elaia.has_method("command_move"):
-			elaia.call("command_move", world_pos)
+	var hero_id: String = GameState.selected_hero_id()
+	if hero_id != "" and hero_id != "keeper":
+		var hero: Node = GameState.find_selected_hero()
+		if hero and hero.has_method("command_move"):
+			hero.call("command_move", world_pos)
 		return
 	if GameState.keeper_selected:
 		if keeper.has_method("scene_home") and GameState.keeper_area != keeper.scene_home():
 			return
+		keeper.note_player_order()
 		keeper.move_to(world_pos, null)
 		return
 	if ids.is_empty():
@@ -1323,9 +1413,14 @@ func _sync_wisps() -> void:
 func _on_wisp_clicked(wisp_id: int) -> void:
 	## LMB wisp select does NOT require Keeper selected (SYSTEMS v0.3.2).
 	GameState.select_wisp(wisp_id)
-	if GameState.selected_wisp_id == wisp_id:
-		GameState.status_message.emit("%s  ·  %s  ·  %s" % [
-			ContentStrings.get_text("wisp_orbit_hint"),
-			ContentStrings.get_text("wisp_assign_hint"),
-			ContentStrings.get_text("wisp_node_shared_hint"),
-		])
+	if GameState.selected_wisp_id != wisp_id:
+		return
+	var greeting: String = HubWispPhaseGreetings.try_greeting(HubTimePhase.sample_phase01())
+	if greeting != "":
+		GameState.status_message.emit(greeting)
+		return
+	GameState.status_message.emit("%s  ·  %s  ·  %s" % [
+		ContentStrings.get_text("wisp_orbit_hint"),
+		ContentStrings.get_text("wisp_assign_hint"),
+		ContentStrings.get_text("wisp_node_shared_hint"),
+	])

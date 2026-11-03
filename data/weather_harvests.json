@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "default": "clear",
+  "states": ["clear", "soft_rain", "mist", "snow", "blossom"],
+  "soft_rain": {
+    "auto_water": true,
+    "trickle_pulses_per_sec": 0.25
+  },
+  "mist": {
+    "glowcap_weight_mult": 1.5
+  },
+  "snow": {
+    "frostberry_chance": 0.05,
+    "frostberry_bonus": 1,
+    "item_id": "frostberry"
+  },
+  "blossom": {
+    "water_essence_mult": 1.1
+  },
+  "audio": {
+    "crossfade_sec": 2.0,
+    "bed_fade_in_sec": 3.0,
+    "bed_fade_out_sec": 4.0,
+    "beds": {
+      "soft_rain": "sfx_weather_rain_bed",
+      "mist": "sfx_weather_mist_bed"
+    },
+    "hub_bed": {
+      "clear": {},
+      "soft_rain": {"lowpass_hz": 3000, "gain_db": -3},
+      "mist": {"lowpass_hz": 2500, "gain_db": -2},
+      "snow": {"reverb_room": 0.35, "reverb_wet": 0.12, "reverb_damp": 0.6},
+      "blossom": {"reverb_room": 0.35, "reverb_wet": 0.12, "reverb_damp": 0.6}
+    }
+  }
+}

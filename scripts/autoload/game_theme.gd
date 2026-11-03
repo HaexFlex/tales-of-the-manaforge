@@ -174,6 +174,7 @@ func style_title_hero_button(btn: Button) -> void:
 		btn.add_theme_color_override(state, CREAM_BTN)
 	btn.add_theme_color_override(&"font_outline_color", OUTLINE)
 	btn.add_theme_constant_override(&"outline_size", 2)
+	_bind_menu_hover(btn)
 
 
 func style_outlined_ink_label(lbl: Label, muted: bool = false) -> void:
@@ -228,6 +229,25 @@ func style_menu_button(btn: Button) -> void:
 		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
 	]:
 		btn.remove_theme_color_override(state)
+	_bind_menu_hover(btn)
+
+
+func _bind_menu_hover(btn: Button) -> void:
+	if btn == null or btn.has_meta("ui_hover_wired"):
+		return
+	btn.set_meta("ui_hover_wired", true)
+	if btn.is_inside_tree():
+		_bind_menu_hover_now(btn)
+	else:
+		btn.tree_entered.connect(_bind_menu_hover_now.bind(btn), CONNECT_ONE_SHOT)
+
+
+func _bind_menu_hover_now(btn: Button) -> void:
+	if btn == null or not is_instance_valid(btn) or not btn.is_inside_tree():
+		return
+	var audio: Node = btn.get_tree().root.get_node_or_null("GameAudio")
+	if audio != null and audio.has_method("bind_ui_hover"):
+		audio.call("bind_ui_hover", btn)
 
 
 ## Wood button with Silver 19 caps (tabs, small actions, list chips).

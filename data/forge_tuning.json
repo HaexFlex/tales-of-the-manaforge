@@ -64,19 +64,7 @@
     "essence": "raw"
   },
   "backpack_filters": ["all", "raw", "refined", "potions", "tools", "weapons", "relics"],
-  "ascend_upgrades": [
-    {
-      "id": "keep_forge_jobs",
-      "art_name": "icon_asc_keep_forge_jobs",
-      "display_name": "Keep Forge Jobs",
-      "description": "Ascend keeps the job sitting on each station.",
-      "max_rank": 1,
-      "cost_base": 40000,
-      "cost_per_rank": 0,
-      "effect": "keep_forge_jobs",
-      "value_per_rank": 1.0
-    }
-  ],
+  "ascend_upgrades": [],
   "stations": {
     "crucible": { "auto_repeat": true, "recipe": "sapsteel", "display_name": "Crucible" },
     "mill": { "auto_repeat": true, "recipe": "heartwood_bits", "display_name": "Mill" },

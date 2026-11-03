@@ -1,0 +1,32 @@
+{
+  "source": "imp_attack_try2.mp4",
+  "src_indices": [
+    12,
+    48,
+    78,
+    90,
+    96,
+    108,
+    120,
+    132
+  ],
+  "phases": [
+    "rest",
+    "crouch",
+    "coil",
+    "impact",
+    "hold",
+    "land",
+    "recover",
+    "rest"
+  ],
+  "ms_per_frame": 125,
+  "hit_frame": 3,
+  "sole": 123,
+  "live": "battle_acorn_imp_idle.png",
+  "mirror": false,
+  "note": "UNMIRRORED: west lunge from try2; stem RIGHT matches live west idle",
+  "frames": 8,
+  "actor": "acorn_imp",
+  "clip": "attack"
+}

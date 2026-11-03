@@ -1,0 +1,362 @@
+{
+  "east": {
+    "picks_1based": [
+      76,
+      79,
+      82,
+      84,
+      85,
+      87,
+      90,
+      93
+    ],
+    "scale": 0.12379421221864952,
+    "src_med_h": 622.0,
+    "palette": 22,
+    "sole_span": 0,
+    "feet_span": 0.5,
+    "gates": [
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.0,
+        "comps": 1,
+        "opaque": 2617,
+        "pass": true,
+        "frame": 0,
+        "src": 76,
+        "ms": 160
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.5,
+        "comps": 1,
+        "opaque": 2590,
+        "pass": true,
+        "frame": 1,
+        "src": 79,
+        "ms": 90
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.0,
+        "comps": 1,
+        "opaque": 2515,
+        "pass": true,
+        "frame": 2,
+        "src": 82,
+        "ms": 90
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.0,
+        "comps": 1,
+        "opaque": 2608,
+        "pass": true,
+        "frame": 3,
+        "src": 84,
+        "ms": 100
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.5,
+        "comps": 1,
+        "opaque": 2609,
+        "pass": true,
+        "frame": 4,
+        "src": 85,
+        "ms": 160
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.0,
+        "comps": 1,
+        "opaque": 2600,
+        "pass": true,
+        "frame": 5,
+        "src": 87,
+        "ms": 100
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.0,
+        "comps": 1,
+        "opaque": 2599,
+        "pass": true,
+        "frame": 6,
+        "src": 90,
+        "ms": 90
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.5,
+        "comps": 1,
+        "opaque": 2591,
+        "pass": true,
+        "frame": 7,
+        "src": 93,
+        "ms": 110
+      }
+    ],
+    "clip_pass": true
+  },
+  "west": {
+    "picks_1based": [
+      76,
+      85,
+      92,
+      97,
+      100,
+      104,
+      108,
+      112
+    ],
+    "scale": 0.12459546925566344,
+    "src_med_h": 618.0,
+    "palette": 22,
+    "sole_span": 0,
+    "feet_span": 0.5,
+    "gates": [
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.5,
+        "comps": 1,
+        "opaque": 2577,
+        "pass": true,
+        "frame": 0,
+        "src": 76,
+        "ms": 160
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 64.0,
+        "comps": 1,
+        "opaque": 2616,
+        "pass": true,
+        "frame": 1,
+        "src": 85,
+        "ms": 90
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 64.0,
+        "comps": 1,
+        "opaque": 2534,
+        "pass": true,
+        "frame": 2,
+        "src": 92,
+        "ms": 90
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 64.0,
+        "comps": 1,
+        "opaque": 2628,
+        "pass": true,
+        "frame": 3,
+        "src": 97,
+        "ms": 100
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.5,
+        "comps": 1,
+        "opaque": 2648,
+        "pass": true,
+        "frame": 4,
+        "src": 100,
+        "ms": 160
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 63.5,
+        "comps": 1,
+        "opaque": 2648,
+        "pass": true,
+        "frame": 5,
+        "src": 104,
+        "ms": 100
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 64.0,
+        "comps": 1,
+        "opaque": 2613,
+        "pass": true,
+        "frame": 6,
+        "src": 108,
+        "ms": 90
+      },
+      {
+        "size": [
+          128,
+          128
+        ],
+        "semi": 0,
+        "magenta": 0,
+        "holes": 0,
+        "hole_areas": [],
+        "colours": 22,
+        "sole": 123,
+        "h": 77,
+        "feet_cx": 64.0,
+        "comps": 1,
+        "opaque": 2550,
+        "pass": true,
+        "frame": 7,
+        "src": 112,
+        "ms": 110
+      }
+    ],
+    "clip_pass": true
+  }
+}

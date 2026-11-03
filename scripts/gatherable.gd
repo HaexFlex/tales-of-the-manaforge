@@ -65,6 +65,41 @@ const HARVEST_SCALE: Dictionary = {
 }
 
 
+func _auto(node_name: String) -> Variant:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+func _pack() -> Variant:
+	return _auto("Backpack")
+
+
+func _strings() -> Variant:
+	return _auto("ContentStrings")
+
+
+func _jobs() -> Variant:
+	return _auto("ForgeJobs")
+
+
+func _audio() -> Variant:
+	return _auto("GameAudio")
+
+
+func _ginput() -> Variant:
+	return _auto("GameInput")
+
+
+func _gs() -> Variant:
+	return _auto("GameState")
+
+
+func _minigames() -> Variant:
+	return _auto("MinigameHost")
+
+
 func _ready() -> void:
 	_apply_art()
 	if Engine.is_editor_hint():
@@ -73,11 +108,11 @@ func _ready() -> void:
 			label.visible = false
 		return
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
+	label.text = _strings().get_text("node_%s_prompt" % node_key)
 	input_event.connect(_on_input_event)
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
-	GameState.selection_changed.connect(_refresh_prompt)
+	_gs().selection_changed.connect(_refresh_prompt)
 	label.visible = false
 	add_to_group("gatherable")
 	add_to_group("interactable")
@@ -152,14 +187,23 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			if GameInput.yields_touch_double_tap(mb):
+			if _ginput().yields_touch_double_tap(mb):
 				return
 			# LMB on a node is not empty ground — swallow so Main does not deselect.
 			get_viewport().set_input_as_handled()
 			return
-		if GameInput.is_command(mb):
+		if _ginput().is_command(mb):
 			apply_player_command()
 			get_viewport().set_input_as_handled()
+
+
+func lucky_spark_local_pos() -> Vector2:
+	## Art top minus 8 px (world Y up).
+	if sprite == null or sprite.texture == null:
+		return Vector2(0.0, -8.0)
+	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	var vis_y: float = frame.y * sprite.scale.y
+	return Vector2(0.0, -vis_y - 8.0)
 
 
 func work_footprint() -> Rect2:
@@ -186,17 +230,19 @@ func approach_point() -> Vector2:
 
 func apply_player_command() -> void:
 	## RMB: wisp assign, and the selected hero (Keeper or Elaia) walks to harvest.
-	if not GameState.selected_wisp_list().is_empty():
-		var node_id: String = GameState.node_id_for_resource(resource_id)
-		var result: String = GameState.command_selected_wisps(node_id)
-		GameState.toast_wisp_assign(result, node_id)
-		if GameState.selected_hero_id() != "":
-			GameState.command_selected_hero(self, String(resource_id))
+	if _channeling and has_node("/root/GameAudio"):
+		_audio().play(&"sfx_gather_cooldown")
+	if not _gs().selected_wisp_list().is_empty():
+		var node_id: String = _gs().node_id_for_resource(resource_id)
+		var result: String = _gs().command_selected_wisps(node_id)
+		_gs().toast_wisp_assign(result, node_id)
+		if _gs().selected_hero_id() != "":
+			_gs().command_selected_hero(self, String(resource_id))
 		return
-	if GameState.selected_hero_id() == "":
-		GameState.status_message.emit(ContentStrings.get_text("keeper_required_harvest"))
+	if _gs().selected_hero_id() == "":
+		_gs().status_message.emit(_strings().get_text("keeper_required_harvest"))
 		return
-	GameState.command_selected_hero(self, String(resource_id))
+	_gs().command_selected_hero(self, String(resource_id))
 
 
 func on_interact(keeper: Node) -> void:
@@ -219,25 +265,25 @@ func _refresh_prompt() -> void:
 	if label == null:
 		return
 	if _channeling:
-		label.text = ContentStrings.get_text("node_%s_busy" % node_key)
+		label.text = _strings().get_text("node_%s_busy" % node_key)
 		var lend: String = _lend_line()
 		if lend != "":
 			label.text = "%s\n%s" % [label.text, lend]
 		_apply_label_visibility()
 		return
-	if GameState.selected_wisp_id >= 0:
+	if _gs().selected_wisp_id >= 0:
 		label.text = _wisp_assign_prompt()
 		_apply_label_visibility()
 		return
-	var prompt: String = ContentStrings.get_text("node_%s_prompt" % node_key)
-	if Backpack.owns_tool_for_resource(resource_id):
+	var prompt: String = _strings().get_text("node_%s_prompt" % node_key)
+	if _pack().owns_tool_for_resource(resource_id):
 		prompt = "%s\n%s" % [prompt, _tool_owned_hint()]
 	label.text = prompt
 	_apply_label_visibility()
 
 
 func world_hover_name() -> String:
-	return ContentStrings.get_text("node_%s_prompt" % node_key)
+	return _strings().get_text("node_%s_prompt" % node_key)
 
 
 func _on_hover(inside: bool) -> void:
@@ -250,15 +296,15 @@ func _on_hover(inside: bool) -> void:
 func _lend_line() -> String:
 	if not has_node("/root/MinigameHost"):
 		return ""
-	if str(MinigameHost.call("hero_for", String(resource_id))) != "keeper":
+	if str(_minigames().call("hero_for", String(resource_id))) != "keeper":
 		return ""
-	return ContentStrings.get_text("minigame_lend_a_hand")
+	return _strings().get_text("minigame_lend_a_hand")
 
 
 func _sync_lend_prompt(inside: bool) -> void:
 	if not has_node("/root/MinigameHost"):
 		return
-	MinigameHost.call("show_prompt", String(resource_id), global_position + Vector2(0, -48), inside)
+	_minigames().call("show_prompt", String(resource_id), global_position + Vector2(0, -48), inside)
 
 
 func _label_should_show() -> bool:
@@ -280,7 +326,7 @@ func wisp_orbit_radius() -> float:
 	if shape_node != null and shape_node.shape is RectangleShape2D:
 		size = (shape_node.shape as RectangleShape2D).size
 	if has_node("/root/ForgeJobs"):
-		return ForgeJobs.wisp_orbit_radius_for_size(size)
+		return _jobs().wisp_orbit_radius_for_size(size)
 	return maxf(size.x, size.y) * 0.5 + 14.0
 
 
@@ -292,37 +338,39 @@ func _apply_label_visibility() -> void:
 func _tool_owned_hint() -> String:
 	match resource_id:
 		&"wood":
-			return ContentStrings.get_text("tool_wood_hint")
+			return _strings().get_text("tool_wood_hint")
 		&"stone":
-			return ContentStrings.get_text("tool_stone_hint")
+			return _strings().get_text("tool_stone_hint")
 		&"food":
-			return ContentStrings.get_text("tool_food_hint")
+			return _strings().get_text("tool_food_hint")
 		_:
-			return ContentStrings.get_text("tool_owned_hint")
+			return _strings().get_text("tool_owned_hint")
 
 
 func _wisp_assign_prompt() -> String:
 	match node_key:
 		"wood":
-			return ContentStrings.get_text("wisp_assign_to_tree")
+			return _strings().get_text("wisp_assign_to_tree")
 		"stone":
-			return ContentStrings.get_text("wisp_assign_to_stone")
+			return _strings().get_text("wisp_assign_to_stone")
 		"food":
-			return ContentStrings.get_text("wisp_assign_to_berry")
+			return _strings().get_text("wisp_assign_to_berry")
 		_:
-			return ContentStrings.get_text("wisp_assign_prompt")
+			return _strings().get_text("wisp_assign_prompt")
 
 
 func on_channel_cancel() -> void:
 	set_channeling(false)
-	GameState.status_message.emit(ContentStrings.get_text("node_%s_cancel" % node_key))
+	_gs().status_message.emit(_strings().get_text("node_%s_cancel" % node_key))
 
 
 func on_harvest_pulse() -> int:
-	var grant: int = GameState.apply_harvest_pulse(resource_id)
-	GameAudio.play_gather(resource_id)
-	var item: String = ContentStrings.get_text("hud_%s" % String(resource_id))
-	GameState.status_message.emit(
-		ContentStrings.get_text("harvest_pulse_hud", {"amount": grant, "item": item})
+	var grant: int = _gs().apply_harvest_pulse(resource_id, _gs().keeper_rested_mult())
+	if grant > 0:
+		_gs().try_morning_gift(resource_id)
+	_audio().play_gather(resource_id)
+	var item: String = _strings().get_text("hud_%s" % String(resource_id))
+	_gs().status_message.emit(
+		_strings().get_text("harvest_pulse_hud", {"amount": grant, "item": item})
 	)
 	return grant

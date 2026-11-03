@@ -1,0 +1,1171 @@
+{
+  "clips": [
+    {
+      "clip": "assets/art/companions/puff/battle_attack",
+      "frames": 8,
+      "holes_before": 233,
+      "holes_after": 22,
+      "px_changed": 211,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 27,
+          "holes_after": 0,
+          "px_changed": 27
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 33,
+          "holes_after": 0,
+          "px_changed": 33
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 32,
+          "holes_after": 0,
+          "px_changed": 32
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 25,
+          "holes_after": 0,
+          "px_changed": 25
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 28,
+          "holes_after": 0,
+          "px_changed": 28
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 25,
+          "holes_after": 22,
+          "px_changed": 3
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 30,
+          "holes_after": 0,
+          "px_changed": 30
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 33,
+          "holes_after": 0,
+          "px_changed": 33
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/companions/puff/battle_hit",
+      "frames": 4,
+      "holes_before": 119,
+      "holes_after": 28,
+      "px_changed": 91,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 27,
+          "holes_after": 14,
+          "px_changed": 13
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 31,
+          "holes_after": 0,
+          "px_changed": 31
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 34,
+          "holes_after": 0,
+          "px_changed": 34
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 27,
+          "holes_after": 14,
+          "px_changed": 13
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/companions/puff/work_brew",
+      "frames": 8,
+      "holes_before": 260,
+      "holes_after": 0,
+      "px_changed": 260,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 31,
+          "holes_after": 0,
+          "px_changed": 31
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 36,
+          "holes_after": 0,
+          "px_changed": 36
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 32,
+          "holes_after": 0,
+          "px_changed": 32
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 27,
+          "holes_after": 0,
+          "px_changed": 27
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 33,
+          "holes_after": 0,
+          "px_changed": 33
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 38,
+          "holes_after": 0,
+          "px_changed": 38
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 33,
+          "holes_after": 0,
+          "px_changed": 33
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 30,
+          "holes_after": 0,
+          "px_changed": 30
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/companions/puff/walk_e",
+      "frames": 9,
+      "holes_before": 282,
+      "holes_after": 0,
+      "px_changed": 282,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 31,
+          "holes_after": 0,
+          "px_changed": 31
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 31,
+          "holes_after": 0,
+          "px_changed": 31
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 33,
+          "holes_after": 0,
+          "px_changed": 33
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 31,
+          "holes_after": 0,
+          "px_changed": 31
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 36,
+          "holes_after": 0,
+          "px_changed": 36
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 34,
+          "holes_after": 0,
+          "px_changed": 34
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 27,
+          "holes_after": 0,
+          "px_changed": 27
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 30,
+          "holes_after": 0,
+          "px_changed": 30
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 29,
+          "holes_after": 0,
+          "px_changed": 29
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/companions/puff/walk_n",
+      "frames": 9,
+      "holes_before": 226,
+      "holes_after": 0,
+      "px_changed": 226,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 29,
+          "holes_after": 0,
+          "px_changed": 29
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 21,
+          "holes_after": 0,
+          "px_changed": 21
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 26,
+          "holes_after": 0,
+          "px_changed": 26
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 31,
+          "holes_after": 0,
+          "px_changed": 31
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 20,
+          "holes_after": 0,
+          "px_changed": 20
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 25,
+          "holes_after": 0,
+          "px_changed": 25
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 25,
+          "holes_after": 0,
+          "px_changed": 25
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 22,
+          "holes_after": 0,
+          "px_changed": 22
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 27,
+          "holes_after": 0,
+          "px_changed": 27
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/companions/puff/walk_w",
+      "frames": 9,
+      "holes_before": 238,
+      "holes_after": 0,
+      "px_changed": 238,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 27,
+          "holes_after": 0,
+          "px_changed": 27
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 26,
+          "holes_after": 0,
+          "px_changed": 26
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 26,
+          "holes_after": 0,
+          "px_changed": 26
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 26,
+          "holes_after": 0,
+          "px_changed": 26
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 26,
+          "holes_after": 0,
+          "px_changed": 26
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 27,
+          "holes_after": 0,
+          "px_changed": 27
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 26,
+          "holes_after": 0,
+          "px_changed": 26
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 26,
+          "holes_after": 0,
+          "px_changed": 26
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 28,
+          "holes_after": 0,
+          "px_changed": 28
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/berries/east",
+      "frames": 8,
+      "holes_before": 10,
+      "holes_after": 0,
+      "px_changed": 10,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 3,
+          "holes_after": 0,
+          "px_changed": 3
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        }
+      ],
+      "size": [
+        192,
+        136
+      ]
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/berries/west",
+      "frames": 8,
+      "holes_before": 10,
+      "holes_after": 0,
+      "px_changed": 10,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 3,
+          "holes_after": 0,
+          "px_changed": 3
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        }
+      ],
+      "size": [
+        192,
+        136
+      ]
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/axe/east",
+      "frames": 9,
+      "holes_before": 390,
+      "holes_after": 162,
+      "px_changed": 228,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 34,
+          "holes_after": 18,
+          "px_changed": 16
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 25,
+          "holes_after": 18,
+          "px_changed": 7
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 26,
+          "holes_after": 18,
+          "px_changed": 8
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 65,
+          "holes_after": 18,
+          "px_changed": 47
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 59,
+          "holes_after": 18,
+          "px_changed": 41
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 77,
+          "holes_after": 18,
+          "px_changed": 59
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 37,
+          "holes_after": 18,
+          "px_changed": 19
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 27,
+          "holes_after": 18,
+          "px_changed": 9
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 40,
+          "holes_after": 18,
+          "px_changed": 22
+        }
+      ],
+      "size": [
+        192,
+        136
+      ]
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/axe/west",
+      "frames": 9,
+      "holes_before": 390,
+      "holes_after": 162,
+      "px_changed": 228,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 34,
+          "holes_after": 18,
+          "px_changed": 16
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 25,
+          "holes_after": 18,
+          "px_changed": 7
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 26,
+          "holes_after": 18,
+          "px_changed": 8
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 65,
+          "holes_after": 18,
+          "px_changed": 47
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 59,
+          "holes_after": 18,
+          "px_changed": 41
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 77,
+          "holes_after": 18,
+          "px_changed": 59
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 37,
+          "holes_after": 18,
+          "px_changed": 19
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 27,
+          "holes_after": 18,
+          "px_changed": 9
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 40,
+          "holes_after": 18,
+          "px_changed": 22
+        }
+      ],
+      "size": [
+        192,
+        136
+      ]
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/pickaxe/east",
+      "frames": 9,
+      "holes_before": 193,
+      "holes_after": 44,
+      "px_changed": 149,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 0,
+          "holes_after": 0,
+          "px_changed": 0
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 3,
+          "holes_after": 0,
+          "px_changed": 3
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 182,
+          "holes_after": 44,
+          "px_changed": 138
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 2,
+          "holes_after": 0,
+          "px_changed": 2
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 2,
+          "holes_after": 0,
+          "px_changed": 2
+        }
+      ],
+      "size": [
+        192,
+        136
+      ]
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/pickaxe/west",
+      "frames": 9,
+      "holes_before": 193,
+      "holes_after": 44,
+      "px_changed": 149,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 0,
+          "holes_after": 0,
+          "px_changed": 0
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 3,
+          "holes_after": 0,
+          "px_changed": 3
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 182,
+          "holes_after": 44,
+          "px_changed": 138
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 2,
+          "holes_after": 0,
+          "px_changed": 2
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 2,
+          "holes_after": 0,
+          "px_changed": 2
+        }
+      ],
+      "size": [
+        192,
+        136
+      ]
+    },
+    {
+      "clip": "assets/art/battle/modular/elaia/attack",
+      "frames": 8,
+      "holes_before": 37,
+      "holes_after": 0,
+      "px_changed": 37,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 3,
+          "holes_after": 0,
+          "px_changed": 3
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 2,
+          "holes_after": 0,
+          "px_changed": 2
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 14,
+          "holes_after": 0,
+          "px_changed": 14
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 5,
+          "holes_after": 0,
+          "px_changed": 5
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/battle/modular/elaia/cast",
+      "frames": 4,
+      "holes_before": 16,
+      "holes_after": 0,
+      "px_changed": 16,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/battle/modular/elaia/hit",
+      "frames": 4,
+      "holes_before": 16,
+      "holes_after": 0,
+      "px_changed": 16,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 4,
+          "holes_after": 0,
+          "px_changed": 4
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 3,
+          "holes_after": 0,
+          "px_changed": 3
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 5,
+          "holes_after": 0,
+          "px_changed": 5
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/battle/modular/keeper/attack",
+      "frames": 8,
+      "holes_before": 56,
+      "holes_after": 0,
+      "px_changed": 56,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 6,
+          "holes_after": 0,
+          "px_changed": 6
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 2,
+          "holes_after": 0,
+          "px_changed": 2
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 10,
+          "holes_after": 0,
+          "px_changed": 10
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 0,
+          "holes_after": 0,
+          "px_changed": 0
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 16,
+          "holes_after": 0,
+          "px_changed": 16
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 16,
+          "holes_after": 0,
+          "px_changed": 16
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 0,
+          "holes_after": 0,
+          "px_changed": 0
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 6,
+          "holes_after": 0,
+          "px_changed": 6
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/battle/modular/keeper/attack_bow",
+      "frames": 10,
+      "holes_before": 101,
+      "holes_after": 0,
+      "px_changed": 101,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 10,
+          "holes_after": 0,
+          "px_changed": 10
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 12,
+          "holes_after": 0,
+          "px_changed": 12
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 5,
+          "holes_after": 0,
+          "px_changed": 5
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 5,
+          "holes_after": 0,
+          "px_changed": 5
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 5,
+          "holes_after": 0,
+          "px_changed": 5
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 29,
+          "holes_after": 0,
+          "px_changed": 29
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 6,
+          "holes_after": 0,
+          "px_changed": 6
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 9,
+          "holes_after": 0,
+          "px_changed": 9
+        },
+        {
+          "frame": "frame_0008.png",
+          "holes_before": 10,
+          "holes_after": 0,
+          "px_changed": 10
+        },
+        {
+          "frame": "frame_0009.png",
+          "holes_before": 10,
+          "holes_after": 0,
+          "px_changed": 10
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/battle/modular/keeper/attack_wand",
+      "frames": 8,
+      "holes_before": 114,
+      "holes_after": 0,
+      "px_changed": 114,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 25,
+          "holes_after": 0,
+          "px_changed": 25
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 13,
+          "holes_after": 0,
+          "px_changed": 13
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 18,
+          "holes_after": 0,
+          "px_changed": 18
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 19,
+          "holes_after": 0,
+          "px_changed": 19
+        },
+        {
+          "frame": "frame_0004.png",
+          "holes_before": 13,
+          "holes_after": 0,
+          "px_changed": 13
+        },
+        {
+          "frame": "frame_0005.png",
+          "holes_before": 13,
+          "holes_after": 0,
+          "px_changed": 13
+        },
+        {
+          "frame": "frame_0006.png",
+          "holes_before": 7,
+          "holes_after": 0,
+          "px_changed": 7
+        },
+        {
+          "frame": "frame_0007.png",
+          "holes_before": 6,
+          "holes_after": 0,
+          "px_changed": 6
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "clip": "assets/art/battle/modular/keeper/hit",
+      "frames": 4,
+      "holes_before": 4,
+      "holes_after": 0,
+      "px_changed": 4,
+      "per_frame": [
+        {
+          "frame": "frame_0000.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0001.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0002.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        },
+        {
+          "frame": "frame_0003.png",
+          "holes_before": 1,
+          "holes_after": 0,
+          "px_changed": 1
+        }
+      ],
+      "size": [
+        128,
+        128
+      ]
+    }
+  ],
+  "worst6": [
+    {
+      "clip": "assets/art/elaia/anim/harvest/pickaxe/east",
+      "frame": "frame_0005.png",
+      "holes_before": 182,
+      "holes_after": 44,
+      "px_changed": 138,
+      "path": "assets/art/elaia/anim/harvest/pickaxe/east/frame_0005.png"
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/pickaxe/west",
+      "frame": "frame_0005.png",
+      "holes_before": 182,
+      "holes_after": 44,
+      "px_changed": 138,
+      "path": "assets/art/elaia/anim/harvest/pickaxe/west/frame_0005.png"
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/axe/east",
+      "frame": "frame_0005.png",
+      "holes_before": 77,
+      "holes_after": 18,
+      "px_changed": 59,
+      "path": "assets/art/elaia/anim/harvest/axe/east/frame_0005.png"
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/axe/west",
+      "frame": "frame_0005.png",
+      "holes_before": 77,
+      "holes_after": 18,
+      "px_changed": 59,
+      "path": "assets/art/elaia/anim/harvest/axe/west/frame_0005.png"
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/axe/east",
+      "frame": "frame_0003.png",
+      "holes_before": 65,
+      "holes_after": 18,
+      "px_changed": 47,
+      "path": "assets/art/elaia/anim/harvest/axe/east/frame_0003.png"
+    },
+    {
+      "clip": "assets/art/elaia/anim/harvest/axe/west",
+      "frame": "frame_0003.png",
+      "holes_before": 65,
+      "holes_after": 18,
+      "px_changed": 47,
+      "path": "assets/art/elaia/anim/harvest/axe/west/frame_0003.png"
+    }
+  ]
+}

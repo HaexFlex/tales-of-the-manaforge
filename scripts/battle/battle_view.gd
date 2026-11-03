@@ -29,8 +29,13 @@ const SLOT_MARK_SIZE: Vector2 = Vector2(56.0, 16.0)
 ## 128x128 fighter frames: soles on row 123, feet centred on x 63.5.
 const FIGHTER_FRAME: Vector2 = Vector2(128.0, 128.0)
 const FIGHTER_SOLE: Vector2 = Vector2(64.0, 123.0)
-## Placeholder lineup until job 18's formation: Keeper front middle, Elaia back middle.
-const PARTY_LINEUP: Dictionary = {"keeper": ["party_front", 1], "elaia": ["party_back", 1]}
+## Placeholder lineup before job 18's formation: four roster bodies on v7 slots.
+const PARTY_LINEUP: Dictionary = {
+	"keeper": ["party_front", 1],
+	"elaia": ["party_back", 1],
+	"puff": ["party_front", 0],
+	"mossback": ["party_back", 2],
+}
 ## Battle poses (east-facing). Playback swaps attack, brace, hurt, and ko; rest_pose_for picks idle or brace.
 const PARTY_POSES: Dictionary = {
 	"keeper": {
@@ -183,6 +188,14 @@ const ELAIA_TEST_STATS: Dictionary = {
 	"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
 	"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
 }
+const PUFF_TEST_STATS: Dictionary = {
+	"might": 6, "arcana": 4, "resilience": 5, "ward": 5,
+	"vitality": 6, "swiftness": 6, "fate": 5, "attack": "physical",
+}
+const MOSSBACK_TEST_STATS: Dictionary = {
+	"might": 7, "arcana": 3, "resilience": 7, "ward": 6,
+	"vitality": 7, "swiftness": 4, "fate": 5, "attack": "physical",
+}
 const LOG_LINE_COUNT: int = 5
 const LOG_SCROLL_PAD: float = 4.0
 const LOG_LINE_H: float = 22.0
@@ -254,6 +267,10 @@ var _twist_chip: TextureRect = null
 var _action_buttons: Array[Button] = []
 var _log_reveal_count: int = 0
 var _advance_after_playback: bool = false
+## fighter_id -> {actor, clip, spec, origin, pose} for a wave-1 combat clip.
+var _combat_clips: Dictionary = {}
+## Wall-clock seconds of the last companion battle_attack hit frame.
+var _last_clip_hit_sec: float = -1.0
 var _reach_mode: bool = false
 var _reach_outcome_applied: bool = false
 var _end_panel: Panel = null
@@ -289,6 +306,8 @@ static func open_reach_fight(fight: FightState) -> bool:
 	var reach_view: BattleView = _current as BattleView
 	if reach_view == null:
 		return false
+	if reach_view._fight == fight and fight.outcome() == "":
+		return true
 	reach_view._hide_end_panel()
 	reach_view.set_reach_mode(true)
 	reach_view._reach_outcome_applied = false
@@ -556,11 +575,10 @@ func _build_plate_layer() -> void:
 
 
 func _place_party() -> void:
-	## Keeper and Elaia idle poses on their placeholder slots before a fight starts.
-	## set_fighter_pose swaps frames for later playback.
+	## Roster battle idles on placeholder slots before a fight starts.
 	if _fighters == null:
 		return
-	for member: String in ["elaia", "keeper"]:
+	for member: String in PARTY_LINEUP.keys():
 		var spot: Array = PARTY_LINEUP[member]
 		var sole: Vector2 = slot_sole(str(spot[0]), int(spot[1]))
 		var root: Control = _new_fighter_root(member, "party", sole)
@@ -696,27 +714,680 @@ func fighter_pose(fighter_id: String) -> String:
 	return str(root.get_meta("pose", "idle"))
 
 
-func set_fighter_pose(fighter_id: String, pose: String) -> bool:
-	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
-	if root == null:
+func _modular_actor_for_root(root: Control) -> String:
+	var member: String = str(root.get_meta("member", ""))
+	if member != "":
+		return member
+	return _beast_base_species(str(root.get_meta("species", "")))
+
+
+func _weapon_sprite_for_root(root: Control) -> String:
+	var member: String = str(root.get_meta("member", ""))
+	if member == "":
+		return ""
+	var equip: Node = get_node_or_null("/root/Equipment")
+	var weapon_id: String = ""
+	if equip != null:
+		weapon_id = str(equip.call("equipped_id_for", member, "weapon"))
+	return CombatAnimsConfig.weapon_sprite_id_for_item(weapon_id)
+
+
+func _ensure_weapon_sprite(root: Control) -> TextureRect:
+	var existing: Node = root.get_node_or_null("WeaponSprite")
+	if existing is TextureRect:
+		return existing as TextureRect
+	var weapon := TextureRect.new()
+	weapon.name = "WeaponSprite"
+	weapon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	weapon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	root.add_child(weapon)
+	return weapon
+
+
+func _hide_weapon_sprite(root: Control) -> void:
+	var weapon: TextureRect = root.get_node_or_null("WeaponSprite") as TextureRect
+	if weapon != null:
+		weapon.texture = null
+
+
+func _hide_combat_overlay_sprites(root: Control) -> void:
+	_hide_weapon_sprite(root)
+	var spark: TextureRect = root.get_node_or_null("WandSparkSprite") as TextureRect
+	if spark != null:
+		spark.texture = null
+		spark.visible = false
+	var arrow: TextureRect = root.get_node_or_null("BowArrowSprite") as TextureRect
+	if arrow != null:
+		arrow.texture = null
+		arrow.visible = false
+	var string_line: Line2D = root.get_node_or_null("BowStringLine") as Line2D
+	if string_line != null:
+		string_line.visible = false
+		string_line.points = PackedVector2Array()
+
+
+func _ensure_overlay_sprite(root: Control, node_name: String) -> TextureRect:
+	var existing: Node = root.get_node_or_null(node_name)
+	if existing is TextureRect:
+		return existing as TextureRect
+	var node := TextureRect.new()
+	node.name = node_name
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	root.add_child(node)
+	return node
+
+
+func _ensure_bow_string_line(root: Control) -> Line2D:
+	var existing: Node = root.get_node_or_null("BowStringLine")
+	if existing is Line2D:
+		return existing as Line2D
+	var line := Line2D.new()
+	line.name = "BowStringLine"
+	line.width = 1.0
+	line.default_color = Color(0.55, 0.42, 0.28, 1.0)
+	line.antialiased = false
+	line.joint_mode = Line2D.LINE_JOINT_SHARP
+	line.begin_cap_mode = Line2D.LINE_CAP_BOX
+	line.end_cap_mode = Line2D.LINE_CAP_BOX
+	root.add_child(line)
+	return line
+
+
+func _body_local_from_texture(root: Control, body_point: Vector2) -> Vector2:
+	return body_point + CombatAnimsConfig.body_sprite_offset_in_root()
+
+
+func _apply_modular_frame(
+	root: Control,
+	actor: String,
+	clip: String,
+	logical_frame: int,
+	speed: int,
+	weapon_sprite_id: String = "",
+) -> bool:
+	if not CombatAnimsConfig.has_modular_body(actor, clip):
 		return false
-	if bool(root.get_meta("swarm", false)):
-		return _set_swarm_pose(root, fighter_id, pose)
-	var member: String = str(root.get_meta("member", fighter_id))
-	var poses: Dictionary = PARTY_POSES.get(member, {})
-	if not poses.has(pose):
-		return false
-	var tex: Texture2D = load(str(poses[pose])) as Texture2D
+	var side_key: String = "party" if str(root.get_meta("side", "")) == "party" else "enemy"
+	var timing: Dictionary = CombatAnimsConfig.timing(side_key, clip)
+	var logical_total: int = int(timing.get("frames", 8))
+	var hit_frame: int = int(timing.get("hit_frame", 0))
+	var display_logical: int = CombatAnimsConfig.display_logical_frame(
+		logical_frame, speed, hit_frame, logical_total,
+	)
+	var art_frame: int = CombatAnimsConfig.art_frame_index(actor, clip, display_logical, logical_total)
+	var path: String = CombatAnimsConfig.modular_body_path(actor, clip, art_frame)
+	var tex: Texture2D = load(path) as Texture2D
 	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
 	if tex == null or sprite == null:
 		return false
 	sprite.texture = tex
+	sprite.size = FIGHTER_FRAME
+	sprite.position = -FIGHTER_SOLE
+	if weapon_sprite_id != "" and CombatAnimsConfig.uses_weapon_overlay(actor, clip):
+		var anchor: Dictionary = CombatAnimsConfig.hand_anchor(actor, clip, art_frame)
+		if not anchor.is_empty():
+			var rot_index: int = int(anchor.get("rot_index", 0))
+			var wpath: String = CombatAnimsConfig.weapon_texture_for_rot(weapon_sprite_id, rot_index)
+			if wpath != "" and ResourceLoader.exists(wpath):
+				var weapon: TextureRect = _ensure_weapon_sprite(root)
+				weapon.texture = load(wpath) as Texture2D
+				var hx: int = int(anchor.get("hand_x", 0))
+				var hy: int = int(anchor.get("hand_y", 0))
+				var pivot: Vector2 = CombatAnimsConfig.weapon_pivot_for_rot(weapon_sprite_id, rot_index)
+				var rot_size: Vector2 = CombatAnimsConfig.weapon_size_for_rot(weapon_sprite_id, rot_index)
+				if rot_size.x > 0.0 and rot_size.y > 0.0:
+					weapon.size = rot_size
+				elif weapon.texture != null:
+					weapon.size = weapon.texture.get_size()
+				weapon.pivot_offset = pivot
+				weapon.position = CombatAnimsConfig.weapon_top_left_in_root(
+					hx, hy, weapon_sprite_id, rot_index,
+				)
+				weapon.rotation = CombatAnimsConfig.weapon_rotation_rad(rot_index)
+				var z: String = str(anchor.get("z", "front"))
+				var sprite_idx: int = sprite.get_index()
+				if z == "behind" and weapon.get_index() > sprite_idx:
+					root.move_child(weapon, sprite_idx)
+				elif z == "front" and weapon.get_index() < sprite_idx:
+					root.move_child(weapon, sprite_idx + 1)
+				_apply_wand_spark_overlay(root, clip, art_frame, anchor, sprite_idx)
+				_apply_bow_string_and_arrow(
+					root, clip, art_frame, anchor, weapon_sprite_id, hx, hy, sprite_idx,
+				)
+			else:
+				_hide_combat_overlay_sprites(root)
+		else:
+			_hide_combat_overlay_sprites(root)
+	else:
+		_hide_combat_overlay_sprites(root)
+	return true
+
+
+func _apply_wand_spark_overlay(
+	root: Control,
+	clip: String,
+	art_frame: int,
+	anchor: Dictionary,
+	sprite_idx: int,
+) -> void:
+	var spark: TextureRect = _ensure_overlay_sprite(root, "WandSparkSprite")
+	if not CombatAnimsConfig.wand_spark_visible(clip, art_frame):
+		spark.texture = null
+		spark.visible = false
+		return
+	if not ResourceLoader.exists(CombatAnimsConfig.WAND_SPARK_PATH):
+		spark.visible = false
+		return
+	var strip: Texture2D = load(CombatAnimsConfig.WAND_SPARK_PATH) as Texture2D
+	if strip == null:
+		spark.visible = false
+		return
+	var atlas := AtlasTexture.new()
+	atlas.atlas = strip
+	atlas.region = Rect2((art_frame - 2) % 4 * 8, 0, 8, 8)
+	spark.texture = atlas
+	spark.size = Vector2(8, 8)
+	var tip_body: Vector2 = CombatAnimsConfig.wand_tip_in_body_texture(anchor)
+	spark.position = _body_local_from_texture(root, tip_body) - Vector2(4, 4)
+	spark.visible = true
+	if spark.get_index() <= sprite_idx:
+		root.move_child(spark, sprite_idx + 1)
+
+
+func _apply_bow_string_and_arrow(
+	root: Control,
+	clip: String,
+	art_frame: int,
+	anchor: Dictionary,
+	weapon_sprite_id: String,
+	hand_x: int,
+	hand_y: int,
+	sprite_idx: int,
+) -> void:
+	var string_line: Line2D = _ensure_bow_string_line(root)
+	var arrow: TextureRect = _ensure_overlay_sprite(root, "BowArrowSprite")
+	if clip != "attack_bow":
+		string_line.visible = false
+		arrow.visible = false
+		return
+	var rot_index: int = int(anchor.get("rot_index", 0))
+	var hand2_x: int = int(anchor.get("hand2_x", hand_x))
+	var hand2_y: int = int(anchor.get("hand2_y", hand_y))
+	var string_draw: float = float(anchor.get("string_draw", 0.0))
+	var body_pts: PackedVector2Array = CombatAnimsConfig.bow_string_points_in_body(
+		hand_x, hand_y, hand2_x, hand2_y, weapon_sprite_id, rot_index, string_draw,
+	)
+	var local_pts: PackedVector2Array = PackedVector2Array()
+	for pt: Vector2 in body_pts:
+		local_pts.append(_body_local_from_texture(root, pt))
+	string_line.points = local_pts
+	string_line.visible = local_pts.size() >= 2
+	if string_line.get_index() <= sprite_idx:
+		root.move_child(string_line, sprite_idx)
+	if CombatAnimsConfig.bow_arrow_nocked_visible(clip, art_frame):
+		if ResourceLoader.exists(CombatAnimsConfig.ARROW_SPRITE_PATH):
+			arrow.texture = load(CombatAnimsConfig.ARROW_SPRITE_PATH) as Texture2D
+			var angle: float = CombatAnimsConfig.arrow_angle_rad(hand_x, hand_y, hand2_x, hand2_y)
+			arrow.pivot_offset = CombatAnimsConfig.ARROW_NOCK
+			arrow.rotation = angle
+			arrow.position = _body_local_from_texture(
+				root,
+				CombatAnimsConfig.arrow_top_left_in_body(hand2_x, hand2_y, angle),
+			)
+			if arrow.texture != null:
+				arrow.size = arrow.texture.get_size()
+			arrow.visible = true
+			if arrow.get_index() <= sprite_idx:
+				root.move_child(arrow, sprite_idx + 1)
+		else:
+			arrow.visible = false
+	else:
+		arrow.texture = null
+		arrow.visible = false
+		if art_frame >= 6:
+			root.set_meta("combat_bow_release_at", Time.get_ticks_msec())
+
+
+func _tick_bow_arrow_flight(
+	root: Control,
+	actor: String,
+	clip: String,
+	logical: int,
+	elapsed: float,
+	speed: int,
+) -> void:
+	if clip != "attack_bow":
+		return
+	var timing: Dictionary = CombatAnimsConfig.timing("party", clip)
+	var base_ms: int = int(timing.get("ms_per_frame", 100))
+	var release_frame: int = int(timing.get("arrow_release_frame", 6))
+	var release_t: float = CombatAnimsConfig.wall_sec_for_frame_index(speed, base_ms, release_frame)
+	var flight_sec: float = float(timing.get("arrow_flight_sec", CombatAnimsConfig.BOW_ARROW_FLIGHT_SEC))
+	var local_t: float = elapsed - release_t
+	if local_t < 0.0:
+		return
+	var arrow: TextureRect = _ensure_overlay_sprite(root, "BowArrowSprite")
+	if not ResourceLoader.exists(CombatAnimsConfig.ARROW_SPRITE_PATH):
+		return
+	var anchor: Dictionary = CombatAnimsConfig.hand_anchor(actor, clip, release_frame)
+	var hand2_x: int = int(anchor.get("hand2_x", 0))
+	var hand2_y: int = int(anchor.get("hand2_y", 0))
+	var hand_x: int = int(anchor.get("hand_x", 0))
+	var hand_y: int = int(anchor.get("hand_y", 0))
+	var angle: float = CombatAnimsConfig.arrow_angle_rad(hand_x, hand_y, hand2_x, hand2_y)
+	var toward: float = 1.0 if str(root.get_meta("side", "")) == "party" else -1.0
+	var progress: float = clampf(local_t / maxf(0.001, flight_sec / float(maxi(1, speed))), 0.0, 1.0)
+	var start: Vector2 = Vector2(float(hand2_x), float(hand2_y))
+	var end: Vector2 = start + Vector2(72.0 * toward, 0.0)
+	var nock_body: Vector2 = start.lerp(end, progress)
+	arrow.texture = load(CombatAnimsConfig.ARROW_SPRITE_PATH) as Texture2D
+	arrow.pivot_offset = CombatAnimsConfig.ARROW_NOCK
+	arrow.rotation = angle
+	arrow.position = _body_local_from_texture(
+		root,
+		CombatAnimsConfig.arrow_top_left_in_body(int(nock_body.x), int(nock_body.y), angle),
+	)
+	if arrow.texture != null:
+		arrow.size = arrow.texture.get_size()
+	arrow.visible = progress < 1.0
+
+
+func playback_stop_combat_anim(fighter_id: String) -> void:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return
+	for key: String in [
+		"combat_anim_clip",
+		"combat_anim_elapsed",
+		"combat_anim_speed",
+		"combat_anim_weapon",
+		"combat_anim_last_logical",
+	]:
+		if root.has_meta(key):
+			root.remove_meta(key)
+
+
+func playback_start_combat_anim(fighter_id: String, clip: String, speed: int) -> bool:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return false
+	var actor: String = _modular_actor_for_root(root)
+	var weapon_id: String = _weapon_sprite_for_root(root) if str(root.get_meta("side", "")) == "party" else ""
+	var norm_clip: String = CombatAnimsConfig.resolve_playback_clip(actor, clip, weapon_id)
+	if not CombatAnimsConfig.has_modular_body(actor, norm_clip):
+		return false
+	root.set_meta("combat_anim_clip", norm_clip)
+	root.set_meta("combat_anim_elapsed", 0.0)
+	root.set_meta("combat_anim_speed", speed)
+	root.set_meta("combat_anim_weapon", weapon_id)
+	root.set_meta("combat_anim_last_logical", -1)
+	_apply_modular_frame(root, actor, norm_clip, 0, speed, weapon_id)
+	root.set_meta("pose", clip)
+	return true
+
+
+func playback_tick_combat_anims(dt: float) -> void:
+	if _fighters == null:
+		return
+	for child: Node in _fighters.get_children():
+		if not child is Control:
+			continue
+		var root: Control = child as Control
+		if not root.has_meta("combat_anim_clip"):
+			continue
+		var clip: String = str(root.get_meta("combat_anim_clip", ""))
+		if clip == "":
+			continue
+		var elapsed: float = float(root.get_meta("combat_anim_elapsed", 0.0)) + dt
+		root.set_meta("combat_anim_elapsed", elapsed)
+		var speed: int = int(root.get_meta("combat_anim_speed", 1))
+		var actor: String = _modular_actor_for_root(root)
+		var side_key: String = "party" if str(root.get_meta("side", "")) == "party" else "enemy"
+		var timing: Dictionary = CombatAnimsConfig.timing(side_key, clip)
+		var base_ms: int = int(timing.get("ms_per_frame", 100))
+		var frame_count: int = int(timing.get("frames", 8))
+		var logical: int = CombatAnimsConfig.logical_frame_at(elapsed, speed, base_ms, frame_count)
+		var last_logical: int = int(root.get_meta("combat_anim_last_logical", -1))
+		if logical != last_logical:
+			root.set_meta("combat_anim_last_logical", logical)
+			var weapon_id: String = str(root.get_meta("combat_anim_weapon", ""))
+			_apply_modular_frame(root, actor, clip, logical, speed, weapon_id)
+		if clip == "attack_bow" and logical >= 6:
+			_tick_bow_arrow_flight(root, actor, clip, logical, elapsed, speed)
+
+
+func playback_begin_hit_react(fighter_id: String, speed: int) -> void:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return
+	var actor: String = _modular_actor_for_root(root)
+	if CombatAnimsConfig.has_modular_body(actor, "hit"):
+		playback_start_combat_anim(fighter_id, "hurt", speed)
+		return
+	var member: String = str(root.get_meta("member", ""))
+	if member != "" and PARTY_POSES.get(member, {}).has("hurt"):
+		set_fighter_pose(fighter_id, "hurt")
+		return
+	var flash_sec: float = 0.15 / float(maxi(1, speed))
+	root.set_meta("hit_flash_remaining", flash_sec)
+	root.set_meta("hit_flash_phase", 0)
+
+
+func playback_tick_hit_flashes(dt: float) -> void:
+	if _fighters == null:
+		return
+	for child: Node in _fighters.get_children():
+		if not child is Control:
+			continue
+		var root: Control = child as Control
+		if not root.has_meta("hit_flash_remaining"):
+			continue
+		var rem: float = float(root.get_meta("hit_flash_remaining", 0.0)) - dt
+		root.set_meta("hit_flash_remaining", rem)
+		var sprite: CanvasItem = root.get_node_or_null("Sprite") as CanvasItem
+		if sprite == null:
+			continue
+		if rem <= 0.0:
+			sprite.modulate = Color.WHITE
+			root.remove_meta("hit_flash_remaining")
+			root.remove_meta("hit_flash_phase")
+			continue
+		var phase: int = int(root.get_meta("hit_flash_phase", 0))
+		phase = (phase + 1) % 2
+		root.set_meta("hit_flash_phase", phase)
+		sprite.modulate = Color(1.25, 1.15, 1.05, 1.0) if phase == 0 else Color.WHITE
+
+
+func set_fighter_pose(fighter_id: String, pose: String) -> bool:
+	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
+	if root == null:
+		return false
+	playback_stop_combat_anim(fighter_id)
+	if root is Control:
+		var root_c: Control = root as Control
+		if root_c.has_meta("hit_flash_remaining"):
+			root_c.remove_meta("hit_flash_remaining")
+			root_c.remove_meta("hit_flash_phase")
+	if bool(root.get_meta("swarm", false)):
+		_stop_combat_clip(fighter_id)
+		if root is Control:
+			_stop_party_clip(root as Control)
+		return _set_swarm_pose(root, fighter_id, pose)
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+	if sprite == null:
+		return false
+	var member: String = str(root.get_meta("member", ""))
+	## Companion battle clips (puff, mossback) win when the roster defines one.
+	var companion_clip: String = CompanionClips.battle_clip_name(pose)
+	if member != "" and companion_clip != "" and not CompanionClips.clip_spec(member, companion_clip).is_empty():
+		_stop_combat_clip(fighter_id)
+		if root is Control:
+			return _play_party_clip(root as Control, member, companion_clip, pose)
+		return false
+	## Modular combat-anims system. Wave-1 CombatClips still cover actors it does not drive.
+	var species_key: String = _beast_base_species(str(root.get_meta("species", "")))
+	var modular_actor: String = member if member != "" else species_key
+	var modular_clip: String = CombatAnimsConfig.clip_for_pose(pose)
+	if modular_actor != "" and root is Control and CombatAnimsConfig.has_modular_body(modular_actor, modular_clip):
+		var weapon_id: String = _weapon_sprite_for_root(root as Control) if member != "" else ""
+		var played_clip: String = CombatAnimsConfig.resolve_playback_clip(modular_actor, modular_clip, weapon_id)
+		if CombatAnimsConfig.has_modular_body(modular_actor, played_clip):
+			_stop_combat_clip(fighter_id)
+			_stop_party_clip(root as Control)
+			if _apply_modular_frame(root as Control, modular_actor, played_clip, 0, 1, weapon_id):
+				root.set_meta("pose", pose)
+				return true
+	## Wave-1 party clips (Elaia attack / hit) before the static pose.
+	if member != "" and PARTY_POSES.has(member):
+		var wave_clip: String = _wave1_clip_for_pose(pose)
+		if wave_clip != "" and CombatClips.has_clip(member, wave_clip):
+			if root is Control:
+				_stop_party_clip(root as Control)
+			return _start_combat_clip(root, sprite, member, wave_clip, pose)
+	## Wave-1 beast clips (acorn imp attack / hit / calm). Party rows never take this path.
+	if str(root.get_meta("side", "")) != "party":
+		var base: String = _beast_base_species(str(root.get_meta("species", "")))
+		var beast_clip: String = _wave1_clip_for_pose(pose)
+		if beast_clip != "" and base != "" and CombatClips.has_clip(base, beast_clip):
+			if root is Control:
+				_stop_party_clip(root as Control)
+			return _start_combat_clip(root, sprite, base, beast_clip, pose)
+	var pose_path: String = ""
+	if member != "":
+		pose_path = CompanionRoster.battle_pose(member, pose)
+	if pose_path == "" or not ResourceLoader.exists(pose_path):
+		var poses: Dictionary = PARTY_POSES.get(member, {})
+		if not poses.has(pose):
+			if member != "" and PARTY_POSES.has(member):
+				_stop_combat_clip(fighter_id)
+				if root is Control:
+					_stop_party_clip(root as Control)
+			return false
+		pose_path = str(poses[pose])
+	var tex: Texture2D = load(pose_path) as Texture2D
+	if tex == null:
+		return false
+	_stop_combat_clip(fighter_id)
+	if root is Control:
+		_stop_party_clip(root as Control)
+	sprite.texture = tex
+	sprite.size = FIGHTER_FRAME
+	sprite.position = -FIGHTER_SOLE
+	if root is Control:
+		_hide_weapon_sprite(root as Control)
 	root.set_meta("pose", pose)
 	return true
 
 
+func _wave1_clip_for_pose(pose: String) -> String:
+	if pose == "attack":
+		return "attack"
+	if pose == "hurt":
+		return "hit"
+	return ""
+
+
+func sample_combat_clips() -> void:
+	if _playback != null and _playback.instant:
+		return
+	var now: float = 0.0
+	var spd: int = 1
+	if _playback != null:
+		now = _playback.clock_sec
+		spd = _playback.speed
+	for key_v: Variant in _combat_clips.keys():
+		_apply_combat_clip_frame(str(key_v), now, spd)
+
+
+func _start_combat_clip(root: Node, sprite: TextureRect, actor: String, clip: String, pose: String) -> bool:
+	var spec: Dictionary = CombatClips.find(actor, clip)
+	if spec.is_empty() or sprite == null:
+		return false
+	if CombatClips.texture(spec, 0) == null:
+		return false
+	var root_name: String = str(root.name)
+	if not root_name.begins_with("Fighter_"):
+		return false
+	var fighter_id: String = root_name.substr("Fighter_".length())
+	var origin: float = 0.0
+	var spd: int = 1
+	if _playback != null:
+		origin = _playback.clip_origin_sec(pose)
+		spd = _playback.speed
+	_combat_clips[fighter_id] = {
+		"actor": actor,
+		"clip": clip,
+		"spec": spec,
+		"origin": origin,
+		"pose": pose,
+	}
+	root.set_meta("pose", pose)
+	sprite.flip_h = false
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.size = FIGHTER_FRAME
+	sprite.position = -FIGHTER_SOLE
+	_apply_combat_clip_frame(fighter_id, origin, spd)
+	return true
+
+
+func _stop_combat_clip(fighter_id: String) -> void:
+	_combat_clips.erase(fighter_id)
+	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
+	if root != null and root.has_meta("combat_hand_anchor"):
+		root.remove_meta("combat_hand_anchor")
+
+
+func _combat_clip_id(fighter_id: String) -> String:
+	if not _combat_clips.has(fighter_id):
+		return ""
+	return str((_combat_clips[fighter_id] as Dictionary).get("clip", ""))
+
+
+func _apply_combat_clip_frame(fighter_id: String, now: float, spd: int) -> void:
+	if not _combat_clips.has(fighter_id):
+		return
+	var state: Dictionary = _combat_clips[fighter_id] as Dictionary
+	var spec: Dictionary = state.get("spec", {}) as Dictionary
+	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect if root != null else null
+	if root == null or sprite == null or spec.is_empty():
+		return
+	var frames: int = int(spec.get("frames", 0))
+	var ms: float = float(spec.get("ms", 0.0))
+	if frames <= 0 or ms <= 0.0:
+		return
+	var frame_clock: float = (ms / 1000.0) / float(maxi(1, spd))
+	var elapsed: float = maxf(0.0, now - float(state.get("origin", now)))
+	var idx: int = int(elapsed / frame_clock + 0.0001)
+	if bool(spec.get("loop", false)):
+		idx = posmod(idx, frames)
+	else:
+		idx = mini(idx, frames - 1)
+	var tex: Texture2D = CombatClips.texture(spec, idx)
+	if tex != null:
+		sprite.texture = tex
+	## CODE_NOTES: these clips are not mirrored. The imp's cap stem stays on the right.
+	sprite.flip_h = false
+	var anchor: Dictionary = CombatClips.anchor_for(spec, idx)
+	if anchor.is_empty():
+		if root.has_meta("combat_hand_anchor"):
+			root.remove_meta("combat_hand_anchor")
+	else:
+		root.set_meta("combat_hand_anchor", anchor)
+	_place_clip_anchor(root, anchor)
+
+
+func _place_clip_anchor(root: Node, anchor: Dictionary) -> void:
+	## Hand anchors are recorded for frames CODE_NOTES lists. No sword is spawned:
+	## Elaia's wave-1 hands are empty, and the sword blade layer is out of scope.
+	var weapon: Control = root.get_node_or_null("Weapon") as Control
+	if weapon == null:
+		return
+	if anchor.is_empty():
+		weapon.visible = false
+		return
+	weapon.visible = true
+	weapon.position = Vector2(float(anchor.get("hand_x", 0)), float(anchor.get("hand_y", 0))) - FIGHTER_SOLE
+
+
+func _apply_beast_idle_texture(sprite: TextureRect, base: String) -> void:
+	var idle_path: String = str(BEAST_IDLE.get(base, ""))
+	if idle_path == "" or not ResourceLoader.exists(idle_path):
+		idle_path = ECHO_BEAST_IDLE % base
+	if ResourceLoader.exists(idle_path):
+		sprite.texture = load(idle_path) as Texture2D
+		sprite.size = FIGHTER_FRAME
+		sprite.position = -FIGHTER_SOLE
+
+
+func clip_hit_last_sec() -> float:
+	return _last_clip_hit_sec
+
+
+func playback_tick_fighter_clips(sec: float) -> void:
+	if _fighters == null or sec <= 0.0:
+		return
+	for child: Node in _fighters.get_children():
+		if child is Control and bool((child as Control).get_meta("clip_active", false)):
+			_advance_party_clip(child as Control, sec)
+
+
+func _play_party_clip(root: Control, member: String, clip_name: String, pose: String) -> bool:
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+	if sprite == null:
+		return false
+	var dir_path: String = CompanionClips.frame_dir(member, clip_name)
+	if CompanionClips.count_frames_on_disk(dir_path) <= 0:
+		return false
+	var clip: Dictionary = CompanionClips.clip_spec(member, clip_name)
+	var layout: Dictionary = CompanionClips.layout(clip)
+	var size: Vector2 = layout.get("size", FIGHTER_FRAME) as Vector2
+	var offset: Vector2 = layout.get("offset", -FIGHTER_SOLE) as Vector2
+	sprite.size = size
+	sprite.position = offset
+	var tex: Texture2D = CompanionClips.load_frame(dir_path, 0)
+	if tex == null:
+		return false
+	sprite.texture = tex
+	root.set_meta("clip_active", true)
+	root.set_meta("clip_member", member)
+	root.set_meta("clip_name", clip_name)
+	root.set_meta("clip_pose", pose)
+	root.set_meta("clip_frame", 0)
+	root.set_meta("clip_elapsed", 0.0)
+	root.set_meta("clip_hit_done", false)
+	root.set_meta("pose", pose)
+	return true
+
+
+func _stop_party_clip(root: Control) -> void:
+	root.set_meta("clip_active", false)
+	root.set_meta("clip_elapsed", 0.0)
+	root.set_meta("clip_frame", 0)
+	root.set_meta("clip_hit_done", false)
+
+
+func _advance_party_clip(root: Control, sec: float) -> void:
+	var member: String = str(root.get_meta("clip_member", ""))
+	var clip_name: String = str(root.get_meta("clip_name", ""))
+	var clip: Dictionary = CompanionClips.clip_spec(member, clip_name)
+	var dir_path: String = CompanionClips.frame_dir(member, clip_name)
+	var frame_count: int = CompanionClips.count_frames_on_disk(dir_path)
+	if clip.is_empty() or frame_count <= 0:
+		_stop_party_clip(root)
+		return
+	var ms: float = maxf(CompanionClips.frame_ms(clip), 1.0)
+	var elapsed: float = float(root.get_meta("clip_elapsed", 0.0)) + sec
+	var frame: int = mini(int(elapsed * 1000.0 / ms), frame_count - 1)
+	if int(root.get_meta("clip_frame", -1)) != frame:
+		root.set_meta("clip_frame", frame)
+		var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+		var tex: Texture2D = CompanionClips.load_frame(dir_path, frame)
+		if sprite != null and tex != null:
+			sprite.texture = tex
+	var hit: int = CompanionClips.hit_frame_index(clip)
+	if hit >= 0 and frame >= hit and not bool(root.get_meta("clip_hit_done", false)):
+		root.set_meta("clip_hit_done", true)
+		_last_clip_hit_sec = Time.get_ticks_msec() / 1000.0
+		root.set_meta("clip_hit_sec", _last_clip_hit_sec)
+	if elapsed * 1000.0 >= float(frame_count) * ms:
+		_stop_party_clip(root)
+		var fighter_id: String = str(root.get_meta("fighter_id", ""))
+		set_fighter_pose(fighter_id, "idle")
+		return
+	root.set_meta("clip_elapsed", elapsed)
+
+
 func get_playback() -> BattlePlayback:
 	return _playback
+
+
+func playback_weapon_sprite_for(fighter_id: String) -> String:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return ""
+	return _weapon_sprite_for_root(root)
 
 
 func playback_fighter_root(fighter_id: String) -> Control:
@@ -735,6 +1406,11 @@ func playback_set_beast_hurt(fighter_id: String, species: String) -> bool:
 	if _fighter_root_is_swarm(fighter_id) or species == MOSSMITE_ID:
 		return set_fighter_pose(fighter_id, "hurt")
 	var base: String = _beast_base_species(species)
+	if CombatAnimsConfig.has_modular_body(base, "hit"):
+		var spd: int = _playback.speed if _playback != null else 1
+		return playback_start_combat_anim(fighter_id, "hurt", spd)
+	if CombatClips.has_clip(base, "hit"):
+		return set_fighter_pose(fighter_id, "hurt")
 	if not BEAST_HURT.has(base):
 		return false
 	var tex: Texture2D = load(str(BEAST_HURT[base])) as Texture2D
@@ -773,13 +1449,14 @@ func playback_set_beast_idle(fighter_id: String) -> void:
 		sprite.modulate = swarm_mod
 		return
 	var base: String = _beast_base_species(species)
-	var idle_path: String = str(BEAST_IDLE.get(base, ""))
-	if idle_path == "" or not ResourceLoader.exists(idle_path):
-		idle_path = ECHO_BEAST_IDLE % base
-	if ResourceLoader.exists(idle_path):
-		sprite.texture = load(idle_path) as Texture2D
-		sprite.size = FIGHTER_FRAME
-		sprite.position = -FIGHTER_SOLE
+	if str(row.get("status", "")) == "calmed" and CombatAnimsConfig.has_modular_body(base, "calm"):
+		set_fighter_pose(fighter_id, "calm")
+		return
+	if str(row.get("status", "")) == "calmed" and CombatClips.has_clip(base, "calm"):
+		_start_combat_clip(root, sprite, base, "calm", "calm")
+	else:
+		_stop_combat_clip(fighter_id)
+		_apply_beast_idle_texture(sprite, base)
 	var alpha: float = 0.35 if str(row.get("status", "")) == "calmed" else 1.0
 	var mod: Color = sprite.modulate
 	mod.a = alpha
@@ -944,6 +1621,7 @@ func _clear_fight_ui() -> void:
 	_log_follow_tail = true
 	if _playback != null:
 		_playback.reset_for_fight()
+	_combat_clips.clear()
 	_hide_action_menu()
 	if _fighters != null:
 		for child: Node in _fighters.get_children():
@@ -1628,6 +2306,17 @@ func _refresh_fighter_visual(row: Dictionary) -> void:
 		swarm_mod.a = swarm_alpha
 		sprite.modulate = swarm_mod
 		return
+	var species_now: String = str(row.get("species", root.get_meta("species", "")))
+	var base_now: String = _beast_base_species(species_now)
+	var beast_busy: bool = _playback != null and _playback.is_busy()
+	if not beast_busy and sprite is TextureRect:
+		var posed: TextureRect = sprite as TextureRect
+		if status == "calmed" and CombatClips.has_clip(base_now, "calm"):
+			if _combat_clip_id(fighter_id) != "calm":
+				_start_combat_clip(root, posed, base_now, "calm", "calm")
+		elif _combat_clips.has(fighter_id):
+			_stop_combat_clip(fighter_id)
+			_apply_beast_idle_texture(posed, base_now)
 	var alpha: float = 0.35 if status == "calmed" else 1.0
 	var mod: Color = sprite.modulate
 	mod.a = alpha
@@ -1679,6 +2368,9 @@ func _beast_suffix_map(rows: Array) -> Dictionary:
 
 
 func _party_display_name(member: String) -> String:
+	var gs: Node = get_node_or_null("/root/GameState")
+	if gs != null:
+		return str(gs.call("hero_display_name", member))
 	if member == "elaia":
 		return _text("echo_elaia_name", "Elaia")
 	if member == "keeper":
@@ -2225,6 +2917,8 @@ static func _add_test_party(fight: FightState, with_elaia: bool) -> void:
 	fight.add_member("keeper", KEEPER_TEST_STATS, 0, "front", "keeper")
 	if with_elaia:
 		fight.add_member("elaia", ELAIA_TEST_STATS, 1, "back", "elaia")
+	fight.add_member("puff", PUFF_TEST_STATS, 2, "front", "puff")
+	fight.add_member("mossback", MOSSBACK_TEST_STATS, 3, "back", "mossback")
 
 
 func _show_party_preview() -> void:
@@ -2239,10 +2933,20 @@ func _show_party_preview() -> void:
 	var preview := FightState.new()
 	_add_test_party(preview, with_elaia)
 	var rows: Array = preview.to_dict().get("fighters", []) as Array
-	for member: String in ["elaia", "keeper"]:
+	var visible_members: Dictionary = {}
+	for row_v: Variant in rows:
+		if row_v is Dictionary:
+			var row: Dictionary = row_v as Dictionary
+			var member_id: String = str(row.get("member", row.get("id", "")))
+			if member_id != "":
+				visible_members[member_id] = true
+	for member: String in PARTY_LINEUP.keys():
 		var root: Control = playback_fighter_root(member)
 		if root != null:
-			root.visible = member != "elaia" or with_elaia
+			if member == "elaia" and not with_elaia:
+				root.visible = false
+			else:
+				root.visible = visible_members.has(member)
 	for row_v: Variant in rows:
 		if row_v is Dictionary:
 			var row: Dictionary = row_v as Dictionary
@@ -2470,6 +3174,8 @@ func _build_fight_hud() -> void:
 		ab.name = "AbilityButton%d" % (n + 1)
 		ab.disabled = true
 		ab.tooltip_text = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
+		if not ab.pressed.is_connected(_on_ability_slot_pressed):
+			ab.pressed.connect(_on_ability_slot_pressed.bind(n))
 		_ability_buttons.append(ab)
 	_side_actions = VBoxContainer.new()
 	_side_actions.name = "SideActions"
@@ -2890,6 +3596,7 @@ func _show_action_menu(actor_id: String) -> void:
 		return
 	_action_menu.visible = true
 	_update_salve_button()
+	_sync_ability_row(actor_id)
 	var choosing: bool = _target_mode == ""
 	for button: Button in [_strike_button, _ability_button, _salve_button, _brace_button, _flee_button]:
 		if button != null:
@@ -2919,18 +3626,69 @@ func _show_action_menu(actor_id: String) -> void:
 
 
 static func keeper_abilities_exist() -> bool:
-	## No abilities exist yet, in the arena or in an Echo. One gate for both menus.
+	## True when the Keeper's equipped weapon lists at least one ability.
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return false
+	var gear: Node = tree.root.get_node_or_null("Equipment")
+	if gear == null:
+		return false
+	var weapon_id: String = str(gear.call("equipped_id_for", "keeper", "weapon"))
+	if weapon_id == "":
+		return false
+	var item_def: Dictionary = gear.call("get_item_def", weapon_id) as Dictionary
+	var abilities_v: Variant = item_def.get("abilities", [])
+	if abilities_v is Array:
+		return (abilities_v as Array).size() > 0
 	return false
 
 
 func _has_abilities() -> bool:
-	## No abilities exist yet: every slot is a disabled "—". The picker stays shut until one is real.
 	if not keeper_abilities_exist():
 		return false
 	for ab: Button in _ability_buttons:
 		if not ab.disabled:
 			return true
 	return false
+
+
+func _sync_ability_row(actor_id: String) -> void:
+	if _ability_row == null or _fight == null:
+		return
+	var arc_tip: String = _text(
+		"adv_ability_sweeping_arc_tip",
+		"Sweeping Arc (10 Weave): strike up to two reachable foes for ×0.75 damage each.",
+	)
+	var empty_tip: String = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
+	for n: int in _ability_buttons.size():
+		var ab: Button = _ability_buttons[n]
+		ab.disabled = true
+		ab.text = "—"
+		ab.tooltip_text = empty_tip
+		if n == 0 and actor_id != "" and _fight.can_sweeping_arc(actor_id):
+			ab.disabled = false
+			ab.text = "Arc"
+			ab.tooltip_text = arc_tip
+
+
+func _on_ability_slot_pressed(slot: int) -> void:
+	if _fight == null or slot != 0:
+		return
+	var actor_id: String = _fight.current_actor()
+	if actor_id == "" or not _fight.can_sweeping_arc(actor_id):
+		return
+	if _playback != null:
+		_playback.play_battle_confirm()
+	if _ability_row != null:
+		_ability_row.visible = false
+	var packet: Dictionary = _fight.step({
+		"kind": "ability",
+		"ability": String(WeaponAbilities.SWEEPING_ARC),
+		"targets": _fight.sweeping_arc_targets(actor_id),
+	})
+	_note_reach_fight_action()
+	_enqueue_step(packet)
+	_advance()
 
 
 func _strike_for_me_party_step(actor_id: String) -> void:
@@ -3155,7 +3913,12 @@ func _on_target_pressed(target_id: String) -> void:
 	if stepped:
 		_note_reach_fight_action()
 	_enqueue_step(packet)
-	_advance()
+	## Instant reach playback (headless): do not auto-run the enemy phase here; callers
+	## that need it (resume tests, Strike-for-me) call _advance() explicitly.
+	if _reach_mode and _playback != null and _playback.instant:
+		_finish_turn_ui()
+	else:
+		_advance()
 
 
 func _note_reach_fight_action() -> void:
