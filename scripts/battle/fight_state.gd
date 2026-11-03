@@ -218,6 +218,9 @@ func display_name(fighter_id: String) -> String:
 		return fighter_id
 	if who.side == "party":
 		var member: String = who.member if who.member != "" else who.id
+		var tree: SceneTree = Engine.get_main_loop() as SceneTree
+		if tree != null and tree.root.has_node("GameState"):
+			return str(tree.root.get_node("GameState").call("hero_display_name", member))
 		var lower: String = member.to_lower()
 		if lower == "keeper":
 			return "Keeper"

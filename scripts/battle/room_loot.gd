@@ -76,7 +76,7 @@ static func roll(depth: int, party_size: int, boss: bool, rng: BattleRng) -> Dic
 		extra += 1
 	herb_n += extra
 	var types: Array = herbs.get("types", []) as Array
-	var type_weights: Array = herbs.get("type_weights", []) as Array
+	var type_weights: Array = herb_type_weights()
 	for _i: int in herb_n:
 		var herb_id: String = _pick_weighted(types, type_weights, rng)
 		if herb_id != "":
@@ -112,6 +112,21 @@ static func _drop_zeros(out: Dictionary) -> Dictionary:
 		if n > 0:
 			clean[str(k)] = n
 	return clean
+
+
+static func herb_type_weights() -> Array:
+	## Mist raises Glowcap's weight while the game is open. The table itself stays 50/50.
+	_ensure_data()
+	var herbs: Dictionary = _loot.get("herbs_by_depth", {}) as Dictionary
+	var weights: Array = (herbs.get("type_weights", []) as Array).duplicate()
+	var mult: float = WeatherState.glowcap_weight_mult()
+	if is_equal_approx(mult, 1.0):
+		return weights
+	var types: Array = herbs.get("types", []) as Array
+	for i: int in range(mini(types.size(), weights.size())):
+		if str(types[i]) == "glowcap":
+			weights[i] = int(round(float(weights[i]) * mult))
+	return weights
 
 
 static func _pick_weighted(types: Array, weights: Array, rng: BattleRng) -> String:

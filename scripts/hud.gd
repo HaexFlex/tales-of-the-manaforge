@@ -1685,6 +1685,8 @@ var _party_info: VBoxContainer
 var _slot_wisp: Control
 var _slot_elaia: Control
 var _slot_keeper: Control
+var _companion_slots: Dictionary = {}
+var _companion_activities: Dictionary = {}
 var _wisp_count_label: Label
 var _sel_name: Label
 var _sel_task: Label
@@ -1708,7 +1710,16 @@ func _build_party_bar() -> void:
 	_party_column.name = "Column"
 	_party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_party_column.add_theme_constant_override("separation", int(PARTY_PITCH_R4 - PARTY_SLOT))
-	_slot_elaia = _make_party_slot("Elaia", "elaia")
+	_companion_slots.clear()
+	_companion_activities.clear()
+	for actor_id: String in CompanionRoster.ids():
+		var slot_name: String = _party_slot_name(actor_id)
+		var slot: Control = _make_party_slot(slot_name, actor_id)
+		slot.visible = false
+		_companion_slots[actor_id] = slot
+		if actor_id == "elaia":
+			_slot_elaia = slot
+		_party_column.add_child(slot)
 	_slot_wisp = _make_party_slot("Wisps", "wisp")
 	_slot_keeper = _make_party_slot("Keeper", "keeper")
 	_wisp_count_label = Label.new()
@@ -1717,7 +1728,6 @@ func _build_party_bar() -> void:
 	_wisp_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_style_world_label(_wisp_count_label)
 	_slot_wisp.add_child(_wisp_count_label)
-	_party_column.add_child(_slot_elaia)
 	_party_column.add_child(_slot_wisp)
 	_party_column.add_child(_slot_keeper)
 	_party_bar.add_child(_party_column)
@@ -1739,11 +1749,16 @@ func _build_party_bar() -> void:
 	_party_info.add_child(_sel_job)
 	_party_bar.add_child(_party_info)
 	_keeper_activity = _make_activity_label("KeeperActivity", 62.0)
-	_elaia_activity = _make_activity_label("ElaiaActivity", 124.0)
 	_keeper_activity.visible = false
-	_elaia_activity.visible = false
 	_party_bar.add_child(_keeper_activity)
-	_party_bar.add_child(_elaia_activity)
+	for actor_id: String in CompanionRoster.ids():
+		var activity_name: String = "%sActivity" % _party_slot_name(actor_id)
+		var activity: Label = _make_activity_label(activity_name, 124.0)
+		activity.visible = false
+		_companion_activities[actor_id] = activity
+		if actor_id == "elaia":
+			_elaia_activity = activity
+		_party_bar.add_child(activity)
 	_party_tag = PanelContainer.new()
 	_party_tag.name = "ActivityTag"
 	_party_tag.visible = false
@@ -1762,9 +1777,18 @@ func _build_party_bar() -> void:
 	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
 	(_slot_keeper.get_node("Portrait") as TextureRect).texture = keeper_tex
 	(_slot_wisp.get_node("Portrait") as TextureRect).texture = wisp_tex
-	(_slot_elaia.get_node("Portrait") as TextureRect).texture = _actor_portrait_texture("elaia")
-	_slot_elaia.visible = false
-	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for actor_id: String in _companion_slots.keys():
+		var face: TextureRect = (_companion_slots[actor_id] as Control).get_node("Portrait") as TextureRect
+		face.texture = _actor_portrait_texture(str(actor_id))
+		(_companion_slots[actor_id] as Control).visible = false
+		(_companion_slots[actor_id] as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _party_slot_name(actor_id: String) -> String:
+	var label: String = GameState.hero_display_name(actor_id) if has_node("/root/GameState") else actor_id
+	if label != "" and label.find(" ") < 0:
+		return label
+	return actor_id.capitalize()
 
 
 func _actor_portrait_texture(actor: String) -> Texture2D:
@@ -1898,45 +1922,47 @@ func _portrait_solely_selected(unit: String) -> bool:
 	var wisps_clear: bool = GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty()
 	if unit == "keeper":
 		return GameState.keeper_selected and wisps_clear and str(GameState.selected_companion_id) == ""
-	if unit == "elaia":
-		return str(GameState.selected_companion_id) == "elaia" and not GameState.keeper_selected and wisps_clear
 	if unit == "wisp":
 		return GameState.selected_wisp_id >= 0 and not GameState.keeper_selected and str(GameState.selected_companion_id) == ""
-	return false
+	return str(GameState.selected_companion_id) == CompanionRoster.canonical_id(unit) and not GameState.keeper_selected and wisps_clear
 
 
 func _portrait_clear(unit: String) -> void:
 	if unit == "keeper":
 		GameState.set_keeper_selected(false)
-	elif unit == "elaia":
-		GameState.selected_companion_id = ""
-		GameState.selection_changed.emit()
 	elif unit == "wisp":
 		GameState.clear_wisp_selection()
+	elif CompanionRoster.has_id(unit):
+		GameState.selected_companion_id = ""
+		GameState.selection_changed.emit()
 
 
 func party_click(unit: String) -> void:
-	if unit == "elaia" and not GameState.elaia_portrait_visible():
-		return
-	if is_character_open() and (unit == "keeper" or unit == "elaia") and _sheet != null:
-		_sheet.show_actor(unit)
-	if unit == "keeper":
-		GameState.select_keeper()
-	elif unit == "elaia":
-		GameState.select_companion("elaia")
-	elif unit == "wisp":
+	if unit == "wisp":
 		var ids: Array[int] = GameState.selected_wisp_list()
 		if ids.is_empty():
 			if GameState.wisp_count > 0:
 				GameState.select_wisp(0)
 		else:
 			GameState.select_group(ids, false)
+		return
+	if unit == "keeper":
+		if is_character_open() and _sheet != null:
+			_sheet.show_actor("keeper")
+		GameState.select_keeper()
+		return
+	var actor_id: String = CompanionRoster.canonical_id(unit)
+	if not GameState.companion_portrait_visible(actor_id):
+		return
+	if is_character_open() and _sheet != null:
+		_sheet.show_actor(actor_id)
+	GameState.select_companion(actor_id)
 
 
 func party_focus(unit: String = "") -> void:
 	## Double-click centres that character. Switch the view if they are in the other place. Do not move them.
-	if unit == "keeper" or unit == "elaia":
-		var area: String = GameState.keeper_area if unit == "keeper" else GameState.elaia_area
+	if unit == "keeper" or CompanionRoster.has_id(unit):
+		var area: String = GameState.keeper_area if unit == "keeper" else GameState.companion_area(unit)
 		var want_forge: bool = area == "forge"
 		if has_node("/root/ForgeJobs") and ForgeJobs.in_forge_scene() != want_forge:
 			GameState.pending_focus_actor = unit
@@ -1956,16 +1982,20 @@ func _refresh_party_bar() -> void:
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var show_keeper: bool = GameState.keeper_selected
 	var companion_id: String = str(GameState.selected_companion_id)
-	var elaia_joined: bool = GameState.elaia_portrait_visible()
+	var elaia_joined: bool = GameState.companion_portrait_visible("elaia")
 	_party_bar.visible = not modal_window_open()
 	_slot_keeper.visible = true
-	_slot_elaia.visible = elaia_joined
-	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
+	for actor_key: Variant in _companion_slots.keys():
+		var actor_slot: String = str(actor_key)
+		var slot: Control = _companion_slots[actor_key] as Control
+		var shown: bool = GameState.companion_portrait_visible(actor_slot)
+		slot.visible = shown
+		slot.mouse_filter = Control.MOUSE_FILTER_STOP if shown else Control.MOUSE_FILTER_IGNORE
+		_set_party_away_visual(slot, shown and GameState.member_away(actor_slot))
+		_set_party_outline(slot, companion_id == actor_slot)
 	_set_party_away_visual(_slot_keeper, GameState.member_away("keeper"))
-	_set_party_away_visual(_slot_elaia, elaia_joined and GameState.member_away("elaia"))
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
-	_set_party_outline(_slot_elaia, companion_id == "elaia")
 	_set_party_outline(_slot_wisp, not ids.is_empty())
 	if ids.size() >= 2:
 		_wisp_count_label.text = "x%d" % ids.size()
@@ -2034,8 +2064,8 @@ func _selection_job_station() -> String:
 			var keeper_state: Dictionary = ForgeJobs.job_state(station)
 			if not keeper_state.is_empty() and bool(keeper_state.get("working", false)):
 				return station
-	if str(GameState.selected_companion_id) == "elaia" and GameState.elaia_in_party():
-		var elaia_task: Dictionary = ForgeJobs.elaia_task()
+	if str(GameState.selected_companion_id) != "" and GameState.companion_joined(str(GameState.selected_companion_id)):
+		var elaia_task: Dictionary = ForgeJobs.task_for(str(GameState.selected_companion_id))
 		if bool(elaia_task.get("working", false)) and str(elaia_task.get("kind", "")) == "forge":
 			var elaia_station: String = str(elaia_task.get("target", ""))
 			var elaia_state: Dictionary = ForgeJobs.job_state(elaia_station)
@@ -3204,8 +3234,8 @@ func _portrait_row_y(which: String) -> float:
 	var target: Control = _slot_keeper
 	if which == "wisp":
 		target = _slot_wisp
-	elif which == "elaia":
-		target = _slot_elaia
+	elif _companion_slots.has(which):
+		target = _companion_slots[which] as Control
 	var y: float = 0.0
 	if _party_column == null:
 		return y
@@ -3222,18 +3252,23 @@ func _place_activity_label(label: Label, which: String) -> void:
 	label.size = Vector2(210, PARTY_SLOT)
 
 
-func _refresh_actor_activities(elaia_visible: bool, keeper_selected: bool, companion_id: String) -> void:
+func _refresh_actor_activities(_elaia_visible: bool, keeper_selected: bool, companion_id: String) -> void:
 	if _keeper_activity:
 		_keeper_activity.visible = true
 		_place_activity_label(_keeper_activity, "keeper")
 		_keeper_activity.text = _actor_status_text("keeper", keeper_selected)
-	if _elaia_activity:
-		_elaia_activity.visible = elaia_visible
-		_place_activity_label(_elaia_activity, "elaia")
-		if elaia_visible:
-			_elaia_activity.text = _actor_status_text("elaia", companion_id == "elaia")
+	for actor_key: Variant in _companion_activities.keys():
+		var actor_id: String = str(actor_key)
+		var activity: Label = _companion_activities[actor_key] as Label
+		if activity == null:
+			continue
+		var shown: bool = GameState.companion_portrait_visible(actor_id)
+		activity.visible = shown
+		if shown:
+			_place_activity_label(activity, actor_id)
+			activity.text = _actor_status_text(actor_id, companion_id == actor_id)
 		else:
-			_elaia_activity.text = ""
+			activity.text = ""
 
 
 func _actor_status_text(actor: String, selected: bool) -> String:
@@ -3288,7 +3323,7 @@ func _activity_line(actor: String) -> String:
 		return ContentStrings.get_text("hud_activity_adventure", {"depth": Reach.depth})
 	if not has_node("/root/ForgeJobs"):
 		return ContentStrings.get_text("hud_activity_idle")
-	var task: Dictionary = ForgeJobs.keeper_task() if actor == "keeper" else ForgeJobs.elaia_task()
+	var task: Dictionary = ForgeJobs.task_for(actor)
 	if not bool(task.get("working", false)):
 		return ContentStrings.get_text("hud_activity_idle")
 	var kind: String = str(task.get("kind", ""))
@@ -3415,7 +3450,9 @@ func open_character_sheet() -> void:
 	hide_fruit_confirm()
 	if _sheet == null:
 		return
-	var actor: String = "elaia" if GameState.selected_hero_id() == "elaia" else "keeper"
+	var actor: String = GameState.selected_hero_id()
+	if actor == "" or actor == "keeper":
+		actor = "keeper"
 	_sheet.open_sheet(actor)
 	if _party_info:
 		_party_info.visible = false

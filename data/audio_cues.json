@@ -165,6 +165,18 @@
       "loop": true,
       "path": "res://assets/audio/sfx_wisp_hum.ogg"
     },
+    "sfx_weather_rain_bed": {
+      "bus": "SFX_World",
+      "loop": true,
+      "path": "res://assets/audio/sfx_weather_rain_bed.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_weather_mist_bed": {
+      "bus": "SFX_World",
+      "loop": true,
+      "path": "res://assets/audio/sfx_weather_mist_bed.ogg",
+      "volume_db": -8.0
+    },
     "sfx_footstep": {
       "bus": "SFX_World",
       "loop": false,

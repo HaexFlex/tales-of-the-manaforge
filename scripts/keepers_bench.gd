@@ -245,13 +245,16 @@ func _on_right_click() -> void:
 			return
 		GameState.toast_wisp_assign(result, "workbench")
 		return
-	if GameState.selected_hero_id() == "elaia":
-		var elaia: Node = get_tree().get_first_node_in_group("elaia")
-		if elaia == null or not elaia.has_method("command_work"):
+	var hero_id: String = GameState.selected_hero_id()
+	if hero_id != "" and hero_id != "keeper":
+		var hero: Node = GameState.find_selected_hero()
+		if hero == null or not hero.has_method("command_work"):
 			return
 		_awaiting_arrival = true
-		_awaiting_actor = "elaia"
-		elaia.call("command_work", self, "bench", "workbench")
+		_awaiting_actor = hero_id
+		if hero.has_signal("arrived") and not hero.arrived.is_connected(_on_companion_arrived):
+			hero.arrived.connect(_on_companion_arrived)
+		hero.call("command_work", self, "bench", "workbench")
 		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
@@ -281,14 +284,19 @@ func _on_keeper_arrived() -> void:
 
 
 func _on_elaia_arrived() -> void:
-	if not _awaiting_arrival or _awaiting_actor != "elaia":
+	_on_companion_arrived()
+
+
+func _on_companion_arrived() -> void:
+	if not _awaiting_arrival or _awaiting_actor == "" or _awaiting_actor == "keeper":
 		return
+	var actor_id: String = _awaiting_actor
 	_awaiting_arrival = false
 	_awaiting_actor = ""
-	if not elaia_at_stand():
+	if not _companion_at_stand(actor_id):
 		return
 	if has_node("/root/ForgeJobs"):
-		ForgeJobs.set_elaia_working("workbench", true)
+		ForgeJobs.set_actor_working(actor_id, "workbench", true)
 	_open_panel()
 
 
@@ -303,13 +311,17 @@ func keeper_at_stand() -> bool:
 
 
 func elaia_at_stand() -> bool:
-	var elaia: Node2D = get_tree().get_first_node_in_group("elaia") as Node2D
-	if elaia == null:
+	return _companion_at_stand("elaia")
+
+
+func _companion_at_stand(actor_id: String) -> bool:
+	var body: Node2D = GameState.find_companion_body(actor_id) as Node2D
+	if body == null:
 		return false
 	var radius: float = 56.0
 	if has_node("/root/ForgeJobs"):
 		radius = ForgeJobs.stand_radius()
-	return elaia.global_position.distance_to(stand_global()) <= radius
+	return body.global_position.distance_to(stand_global()) <= radius
 
 
 func try_open() -> bool:

@@ -28,7 +28,7 @@ static func _build_party(raw: Variant) -> Array[Dictionary]:
 			continue
 		var entry: Dictionary = (entry_v as Dictionary).duplicate(true)
 		var member: String = str(entry.get("member", ""))
-		if member != "keeper" and member != "elaia":
+		if member != "keeper" and not CompanionRoster.has_id(member):
 			continue
 		var stats: Dictionary = SlotEngine.member_stats(member)
 		if stats.is_empty():
