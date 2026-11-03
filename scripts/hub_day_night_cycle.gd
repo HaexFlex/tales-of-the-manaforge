@@ -27,9 +27,15 @@ func _ready() -> void:
 	_start_msec = Time.get_ticks_msec()
 	color = Color.WHITE
 	set_process(true)
+	## Publish before glade fireflies setup on the same frame. _process is too late.
+	_publish_phase()
 
 
 func _process(_delta: float) -> void:
+	_publish_phase()
+
+
+func _publish_phase() -> void:
 	var use_dusk: bool = false
 	if not GameAudio.day_night_enabled:
 		color = Color.WHITE

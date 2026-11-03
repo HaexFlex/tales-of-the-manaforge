@@ -62,6 +62,41 @@ const TINT_FOLDER_IDS: PackedStringArray = ["default", "blossom", "autumn"]
 const TINT_LUT_PATH: String = "res://assets/art/manatree/native/tints/canopy_tint_lut.json"
 
 
+func _auto(node_name: String) -> Variant:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+func _pack() -> Variant:
+	return _auto("Backpack")
+
+
+func _strings() -> Variant:
+	return _auto("ContentStrings")
+
+
+func _jobs() -> Variant:
+	return _auto("ForgeJobs")
+
+
+func _audio() -> Variant:
+	return _auto("GameAudio")
+
+
+func _ginput() -> Variant:
+	return _auto("GameInput")
+
+
+func _gs() -> Variant:
+	return _auto("GameState")
+
+
+func _minigames() -> Variant:
+	return _auto("MinigameHost")
+
+
 func _ready() -> void:
 	_load_meta()
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -79,15 +114,15 @@ func _ready() -> void:
 	input_event.connect(_on_input_event)
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
-	GameState.stage_changed.connect(_on_stage_changed)
+	_gs().stage_changed.connect(_on_stage_changed)
 	_apply_manatree_tint()
-	if not GameState.load_completed.is_connected(_on_tint_or_save):
-		GameState.load_completed.connect(_on_tint_or_save)
-	if not GameState.echo_flags_changed.is_connected(_on_tint_or_save):
-		GameState.echo_flags_changed.connect(_on_tint_or_save)
-	GameState.fruit_ready_changed.connect(_on_fruit_changed)
-	GameState.needs_changed.connect(_refresh_label)
-	GameState.selection_changed.connect(_refresh_label)
+	if not _gs().load_completed.is_connected(_on_tint_or_save):
+		_gs().load_completed.connect(_on_tint_or_save)
+	if not _gs().echo_flags_changed.is_connected(_on_tint_or_save):
+		_gs().echo_flags_changed.connect(_on_tint_or_save)
+	_gs().fruit_ready_changed.connect(_on_fruit_changed)
+	_gs().needs_changed.connect(_refresh_label)
+	_gs().selection_changed.connect(_refresh_label)
 	add_to_group("manatree")
 	add_to_group("interactable")
 	_ensure_trunk()
@@ -96,7 +131,7 @@ func _ready() -> void:
 	_ensure_leaf_drift()
 	_ensure_stage_bloom()
 	_refresh_visual()
-	_on_fruit_changed(GameState.fruit_ready)
+	_on_fruit_changed(_gs().fruit_ready)
 
 
 func _load_meta() -> void:
@@ -123,7 +158,7 @@ func _load_meta() -> void:
 
 ## D7 visual scale only — multiplies the stage canvas. Gather and costs stay on the stage row.
 func visual_scale_for(stage: StringName) -> float:
-	var def: Dictionary = GameState.get_stage_def(stage)
+	var def: Dictionary = _gs().get_stage_def(stage)
 	if def.has("visual_scale"):
 		return float(def.get("visual_scale", 1.0))
 	return 1.0
@@ -138,7 +173,7 @@ func _stage_size(stage: StringName) -> Vector2:
 			return Vector2(float(arr[0]), float(arr[1]))
 	if Engine.is_editor_hint():
 		return Vector2(128, 192)
-	var def: Dictionary = GameState.get_stage_def(stage)
+	var def: Dictionary = _gs().get_stage_def(stage)
 	var size_v2: Variant = def.get("size", [128, 192])
 	if typeof(size_v2) == TYPE_ARRAY and (size_v2 as Array).size() >= 2:
 		var arr2: Array = size_v2
@@ -152,14 +187,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			if GameInput.yields_touch_double_tap(mb):
+			if _ginput().yields_touch_double_tap(mb):
 				return
 			if _click_is_door():
 				_request_door()
 			# LMB on the tree is not empty ground — swallow so Main does not deselect.
 			get_viewport().set_input_as_handled()
 			return
-		if GameInput.is_command(mb):
+		if _ginput().is_command(mb):
 			apply_player_command()
 			get_viewport().set_input_as_handled()
 
@@ -182,22 +217,22 @@ func work_footprint() -> Rect2:
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
 	## Watering stops, then he walks to the tree and the tending window opens on arrival.
-	if not GameState.selected_wisp_list().is_empty():
-		var node_id: String = GameState.NODE_ID_MANATREE
-		var result: String = GameState.command_selected_wisps(node_id)
-		GameState.toast_wisp_assign(result, node_id)
-		if GameState.selected_hero_id() != "":
-			GameState.command_selected_hero(self, "manatree")
+	if not _gs().selected_wisp_list().is_empty():
+		var node_id: String = _gs().NODE_ID_MANATREE
+		var result: String = _gs().command_selected_wisps(node_id)
+		_gs().toast_wisp_assign(result, node_id)
+		if _gs().selected_hero_id() != "":
+			_gs().command_selected_hero(self, "manatree")
 		return
-	if GameState.selected_hero_id() == "":
-		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
+	if _gs().selected_hero_id() == "":
+		_gs().status_message.emit(_strings().get_text("keeper_required_tree"))
 		return
-	GameState.command_selected_hero(self, "manatree")
+	_gs().command_selected_hero(self, "manatree")
 
 
 func on_interact(_keeper: Node) -> void:
 	## Pending Ascend → paused shop. Fruit ready (uncommitted) → care with Water + Harvest CTA.
-	if GameState.fruit_harvested_pending_ascend:
+	if _gs().fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
 	care_menu_requested.emit()
@@ -217,13 +252,13 @@ func set_watering(active: bool) -> void:
 
 func do_water() -> void:
 	## Start / continue water channel on the selected hero (income only).
-	if GameState.fruit_harvested_pending_ascend:
+	if _gs().fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
 	var hero: Node = null
-	var hero_id: String = GameState.selected_hero_id()
+	var hero_id: String = _gs().selected_hero_id()
 	if hero_id != "" and hero_id != "keeper":
-		hero = GameState.find_selected_hero()
+		hero = _gs().find_selected_hero()
 	if hero == null:
 		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 		if not keepers.is_empty():
@@ -231,23 +266,23 @@ func do_water() -> void:
 	if hero == null or not hero.has_method("start_water_channel"):
 		return
 	## The channel's gain line is the toast that stays. Ancient used to replace it.
-	if GameState.stage_id == &"ancient":
-		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
+	if _gs().stage_id == &"ancient":
+		_gs().status_message.emit(_strings().get_text("tree_water_ancient_ok"))
 	hero.call("start_water_channel", self)
 
 
 func do_pay_stage() -> String:
 	## Spend needs to advance. Audio stage-up fires via GameAudio on stage_changed.
-	var result: String = GameState.try_pay_stage()
+	var result: String = _gs().try_pay_stage()
 	match result:
 		"ok":
 			pass
 		"cant_afford":
-			GameAudio.play_tree_deny()
+			_audio().play_tree_deny()
 		"ancient":
-			if GameState.fruit_harvested_pending_ascend:
+			if _gs().fruit_harvested_pending_ascend:
 				fruit_menu_requested.emit()
-			elif GameState.fruit_ready:
+			elif _gs().fruit_ready:
 				care_menu_requested.emit()
 	_refresh_visual()
 	return result
@@ -262,8 +297,8 @@ func _on_stage_changed(_id: StringName) -> void:
 
 
 func mood_stage_number(stage: StringName = &"") -> int:
-	var id: StringName = stage if stage != &"" else GameState.stage_id
-	var idx: int = GameState.STAGE_ORDER.find(id)
+	var id: StringName = stage if stage != &"" else _gs().stage_id
+	var idx: int = _gs().STAGE_ORDER.find(id)
 	return idx + 1 if idx >= 0 else 1
 
 
@@ -369,16 +404,16 @@ func _show_frame(frame: int) -> void:
 
 func _on_fruit_changed(ready: bool) -> void:
 	if ready:
-		fruit_hint.text = ContentStrings.get_text("fruit_ready_prompt")
-	elif GameState.fruit_harvested_pending_ascend:
-		fruit_hint.text = ContentStrings.get_text("ascension_paused_hint")
+		fruit_hint.text = _strings().get_text("fruit_ready_prompt")
+	elif _gs().fruit_harvested_pending_ascend:
+		fruit_hint.text = _strings().get_text("ascension_paused_hint")
 	else:
 		fruit_hint.text = ""
 	_apply_label_visibility()
 
 
 func world_hover_name() -> String:
-	return ContentStrings.get_text("tree_menu_title")
+	return _strings().get_text("tree_menu_title")
 
 
 func _on_hover(inside: bool) -> void:
@@ -386,24 +421,24 @@ func _on_hover(inside: bool) -> void:
 	_apply_label_visibility()
 	WorldHover.sync(self, inside, world_hover_name())
 	if has_node("/root/MinigameHost"):
-		MinigameHost.call("show_prompt", "manatree", global_position + Vector2(0, -72), inside)
+		_minigames().call("show_prompt", "manatree", global_position + Vector2(0, -72), inside)
 
 
 func _refresh_label() -> void:
 	var suffix: String = ""
 	if _watering:
-		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
-		if Backpack.owns_watering_can():
-			suffix += "\n" + ContentStrings.get_text("tool_water_hint")
-		if has_node("/root/MinigameHost") and str(MinigameHost.call("hero_for", "manatree")) == "keeper":
-			suffix += "\n" + ContentStrings.get_text("minigame_lend_a_hand")
-	if GameState.selected_wisp_id >= 0:
-		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
+		suffix = "\n" + _strings().get_text("tree_water_channel_hud")
+		if _pack().owns_watering_can():
+			suffix += "\n" + _strings().get_text("tool_water_hint")
+		if has_node("/root/MinigameHost") and str(_minigames().call("hero_for", "manatree")) == "keeper":
+			suffix += "\n" + _strings().get_text("minigame_lend_a_hand")
+	if _gs().selected_wisp_id >= 0:
+		label.text = "%s%s" % [_strings().get_text("wisp_assign_to_manatree"), suffix]
 		_apply_label_visibility()
 		return
-	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
-	var ascension: String = ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions})
-	if GameState.stage_id == &"ancient":
+	var stage_name: String = str(_gs().get_stage_def().get("display_name", _gs().stage_id))
+	var ascension: String = _strings().get_text("ascend_count_hud", {"count": _gs().ascensions})
+	if _gs().stage_id == &"ancient":
 		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
 	else:
 		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
@@ -419,7 +454,7 @@ func _apply_label_visibility() -> void:
 
 
 func _stage_meta() -> Dictionary:
-	var meta: Variant = _meta_stages.get(String(GameState.stage_id), {})
+	var meta: Variant = _meta_stages.get(String(_gs().stage_id), {})
 	if typeof(meta) == TYPE_DICTIONARY:
 		return meta
 	return {}
@@ -428,7 +463,7 @@ func _stage_meta() -> Dictionary:
 ## Frame-pixel midpoint of the door sill. Measured on frame 0 of each strip:
 ## the last row where the trunk still bridges the center, above the root split.
 func door_floor_px(stage: StringName = &"") -> Vector2:
-	var sid: StringName = stage if stage != &"" else GameState.stage_id
+	var sid: StringName = stage if stage != &"" else _gs().stage_id
 	var meta: Dictionary = {}
 	var raw: Variant = _meta_stages.get(String(sid), {})
 	if typeof(raw) == TYPE_DICTIONARY:
@@ -445,7 +480,7 @@ func door_floor_px(stage: StringName = &"") -> Vector2:
 func door_anchor_offset() -> Vector2:
 	if sprite == null:
 		return Vector2(9999, 9999)
-	var door: Vector2 = door_floor_px(GameState.stage_id)
+	var door: Vector2 = door_floor_px(_gs().stage_id)
 	return (sprite.offset + door) * sprite.scale
 
 
@@ -456,7 +491,7 @@ func _display_scale(stage: StringName) -> float:
 			return float((raw as Dictionary).get("display_scale", 1.0))
 		return 1.0
 	var meta: Dictionary = _stage_meta()
-	if stage == GameState.stage_id and meta.has("display_scale"):
+	if stage == _gs().stage_id and meta.has("display_scale"):
 		return float(meta.get("display_scale", 1.0))
 	return visual_scale_for(stage)
 
@@ -468,16 +503,16 @@ func _on_tint_or_save() -> void:
 
 
 func _tint_texture_path(stage: StringName) -> String:
-	var idx: int = clampi(GameState.manatree_tint, 0, TINT_FOLDER_IDS.size() - 1)
+	var idx: int = clampi(_gs().manatree_tint, 0, TINT_FOLDER_IDS.size() - 1)
 	var folder: String = TINT_FOLDER_IDS[idx]
 	var tinted: String = "res://assets/art/manatree/native/tints/%s/manatree_%s.png" % [folder, String(stage)]
-	if FileAccess.file_exists(tinted):
+	if ResourceLoader.exists(tinted):
 		return tinted
 	return str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
 
 
 func _refresh_visual() -> void:
-	var stage: StringName = StringName(preview_stage) if Engine.is_editor_hint() else GameState.stage_id
+	var stage: StringName = StringName(preview_stage) if Engine.is_editor_hint() else _gs().stage_id
 	var path: String = _tint_texture_path(stage) if not Engine.is_editor_hint() else str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
 	var meta: Dictionary = {}
 	var raw_meta: Variant = _meta_stages.get(String(stage), {})
@@ -678,7 +713,7 @@ func _on_door_hover(inside: bool) -> void:
 	var door: Area2D = get_node_or_null("DoorHit") as Area2D
 	if door == null:
 		return
-	WorldHover.sync(door, inside, ContentStrings.get_text("hover_forge_door"))
+	WorldHover.sync(door, inside, _strings().get_text("hover_forge_door"))
 
 
 func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -692,7 +727,7 @@ func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void
 
 
 func wisp_orbit_center() -> Vector2:
-	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	var sz: Vector2 = TRUNK_SIZE.get(String(_gs().stage_id), Vector2(28, 40))
 	var third: float = sz.y / 3.0
 	var keeper_half_h: float = Keeper.BODY_SIZE.y * 0.5
 	if not Engine.is_editor_hint() and is_inside_tree():
@@ -708,12 +743,12 @@ func wisp_orbit_radius() -> float:
 
 
 func wisp_orbit_radii() -> Vector2:
-	if String(GameState.stage_id) == "elder" or String(GameState.stage_id) == "ancient":
+	if String(_gs().stage_id) == "elder" or String(_gs().stage_id) == "ancient":
 		return Vector2(280.0, 140.0)
-	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	var sz: Vector2 = TRUNK_SIZE.get(String(_gs().stage_id), Vector2(28, 40))
 	var ry: float = sz.x * 0.5 + 14.0
 	if has_node("/root/ForgeJobs"):
-		ry = ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
+		ry = _jobs().wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
 	return Vector2(ry, ry * 0.5)
 
 
@@ -921,7 +956,7 @@ func _apply_damp_step(step: int) -> void:
 		return
 	var idx: int = clampi(step, 0, DAMP_FADE_STEPS.size() - 1)
 	_damp_step = idx
-	var size_key: String = _damp_decal_size_key(GameState.stage_id)
+	var size_key: String = _damp_decal_size_key(_gs().stage_id)
 	var step_key: String = DAMP_FADE_STEPS[idx]
 	var path: String = "%sdamp_soil_%s_%s.png" % [DAMP_SOIL_PATH, size_key, step_key]
 	_damp_sprite.texture = load(path) as Texture2D
@@ -931,8 +966,8 @@ func _update_damp_position() -> void:
 	if _damp_sprite == null:
 		return
 	_damp_sprite.z_index = z_index - 1
-	var door: Vector2 = door_floor_px(GameState.stage_id)
-	var scale_v: float = _display_scale(GameState.stage_id)
+	var door: Vector2 = door_floor_px(_gs().stage_id)
+	var scale_v: float = _display_scale(_gs().stage_id)
 	var door_local: Vector2 = door * scale_v
 	var tex_h: float = 16.0
 	if _damp_sprite.texture != null:

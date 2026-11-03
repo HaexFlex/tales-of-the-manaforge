@@ -17,10 +17,26 @@ static func walk_loop_ms() -> float:
 @export var home_area: String = "clearing"
 
 
+func _auto(node_name: String) -> Variant:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+func _gs() -> Variant:
+	return _auto("GameState")
+
+
+func _strings() -> Variant:
+	return _auto("ContentStrings")
+
+
 func _ready() -> void:
 	super._ready()
-	if not GameState.echo_flags_changed.is_connected(_on_join_flags):
-		GameState.echo_flags_changed.connect(_on_join_flags)
+	var gs: Variant = _gs()
+	if not gs.is_connected("echo_flags_changed", _on_join_flags):
+		gs.connect("echo_flags_changed", _on_join_flags)
 	_apply_presence()
 
 
@@ -44,19 +60,19 @@ func actor_idle_uses_facing() -> bool:
 
 
 func actor_selected() -> bool:
-	return str(GameState.selected_companion_id) == "puff"
+	return str(_gs().get("selected_companion_id")) == "puff"
 
 
 func actor_select() -> void:
-	GameState.select_companion("puff")
+	_gs().call("select_companion", "puff")
 
 
 func actor_label_idle() -> String:
-	return ContentStrings.get_text("puff_name")
+	return str(_strings().call("get_text", "puff_name"))
 
 
 func actor_label_selected() -> String:
-	return ContentStrings.get_text("puff_name")
+	return str(_strings().call("get_text", "puff_name"))
 
 
 func _build_frames() -> SpriteFrames:
@@ -106,17 +122,18 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_presence() -> void:
-	var here: bool = GameState.puff_in_party_active() and not GameState.member_away("puff")
-	if here and not GameState.puff_has_pos:
+	var gs: Variant = _gs()
+	var here: bool = bool(gs.call("puff_in_party_active")) and not bool(gs.call("member_away", "puff"))
+	if here and not bool(gs.get("puff_has_pos")):
 		_spawn_beside_keeper()
 		here = true
 	_set_present(here)
 	if not here:
 		return
-	if GameState.puff_has_pos:
-		global_position = GameState.puff_pos
+	if bool(gs.get("puff_has_pos")):
+		global_position = gs.get("puff_pos")
 		_target = global_position
-	_facing = GameState.puff_facing
+	_facing = str(gs.get("puff_facing"))
 	if _facing == "":
 		_facing = "south"
 
@@ -126,9 +143,10 @@ func _spawn_beside_keeper() -> void:
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper") if is_inside_tree() else []
 	if not keepers.is_empty() and keepers[0] is Node2D:
 		spot = (keepers[0] as Node2D).global_position + Vector2(112, 8)
-	GameState.puff_has_pos = true
-	GameState.puff_pos = spot
-	GameState.puff_facing = "west"
+	var gs: Variant = _gs()
+	gs.set("puff_has_pos", true)
+	gs.set("puff_pos", spot)
+	gs.set("puff_facing", "west")
 	global_position = spot
 	_target = spot
 	_facing = "west"
@@ -151,8 +169,9 @@ func _set_present(on: bool) -> void:
 
 
 func _remember_pose() -> void:
-	if not GameState.puff_in_party_active():
+	var gs: Variant = _gs()
+	if not bool(gs.call("puff_in_party_active")):
 		return
-	GameState.puff_pos = global_position
-	GameState.puff_has_pos = true
-	GameState.puff_facing = _facing
+	gs.set("puff_pos", global_position)
+	gs.set("puff_has_pos", true)
+	gs.set("puff_facing", _facing)

@@ -119,6 +119,11 @@ var _beds_held: bool = false
 var _chore_cue_at: Dictionary = {}
 ## Tests pin this. -1 keeps the throttle on Time.get_ticks_msec().
 var _chore_clock_msec: int = -1
+var _title_bed: bool = false
+var _ui_hover_at_msec: int = -100000
+const UI_HOVER_GAP_MSEC: int = 60
+const TITLE_FADE_OUT_SEC: float = 0.35
+const TITLE_FADE_IN_SEC: float = 0.45
 
 
 func _ready() -> void:
@@ -143,7 +148,7 @@ func _ready() -> void:
 		if win != null and not win.size_changed.is_connected(_on_window_resized):
 			win.size_changed.connect(_on_window_resized)
 		Ui540.apply_integer_viewport(win)
-	call_deferred("play_hub_music")
+	call_deferred("_start_scene_music")
 	call_deferred("_connect_game_signals")
 	if not cue_played.is_connected(_on_cue_logged):
 		cue_played.connect(_on_cue_logged)
@@ -319,11 +324,68 @@ func _connect_game_signals() -> void:
 		GameState.wisp_pulsed.connect(_on_wisp_pulsed)
 
 
+func _start_scene_music() -> void:
+	var scene_path: String = ""
+	var tree: SceneTree = get_tree()
+	if tree != null and tree.current_scene != null:
+		scene_path = str(tree.current_scene.scene_file_path)
+	if scene_path.ends_with("title_screen.tscn"):
+		play_title_music()
+		return
+	if _title_bed:
+		return
+	play_hub_music()
+
+
+func play_title_music() -> void:
+	play(&"mus_title")
+	_title_bed = true
+	_hub_playing = false
+
+
 func play_hub_music() -> void:
 	if _hub_suspended:
 		return
+	if _title_bed and DisplayServer.get_name() != "headless":
+		_fade_title_into_hub()
+		return
+	_title_bed = false
 	play(&"mus_hub_forest")
 	_hub_playing = true
+
+
+func _fade_title_into_hub() -> void:
+	_title_bed = false
+	if _music_player == null:
+		play(&"mus_hub_forest")
+		_hub_playing = true
+		return
+	var tw: Tween = create_tween()
+	tw.tween_property(_music_player, "volume_db", -40.0, TITLE_FADE_OUT_SEC)
+	tw.tween_callback(func() -> void:
+		play(&"mus_hub_forest")
+		_hub_playing = true
+		if _music_player != null:
+			_music_player.volume_db = -40.0
+	)
+	tw.tween_property(_music_player, "volume_db", 0.0, TITLE_FADE_IN_SEC)
+	tw.tween_callback(_sync_music_player_volume)
+
+
+func bind_ui_hover(button: BaseButton) -> void:
+	if button == null or button.has_meta("ui_hover_bound"):
+		return
+	button.set_meta("ui_hover_bound", true)
+	if not button.mouse_entered.is_connected(_on_ui_hover):
+		button.mouse_entered.connect(_on_ui_hover)
+
+
+func _on_ui_hover() -> void:
+	var now: int = Time.get_ticks_msec()
+	if now - _ui_hover_at_msec < UI_HOVER_GAP_MSEC:
+		return
+	_ui_hover_at_msec = now
+	play(&"sfx_ui_hover")
 
 
 func suspend_hub_for_battle() -> void:

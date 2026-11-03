@@ -99,6 +99,38 @@ static var _spots_cache: Dictionary = {}
 var companion_id: String = ""
 
 
+
+func _auto(node_name: String) -> Variant:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+func _gs() -> Variant:
+	return _auto("GameState")
+
+
+func _strings() -> Variant:
+	return _auto("ContentStrings")
+
+
+func _audio() -> Variant:
+	return _auto("GameAudio")
+
+
+func _saves() -> Variant:
+	return _auto("SaveService")
+
+
+func _jobs() -> Variant:
+	return _auto("ForgeJobs")
+
+
+func _ginput() -> Variant:
+	return _auto("GameInput")
+
+
 func actor_id() -> String:
 	return "keeper"
 
@@ -112,61 +144,61 @@ func _join_groups() -> void:
 
 
 func actor_selected() -> bool:
-	return GameState.keeper_selected
+	return _gs().keeper_selected
 
 
 func actor_select() -> void:
-	GameState.select_keeper()
+	_gs().select_keeper()
 
 
 func _touch_deselects(event: InputEvent) -> bool:
 	## A second touch on the actor who is already the only selection clears it.
-	if not actor_selected() or not GameInput.touch_mode() or not GameInput.is_touch_pointer(event):
+	if not actor_selected() or not _ginput().touch_mode() or not _ginput().is_touch_pointer(event):
 		return false
 	if actor_id() != "keeper":
-		return not GameState.keeper_selected and GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty()
-	return GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty() and str(GameState.selected_companion_id) == ""
+		return not _gs().keeper_selected and _gs().selected_wisp_id < 0 and _gs().selected_wisp_ids.is_empty()
+	return _gs().selected_wisp_id < 0 and _gs().selected_wisp_ids.is_empty() and str(_gs().selected_companion_id) == ""
 
 
 func _clear_touch_selection() -> void:
 	if actor_id() != "keeper":
-		GameState.selected_companion_id = ""
-		GameState.selection_changed.emit()
+		_gs().selected_companion_id = ""
+		_gs().selection_changed.emit()
 		return
-	GameState.set_keeper_selected(false)
+	_gs().set_keeper_selected(false)
 
 
 func actor_label_idle() -> String:
-	return ContentStrings.get_text("keeper_select")
+	return _strings().get_text("keeper_select")
 
 
 func actor_label_selected() -> String:
-	return ContentStrings.get_text("keeper_selected")
+	return _strings().get_text("keeper_selected")
 
 
 func walk_reference_speed() -> float:
 	## Art reference px/s. Keeper is 80 in data/companions.json. Stride changes velocity, not this.
 	if has_node("/root/GameState"):
-		return GameState.actor_walk_ref_speed(actor_id())
+		return _gs().actor_walk_ref_speed(actor_id())
 	return WALK_REF_SPEED
 
 
 func actor_move_speed() -> float:
 	var mult: float = 1.0
 	if has_node("/root/GameState"):
-		mult = GameState.actor_move_mult(actor_id())
-	return GameState.get_move_speed() * mult
+		mult = _gs().actor_move_mult(actor_id())
+	return _gs().get_move_speed() * mult
 
 
 func actor_work_rate(station_id: String = "") -> float:
 	if has_node("/root/GameState"):
-		return GameState.actor_work_rate(actor_id(), station_id)
+		return _gs().actor_work_rate(actor_id(), station_id)
 	return 1.0
 
 
 func actor_water_mult() -> float:
 	if has_node("/root/GameState"):
-		return GameState.actor_water_mult(actor_id())
+		return _gs().actor_water_mult(actor_id())
 	return 1.0
 
 
@@ -178,30 +210,30 @@ func publish_task(kind: String, target: String, working: bool) -> void:
 	if not has_node("/root/ForgeJobs"):
 		return
 	if actor_id() == "keeper":
-		ForgeJobs.set_keeper_task(kind, target, working)
+		_jobs().set_keeper_task(kind, target, working)
 	else:
-		ForgeJobs.set_elaia_task(kind, target, working)
+		_jobs().set_elaia_task(kind, target, working)
 
 
 func clear_published_task() -> void:
 	if not has_node("/root/ForgeJobs"):
 		return
-	ForgeJobs.release_hero_claim(actor_id())
+	_jobs().release_hero_claim(actor_id())
 	if actor_id() == "keeper":
-		var task: Dictionary = ForgeJobs.keeper_task()
+		var task: Dictionary = _jobs().keeper_task()
 		var task_kind: String = str(task.get("kind", ""))
 		if task_kind == "harvest" or task_kind == "water" or task_kind == "forge" or task_kind == "bench" or task_kind == "runestone":
-			ForgeJobs.note_keeper_idle()
+			_jobs().note_keeper_idle()
 	else:
-		ForgeJobs.note_elaia_idle()
+		_jobs().note_elaia_idle()
 
 
 func read_published_task() -> Dictionary:
 	if not has_node("/root/ForgeJobs"):
 		return {}
 	if actor_id() == "keeper":
-		return ForgeJobs.keeper_task()
-	return ForgeJobs.elaia_task()
+		return _jobs().keeper_task()
+	return _jobs().elaia_task()
 
 
 class WorkSpotGate:
@@ -243,7 +275,7 @@ func _ready() -> void:
 		click_area.monitoring = false
 		click_area.monitorable = true
 		click_area.add_to_group("interactable")
-	GameState.selection_changed.connect(_on_selection_changed)
+	_gs().selection_changed.connect(_on_selection_changed)
 	_on_selection_changed()
 	_apply_body_box()
 	if actor_id() == "keeper":
@@ -389,7 +421,7 @@ func _add_timed_uniform(frames: SpriteFrames, anim: StringName, folder: String, 
 
 
 func _physics_process(delta: float) -> void:
-	if GameState.is_world_frozen():
+	if _gs().is_world_frozen():
 		if _moving or _channel_kind != ChannelKind.NONE:
 			halt()
 		velocity = Vector2.ZERO
@@ -416,6 +448,7 @@ func _physics_process(delta: float) -> void:
 				_facing = _face_on_arrive
 				_face_on_arrive = ""
 			_update_anim(Vector2.ZERO)
+			_play_arrive_cue()
 			if _water_pending:
 				_water_pending = false
 				_pending_interact = null
@@ -458,7 +491,7 @@ func _update_anim(intended: Vector2) -> void:
 		var scale: float = walk_speed_scale_for(velocity.length(), walk_reference_speed())
 		if actor_id() == "keeper":
 			assert(is_equal_approx(scale, velocity.length() / WALK_REF_SPEED))
-			var stride_speed: float = GameState.get_move_speed()
+			var stride_speed: float = _gs().get_move_speed()
 			assert(is_equal_approx(walk_speed_scale_for(stride_speed), stride_speed / WALK_REF_SPEED))
 		_play_loop(StringName("walk_%s" % _facing), scale, OFFSET_BODY)
 		return
@@ -554,7 +587,7 @@ func _actor_in_this_scene() -> bool:
 		return true
 	if not has_node("/root/GameState"):
 		return true
-	return GameState.keeper_area == scene_home()
+	return _gs().keeper_area == scene_home()
 
 
 func _remember_keeper_pose() -> void:
@@ -564,17 +597,17 @@ func _remember_keeper_pose() -> void:
 		return
 	if not has_node("/root/GameState"):
 		return
-	if GameState.keeper_area != scene_home():
+	if _gs().keeper_area != scene_home():
 		return
-	GameState.keeper_pos = global_position
-	GameState.keeper_has_pos = true
-	GameState.keeper_facing = _facing
+	_gs().keeper_pos = global_position
+	_gs().keeper_has_pos = true
+	_gs().keeper_facing = _facing
 
 
 func apply_keeper_presence() -> void:
 	if actor_id() != "keeper":
 		return
-	var here: bool = GameState.keeper_area == scene_home() and not GameState.member_away("keeper")
+	var here: bool = _gs().keeper_area == scene_home() and not _gs().member_away("keeper")
 	visible = here
 	set_physics_process(here)
 	var body_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
@@ -589,11 +622,11 @@ func apply_keeper_presence() -> void:
 		_moving = false
 		velocity = Vector2.ZERO
 		return
-	if GameState.keeper_has_pos:
-		global_position = GameState.keeper_pos
+	if _gs().keeper_has_pos:
+		global_position = _gs().keeper_pos
 		_target = global_position
-	if GameState.keeper_facing != "":
-		_facing = GameState.keeper_facing
+	if _gs().keeper_facing != "":
+		_facing = _gs().keeper_facing
 	_resume_saved_task()
 
 
@@ -689,8 +722,8 @@ func _find_station(station_id: String) -> Node2D:
 
 func station_work_anim_speed() -> float:
 	## forge_tuning.json station_work_anim_speed. Not crafting speed. Not walk speed_scale.
-	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("station_work_anim_speed"):
-		return ForgeJobs.station_work_anim_speed()
+	if has_node("/root/ForgeJobs") and _jobs().has_method("station_work_anim_speed"):
+		return _jobs().station_work_anim_speed()
 	return 0.5
 
 
@@ -938,11 +971,11 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 	_cancel_idle_moment()
 	if target == null:
 		return
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if not _actor_in_this_scene():
-		GameState.status_message.emit(ContentStrings.get_text("hud_activity_idle"))
+		_gs().status_message.emit(_strings().get_text("hud_activity_idle"))
 		return
 	## Watering stops, then the same click walks him to the tree and opens tending.
 	if type_id == "manatree" and target is Manatree and _watering_this(target as Manatree):
@@ -971,8 +1004,8 @@ func command_station(station: Node2D) -> void:
 	_cancel_idle_moment()
 	if station == null:
 		return
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	var sid := ""
 	if "station_id" in station:
@@ -992,12 +1025,12 @@ func _claim_target(key: String) -> bool:
 		return true
 	if not has_node("/root/ForgeJobs"):
 		return true
-	var blocker: String = ForgeJobs.hero_block_name(actor_id(), key)
+	var blocker: String = _jobs().hero_block_name(actor_id(), key)
 	if blocker != "":
-		GameState.status_message.emit(ContentStrings.get_text("hud_companion_target_busy", {"name": blocker}))
+		_gs().status_message.emit(_strings().get_text("hud_companion_target_busy", {"name": blocker}))
 		return false
 	clear_published_task()
-	ForgeJobs.claim_hero_target(actor_id(), key)
+	_jobs().claim_hero_target(actor_id(), key)
 	return true
 
 
@@ -1207,14 +1240,14 @@ func _present_in_clearing() -> bool:
 	if not has_node("/root/GameState"):
 		return false
 	if actor_id() == "keeper":
-		return GameState.keeper_area == "clearing"
-	return GameState.companion_joined(actor_id()) and GameState.companion_area(actor_id()) == "clearing"
+		return _gs().keeper_area == "clearing"
+	return _gs().companion_joined(actor_id()) and _gs().companion_area(actor_id()) == "clearing"
 
 
 func _keeper_standing_idle() -> bool:
 	if actor_id() != "keeper" or not visible:
 		return false
-	if GameState.is_world_frozen():
+	if _gs().is_world_frozen():
 		return false
 	if _moving or _water_pending or _pose_hold or _pose_finish_left > 0.0:
 		return false
@@ -1408,17 +1441,17 @@ func _on_idle_moment_animation_finished() -> void:
 func _emit_keeper_bench_sat() -> void:
 	keeper_bench_sat.emit()
 	if has_node("/root/GameState"):
-		GameState.on_keeper_bench_sat()
+		_gs().on_keeper_bench_sat()
 	if has_node("/root/GameAudio"):
-		GameAudio.on_keeper_bench_sat()
+		_audio().on_keeper_bench_sat()
 
 
 func _emit_keeper_bench_stood() -> void:
 	keeper_bench_stood.emit()
 	if has_node("/root/GameState"):
-		GameState.on_keeper_bench_stood()
+		_gs().on_keeper_bench_stood()
 	if has_node("/root/GameAudio"):
-		GameAudio.on_keeper_bench_stood()
+		_audio().on_keeper_bench_stood()
 
 
 func _finish_bench_idle_sit() -> void:
@@ -1542,8 +1575,8 @@ func halt() -> void:
 
 func move_to(world_pos: Vector2, interact: Node = null) -> void:
 	_cancel_idle_moment()
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if _channel_kind != ChannelKind.NONE:
 		if interact != _channel_target:
@@ -1593,8 +1626,8 @@ static func bench_approach_route(from: Vector2, spot: Vector2, footprint: Rect2)
 
 func start_harvest_channel(node: Gatherable) -> void:
 	_cancel_idle_moment()
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if node == null:
 		return
@@ -1606,8 +1639,8 @@ func start_harvest_channel(node: Gatherable) -> void:
 	_channel_target = node
 	_channel_accum = 0.0
 	node.set_channeling(true)
-	GameAudio.play_channel_start()
-	GameState.status_message.emit(ContentStrings.get_text("harvest_start"))
+	_audio().play_channel_start()
+	_gs().status_message.emit(_strings().get_text("harvest_start"))
 	channel_changed.emit(&"harvest", true)
 	publish_task("harvest", String(node.resource_id), true)
 	_channel_accum = 0.0
@@ -1615,8 +1648,8 @@ func start_harvest_channel(node: Gatherable) -> void:
 
 func start_water_channel(tree: Manatree) -> void:
 	_cancel_idle_moment()
-	if GameState.is_world_frozen():
-		GameState.note_frozen_deny()
+	if _gs().is_world_frozen():
+		_gs().note_frozen_deny()
 		return
 	if tree == null:
 		return
@@ -1641,8 +1674,8 @@ func _begin_water_channel(tree: Manatree) -> void:
 	_channel_target = tree
 	_channel_accum = 0.0
 	tree.set_watering(true)
-	GameAudio.play_channel_start()
-	GameState.status_message.emit(ContentStrings.get_text("tree_water_start"))
+	_audio().play_channel_start()
+	_gs().status_message.emit(_strings().get_text("tree_water_start"))
 	channel_changed.emit(&"water", true)
 	publish_task("water", "manatree", true)
 	_do_water_pulse()
@@ -1692,7 +1725,7 @@ func cancel_channel(emit_status: bool = true) -> void:
 		var t: Manatree = target as Manatree
 		t.set_watering(false)
 		if emit_status:
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_cancel"))
+			_gs().status_message.emit(_strings().get_text("tree_water_cancel"))
 		channel_changed.emit(&"water", false)
 	if not _suppress_work_clear:
 		clear_published_task()
@@ -1752,14 +1785,14 @@ func _check_channel_range() -> void:
 		if _channel_kind != ChannelKind.NONE:
 			cancel_channel()
 		return
-	var range_px: float = GameState.get_harvest_range() + 24.0
+	var range_px: float = _gs().get_harvest_range() + 24.0
 	if global_position.distance_to(_channel_stand_pos(_channel_target)) > range_px * 2.0:
 		var was_harvest: bool = _channel_kind == ChannelKind.HARVEST
 		cancel_channel(false)
 		if was_harvest:
-			GameState.status_message.emit(ContentStrings.get_text("harvest_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("harvest_out_of_range"))
 		else:
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("tree_water_out_of_range"))
 
 
 func _tick_channel(delta: float) -> void:
@@ -1768,22 +1801,22 @@ func _tick_channel(delta: float) -> void:
 	if _channel_target == null or not is_instance_valid(_channel_target):
 		cancel_channel(false)
 		return
-	var range_px: float = GameState.get_harvest_range() + 32.0
+	var range_px: float = _gs().get_harvest_range() + 32.0
 	if global_position.distance_to(_channel_stand_pos(_channel_target)) > range_px:
 		var was_harvest: bool = _channel_kind == ChannelKind.HARVEST
 		cancel_channel(false)
 		if was_harvest:
-			GameState.status_message.emit(ContentStrings.get_text("harvest_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("harvest_out_of_range"))
 		else:
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
+			_gs().status_message.emit(_strings().get_text("tree_water_out_of_range"))
 		return
-	var play_delta: float = GameState.active_play_delta(delta)
+	var play_delta: float = _gs().active_play_delta(delta)
 	if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
 		var rid: StringName = (_channel_target as Gatherable).resource_id
-		GameState.accumulate_keeper_harvest(rid, play_delta, actor_work_rate() * GameState.keeper_rested_mult())
+		_gs().accumulate_keeper_harvest(rid, play_delta, actor_work_rate() * _gs().keeper_rested_mult())
 	elif _channel_kind == ChannelKind.WATER:
 		_channel_accum += play_delta
-		var pulse: float = GameState.get_water_essence_pulse_sec()
+		var pulse: float = _gs().get_water_essence_pulse_sec()
 		if pulse <= 0.0:
 			return
 		while _channel_accum >= pulse:
@@ -1792,17 +1825,31 @@ func _tick_channel(delta: float) -> void:
 
 
 func _do_water_pulse() -> void:
-	var result: Dictionary = GameState.apply_water_pulse(true, true, actor_water_mult())
+	var result: Dictionary = _gs().apply_water_pulse(true, true, actor_water_mult())
 	if not bool(result.get("ok", false)):
 		cancel_channel(false)
 		return
-	GameAudio.play_water_pulse()
-	GameState.status_message.emit(ContentStrings.get_text("tree_water_pulse_hud", {
+	_audio().play_water_pulse()
+	if int(result.get("shards", 0)) > 0:
+		_play_shard_collect()
+	_gs().status_message.emit(_strings().get_text("tree_water_pulse_hud", {
 		"shards": int(result.get("shards", 0)),
 		"essence": int(result.get("essence", 0)),
 	}))
 	if _channel_target is Manatree:
 		(_channel_target as Manatree).refresh_after_care()
+
+
+func _play_arrive_cue() -> void:
+	if has_node("/root/GameAudio"):
+		_audio().play(&"sfx_interact_arrive")
+
+
+func _play_shard_collect() -> void:
+	if has_node("/root/SaveService") and bool(_saves().catchup_running):
+		return
+	if has_node("/root/GameAudio"):
+		_audio().play(&"sfx_gather_manashards")
 
 
 func _try_interact() -> void:
@@ -1827,25 +1874,25 @@ func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			if GameInput.is_double_tap(mb):
+			if _ginput().is_double_tap(mb):
 				return
 			if _touch_deselects(mb):
 				_clear_touch_selection()
 			else:
 				actor_select()
 				if actor_id() == "keeper":
-					GameState.status_message.emit(ContentStrings.get_text("keeper_select_hint"))
+					_gs().status_message.emit(_strings().get_text("keeper_select_hint"))
 				else:
-					GameState.status_message.emit(GameState.hero_display_name(actor_id()))
+					_gs().status_message.emit(_gs().hero_display_name(actor_id()))
 			get_viewport().set_input_as_handled()
-		elif GameInput.is_command(mb):
+		elif _ginput().is_command(mb):
 			get_viewport().set_input_as_handled()
 
 
 func world_hover_name() -> String:
 	if actor_id() == "keeper":
-		return ContentStrings.get_text("keeper_select")
-	return GameState.hero_display_name(actor_id())
+		return _strings().get_text("keeper_select")
+	return _gs().hero_display_name(actor_id())
 
 
 func _on_hover(inside: bool) -> void:

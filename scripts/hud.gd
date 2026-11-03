@@ -516,7 +516,7 @@ func _layout_box_button(x: float, y: float, tap: float) -> void:
 		_box_button.name = "TouchBoxSelect"
 		_box_button.toggle_mode = true
 		_box_button.focus_mode = Control.FOCUS_NONE
-		_box_button.text = ContentStrings.get_text("touch_box_select_button")
+		_box_button.text = ContentStrings.touch_label("touch_box_select_button")
 		GameTheme.style_wood_button(_box_button)
 		_box_button.toggled.connect(_on_box_select_toggled)
 		add_child(_box_button)
@@ -529,6 +529,7 @@ func _layout_box_button(x: float, y: float, tap: float) -> void:
 func _sync_box_button() -> void:
 	if _box_button == null:
 		return
+	_box_button.text = ContentStrings.touch_label("touch_box_select_button")
 	_box_button.visible = GameInput.touch_mode()
 	var armed: bool = GameInput.touch_marquee_armed()
 	if _box_button.button_pressed != armed:

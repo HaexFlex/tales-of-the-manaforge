@@ -62,6 +62,13 @@ func _merge_offline_summary_final() -> void:
 		_table[str(key_v)] = (final_parsed as Dictionary)[key_v]
 
 
+func touch_label(key: String) -> String:
+	## Nested touch copy, including when the desktop layout builds the button.
+	if _touch.has(key):
+		return str(_touch[key])
+	return get_text(key)
+
+
 func get_text(key: String, tokens: Dictionary = {}) -> String:
 	var raw: String
 	if _touch_mode() and _touch.has(key):

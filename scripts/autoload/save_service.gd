@@ -526,7 +526,7 @@ func _apply_loaded_adventure() -> void:
 	if typeof(reach_v) == TYPE_DICTIONARY:
 		Reach.apply_run_block(reach_v)
 	var fight_v: Variant = adv.get("fight", null)
-	if typeof(fight_v) == TYPE_DICTIONARY:
+	if typeof(fight_v) == TYPE_DICTIONARY and str((fight_v as Dictionary).get("outcome", "")) == "":
 		Reach.restore_manual_fight(FightState.from_dict(fight_v))
 
 
@@ -1177,6 +1177,7 @@ func _remove_slot_files(path: String) -> void:
 
 
 func delete_save() -> void:
+	clear_adventure()
 	for slot: int in range(1, SAVE_SLOT_COUNT + 1):
 		delete_slot(slot)
 	for slot: int in range(1, AUTOSAVE_SLOT_COUNT + 1):

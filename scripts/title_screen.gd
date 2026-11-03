@@ -43,7 +43,7 @@ func _ready() -> void:
 	Engine.time_scale = 1.0
 	GameState.reset_play_speed()
 	GameTheme.apply_app_theme()
-	GameAudio.play_hub_music()
+	GameAudio.play_title_music()
 	for btn: Button in [btn_continue, btn_new, btn_load, btn_options, btn_quit]:
 		btn.add_to_group("title_hero_button")
 		GameTheme.style_title_hero_button(btn)

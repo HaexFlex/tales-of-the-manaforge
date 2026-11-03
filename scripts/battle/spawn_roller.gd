@@ -371,6 +371,15 @@ static func roll_room(depth: int, rng: BattleRng, boss: bool = false, party_size
 				tier.append(picks_v)
 	if tier.is_empty():
 		tier = candidates
+	## Depth 5 and deeper keep a mixed room when the floor still has one.
+	## variety_slack may admit a one-species set; drop those once a two-species set exists.
+	if depth >= 5:
+		var mixed_tier: Array = []
+		for picks_v2: Variant in tier:
+			if _variety_count(picks_v2 as Array) >= 2:
+				mixed_tier.append(picks_v2)
+		if not mixed_tier.is_empty():
+			tier = mixed_tier
 	tier.sort_custom(func(a: Array, b: Array) -> bool:
 		return _combo_sort_key(a) < _combo_sort_key(b)
 	)

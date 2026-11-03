@@ -100,7 +100,7 @@ func _audio_scan(audio: Node) -> void:
 		if typeof(raw) == TYPE_DICTIONARY:
 			cues = raw
 	var watched: PackedStringArray = PackedStringArray([
-		"sfx_gather_water_soft", "sfx_water_pulse", "mus_title", "sfx_ui_hover",
+		"sfx_water_pulse", "mus_title", "sfx_ui_hover",
 		"sfx_gather_manashards", "sfx_gather_cooldown", "sfx_footstep", "sfx_interact_arrive",
 	])
 	var sources: PackedStringArray = _gd_sources("res://scripts")
@@ -130,7 +130,7 @@ func _audio_scan(audio: Node) -> void:
 	print("PLAY TITLE_MUS_CALL %s" % str(blob.find("mus_title") >= 0))
 	print("PLAY HUB_MUSIC_CALL %s" % str(blob.find("mus_hub_forest") >= 0))
 	print("PLAY WATER_PULSE_CALL %s" % str(blob.find("sfx_water_pulse") >= 0))
-	print("PLAY GATHER_WATER_SOFT_CALL %s" % str(blob.find("sfx_gather_water_soft") >= 0))
+	print("PLAY GATHER_WATER_FILE %s" % str(blob.find("sfx_gather_water.ogg") >= 0))
 
 
 func _gd_sources(root_path: String) -> PackedStringArray:

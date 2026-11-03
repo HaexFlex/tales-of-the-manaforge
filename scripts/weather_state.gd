@@ -13,6 +13,8 @@ static var _trickle_pulses: float = 0.0
 static var _roll_queue: Array[String] = []
 static var _force_auto: bool = false
 static var _chance_override: float = -1.0
+## Tests and boot stay on the data default. New game and load follow HubWeather.
+static var _pinned: bool = true
 
 
 static func _ensure() -> void:
@@ -57,15 +59,41 @@ static func reset_default() -> void:
 	_trickle_pulses = 0.0
 	_chance_override = -1.0
 	_suspend = 0
+	_pinned = true
 
 
 static func set_state(next: String) -> void:
 	_ensure()
 	state = next if _states().has(next) else str(_data.get("default", "clear"))
+	_pinned = true
+
+
+static func follow_hub() -> void:
+	_ensure()
+	_pinned = false
+
+
+static func harvest_key_for_hub(hub_id: String) -> String:
+	_ensure()
+	var mapped: String = hub_id
+	if hub_id == "light_snow":
+		mapped = "snow"
+	elif hub_id == "blossom_fall":
+		mapped = "blossom"
+	if _states().has(mapped):
+		return mapped
+	return str(_data.get("default", "clear"))
 
 
 static func get_state() -> String:
 	_ensure()
+	if _pinned:
+		return state
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var hub: Node = tree.root.get_node_or_null("HubWeather")
+		if hub != null:
+			return harvest_key_for_hub(str(hub.call("current_state")))
 	return state
 
 
@@ -95,22 +123,14 @@ static func push_test_roll(next: String) -> void:
 
 
 static func on_save_loaded() -> void:
-	## Every load rerolls. Headless stays on clear unless a test queued a roll,
-	## so the suite's harvest counts do not move. A windowed load uses the real roll.
+	## A queued test roll pins harvest weather. Otherwise harvest follows HubWeather.
 	_ensure()
 	_trickle_pulses = 0.0
-	var next: String = ""
 	if not _roll_queue.is_empty():
-		next = _roll_queue.pop_front()
-	elif _is_headless():
-		next = str(_data.get("default", "clear"))
-	else:
-		var states: Array = _states()
-		if states.is_empty():
-			next = "clear"
-		else:
-			next = str(states[randi() % states.size()])
-	set_state(next)
+		set_state(str(_roll_queue.pop_front()))
+		return
+	## A real load follows HubWeather. Queued test rolls still pin a harvest state.
+	follow_hub()
 
 
 static func set_force_auto(on: bool) -> void:
@@ -189,6 +209,9 @@ static func tick(delta: float) -> void:
 
 static func tick_rain(delta: float) -> void:
 	if delta <= 0.0:
+		return
+	## HubWeather already pulses soft rain. An unpinned harvest state must not water twice.
+	if not _pinned:
 		return
 	var rate: float = trickle_pulses_per_sec()
 	if rate <= 0.0 or active_watering():

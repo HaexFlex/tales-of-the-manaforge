@@ -788,6 +788,13 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 	return result
 
 
+func _play_shard_collect() -> void:
+	if has_node("/root/SaveService") and bool(SaveService.catchup_running):
+		return
+	if has_node("/root/GameAudio"):
+		GameAudio.play(&"sfx_gather_manashards")
+
+
 func toast_wisp_assign(result: String, node_id: String) -> void:
 	match result:
 		"ok":
@@ -845,8 +852,11 @@ func apply_wisp_pulses(delta: float) -> void:
 		if str(wisp_favourites.get(key, "")) == nid:
 			fav_mult = param_float("WISP_FAVOURITE_RATE_MULT", 1.2)
 		var rate: float = play_delta * fav_mult * tonic_mult * wisp_nap_burst_mult(key)
-		if accumulate_wisp_harvest(rid, rate) > 0:
+		var banked: int = accumulate_wisp_harvest(rid, rate)
+		if banked > 0:
 			pulsed_nodes[nid] = rid
+			if rid == &"manashards":
+				_play_shard_collect()
 	for nid2: Variant in pulsed_nodes.keys():
 		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
 
@@ -916,7 +926,10 @@ func puff_echo_gate_open() -> bool:
 
 
 func puff_in_party_active() -> bool:
-	return puff_in_party and puff_join_seen
+	if puff_in_party and puff_join_seen:
+		return true
+	## Elder-stage join (companions.json) can be met without the echo flags.
+	return companion_joined("puff")
 
 
 func moss_tortoise_joined() -> bool:
@@ -2974,6 +2987,7 @@ func reset_for_new_game() -> void:
 	wisp_favourites.clear()
 	wisp_pulse_accum.clear()
 	harvest_accum.clear()
+	moss_tonic_until_ms = 0
 	ancient_remaining_sec = 0.0
 	offline_closed_sec = 0.0
 	active_since_load_sec = 0.0

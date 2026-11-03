@@ -112,7 +112,11 @@ func weather(tree_root: Window, game_state: Node, save_service: Node, backpack: 
 	failed += _assert(WeatherState.get_state() == "blossom", "load consumes the reroll")
 	WeatherState.set_state("snow")
 	failed += _assert(bool(save_service.call("load_game", 7)), "weather load again")
-	failed += _assert(WeatherState.get_state() == "clear", "headless reroll returns to clear")
+	var hub_weather: Node = tree_root.get_node_or_null("HubWeather")
+	var hub_key: String = "clear"
+	if hub_weather != null:
+		hub_key = WeatherState.harvest_key_for_hub(str(hub_weather.call("current_state")))
+	failed += _assert(WeatherState.get_state() == hub_key, "load follows HubWeather (%s)" % hub_key)
 	save_service.call("delete_save")
 	game_state.call("reset_for_new_game")
 	WeatherState.reset_default()
@@ -416,6 +420,9 @@ func weather_audio(tree_root: Window, game_state: Node) -> int:
 	CompanionChores.clear_forced()
 	var half: float = fade * 0.5
 	var open_hz: float = HubTimePhase.HUB_AMBIENCE_DAY_CUTOFF_HZ
+	## A new game follows HubWeather, so an earlier frame may have opened a rain bed.
+	## Settle onto the pinned clear state before the halfway fade asserts.
+	audio.call("advance_weather_audio", 8.0)
 	audio.call("advance_weather_audio", 0.0)
 	var clear_now: Dictionary = audio.call("weather_hub_bus_params")
 	failed += _assert(not bool(clear_now.get("lowpass_enabled", true)) and not bool(clear_now.get("gain_enabled", true)) and not bool(clear_now.get("reverb_enabled", true)), "clear bus effect is off")

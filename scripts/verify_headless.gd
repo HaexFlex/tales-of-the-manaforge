@@ -12,6 +12,10 @@ const CombatAnimsConfigScript := preload("res://scripts/battle/combat_anims_conf
 const LuckySparkFxScript := preload("res://scripts/fx/lucky_spark_fx.gd")
 ## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
 const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
+## Set only when that gate's asserts actually finished. A parse/runtime abort returns 0.
+var _r5_gate_done: bool = false
+var _r6_combat_done: bool = false
+var _r6_weather_done: bool = false
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -305,6 +309,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_COMPANION_DEPART") == "1":
+		var depart_only: int = _companion_depart_ok(tree_root, game_state)
+		if depart_only > 0:
+			print("COMPANION_DEPART_FAIL: %d" % depart_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_INTEGRATION_R1") == "1":
 		var integration_r1_failed: int = await _integration_r1_ok(tree_root, game_state, game_audio)
 		if integration_r1_failed > 0:
@@ -318,39 +331,23 @@ func _run() -> void:
 	if OS.get_environment("MANAFORGE_R6") == "1":
 		var r6_failed: int = _combat_anims_r6_ok()
 		var weather_r6_failed: int = _weather_r6(tree_root, game_state)
-		if r6_failed > 0:
+		if r6_failed > 0 or not _r6_combat_done:
 			print("COMBAT_ANIMS_R6_FAIL: %d" % r6_failed)
 		else:
 			print("COMBAT_ANIMS_R6_OK")
-		if weather_r6_failed > 0:
+		if weather_r6_failed > 0 or not _r6_weather_done:
 			print("WEATHER_R6_FAIL: %d" % weather_r6_failed)
 		else:
 			print("WEATHER_R6_OK")
-		quit(1 if r6_failed > 0 or weather_r6_failed > 0 else 0)
+		quit(1 if r6_failed > 0 or weather_r6_failed > 0 or not _r6_combat_done or not _r6_weather_done else 0)
 		return
 
 	if OS.get_environment("MANAFORGE_R5") == "1":
 		var r5_failed: int = _sprint_r5_ok(game_state, save_service)
-		if r5_failed > 0:
+		if r5_failed > 0 or not _r5_gate_done:
 			print("R5_SYSTEMS_FAIL: %d" % r5_failed)
 			quit(1)
 		else:
-			print("PARTY_CAP_OK")
-			print("RUNESTONE_SHARED_OK")
-			print("SAVE_MIGRATION_R5_OK")
-			print("PUFF_JOIN_OK")
-			print("BREWING_OK")
-			print("MOSS_TONIC_OK")
-			print("MOSS_TORTOISE_OK")
-			print("MOSS_TORTOISE_WALK_OK")
-			print("BREWING_STAND_OK")
-			print("PUFF_WALK_OK")
-			print("FIREFLY_JAR_OK")
-			print("SEED_SWAP_OK")
-			print("WISP_NAP_OK")
-			print("PARTY_LOOT_DUO_TIER_OK")
-			print("ECHO_PORTAL_FEE_UI_OK")
-			print("ECHO3_ITEMS_KEPT_OK")
 			print("R5_SYSTEMS_OK")
 			quit(0)
 		return
@@ -1665,7 +1662,7 @@ func _run() -> void:
 	var runtime_upgrade_ids: Array = (game_state.get("upgrades_data") as Array).map(func(u: Variant) -> String: return str((u as Dictionary).get("id", "")))
 	failed += _assert(runtime_upgrade_ids.size() == 17 and runtime_upgrade_ids.back() == "quiet_hours", "17 fruit blessings; Keep Forge Materials is not registered (got %s)" % [runtime_upgrade_ids])
 	failed += _assert((game_state.call("get_upgrade_def", "keep_forge_intermediates") as Dictionary).is_empty(), "Keep Forge Materials has no shop row")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "SAVE_VERSION should be 15")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 16, "SAVE_VERSION should be 16")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -2072,7 +2069,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 15, "written save_version 15")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 16, "written save_version 16")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -2345,7 +2342,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "SAVE_VERSION stays 15 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 16, "SAVE_VERSION stays 16 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -2443,7 +2440,7 @@ func _run() -> void:
 
 	var cues: PackedStringArray = game_audio.call("list_cue_ids")
 	failed += _assert(cues.size() >= 28, "audio cue table too small (%d)" % cues.size())
-	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_gather_water_soft.ogg"), "sfx_gather_water_soft missing")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_gather_water.ogg"), "sfx_gather_water missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_stage_up.ogg"), "sfx_stage_up missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_channel_start.ogg"), "sfx_channel_start missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex.mp3"), "hub haex.mp3 missing")
@@ -2637,6 +2634,8 @@ func _run() -> void:
 	game_state.call("_ensure_wisp_slots")
 	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_tree")) == "join", "stack join harvest_tree")
 	failed += _assert(int(game_state.call("count_wisps_on_node", "harvest_tree")) == 2, "two wisps on tree")
+	# The last assign marks a favourite (1.2×). Base-rate asserts clear that after the assign.
+	_verify_reset_wisp_pulse_timing(game_state)
 	# Continuous: one wisp is 1/20s. Remainder stays under a whole unit until 20s.
 	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 20.0) < 0.01, "wisp interval base 20")
 	game_state.call("unassign_wisp", 1)
@@ -3617,7 +3616,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "SAVE_VERSION is 15")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 16, "SAVE_VERSION is 16")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -4562,7 +4561,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 15, "slot writes save_version 15")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 16, "slot writes save_version 16")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -5825,6 +5824,7 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	_verify_reset_wisp_pulse_timing(game_state)
 	game_state.call("apply_wisp_pulses", 200.0)
 	failed += _assert(int(game_state.get("wood")) == 10, "1 wisp for 200s gives 10 wood")
 	game_state.call("reset_for_new_game")
@@ -6155,6 +6155,7 @@ func _weather_r6(tree_root: Window, game_state: Node) -> int:
 	var center_n: int = int(emit_stats.get("center_count", 0))
 	failed += _assert(emit_n >= 600 and emit_n <= 680, "emit map ring points %d" % emit_n)
 	failed += _assert(center_n == 0, "emit map empty center %d" % center_n)
+	_r6_weather_done = true
 	return failed
 
 
@@ -7638,6 +7639,8 @@ func _verify_reset_wisp_pulse_timing(game_state: Node) -> void:
 	game_state.set("wisp_favourites", {})
 	game_state.set("wisp_pulse_accum", {})
 	game_state.set("harvest_accum", {})
+	game_state.set("moss_tonic_until_ms", 0)
+	game_state.call("reset_play_speed")
 	var params: Dictionary = game_state.get("params")
 	params.erase("WISP_PULSE_SEC")
 	params.erase("WISP_HARVEST_MIN_SEC")
@@ -12049,9 +12052,10 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 		return failed
 	## Job 34 re-saved North road open and Veteran reacher through migrate_state.
 	## Echo 2 ready stays a v13 file that migrates forward on load.
+	## On-disk reach snapshots stay at the version they were re-saved. The live writer is 16.
 	var want_version: int = 15
 	var echo2_version: int = 13
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == want_version, "reach snapshots match SAVE_VERSION 15")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 16, "reach snapshots load under SAVE_VERSION 16")
 	var adv_path: String = _adventure_path(save_service)
 	var adv_was: Variant = _user_file_text(adv_path)
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
@@ -12695,7 +12699,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		var mid_reach: Variant = (mid_run as Dictionary).get("reach", {})
 		if mid_reach is Dictionary:
 			failed += _assert(int((mid_reach as Dictionary).get("rooms_attempted", -1)) == 1, "an in-progress v12 room counts as the first attempt")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "saves write version 15")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 16, "saves write version 16")
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(project_text.find("Reach=\"*res://scripts/autoload/reach.gd\"") >= 0, "Reach autoload is registered")
 	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
@@ -12806,8 +12810,8 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 	return failed
 
 
-func _reach_room_species_list(depth: int, room_seed: int, boss: bool) -> Array[String]:
-	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, boss)
+func _reach_room_species_list(depth: int, room_seed: int, boss: bool, party_size: int = 1) -> Array[String]:
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, boss, party_size)
 	var rows: Array[Dictionary] = []
 	for row: Dictionary in room:
 		rows.append(row)
@@ -13658,7 +13662,7 @@ func _beast_data(_tree_root: Window) -> int:
 	# The §10 table, as Haex reviewed it: id -> [tier, from depth, threat, hp].
 	var table: Dictionary = {
 		"acorn_imp": [1, 1, 33, 37], "spore_moth": [1, 1, 44, 40],
-		"wilt_wisp": [2, 1, 47, 40], "root_snapper": [2, 1, 46, 43],
+		"wilt_wisp": [2, 2, 47, 40], "root_snapper": [2, 2, 46, 43],
 		"thorn_boar": [3, 12, 54, 46], "vine_serpent": [3, 12, 58, 43],
 		"briar_hulk": [4, 18, 61, 49], "moss_brute": [4, 18, 63, 52],
 		"stump_ogre": [5, 22, 67, 55], "stag_spirit": [5, 22, 74, 52],
@@ -13804,7 +13808,7 @@ func _spawn_data(_tree_root: Window) -> int:
 	failed += _assert(is_equal_approx(float(comps_fixture.get("variety_bias", 0.0)), 2.0), "variety bias x2")
 	# The §10 table: depth -> [budget, weights, different rooms].
 	var want: Dictionary = {
-		1: [85, "acorn_imp:1,spore_moth:1,wilt_wisp:1,root_snapper:1", 4],
+		1: [85, "acorn_imp:1,spore_moth:1", 2],
 		2: [89, "acorn_imp:4,spore_moth:4,wilt_wisp:1,root_snapper:1", 5],
 		3: [93, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 9],
 		5: [101, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
@@ -14066,12 +14070,17 @@ func _spawn_seed(_tree_root: Window) -> int:
 		failed += _assert(bool((room[best_i] as Dictionary).get("boss", false)), "boss is highest threat (lowest slot on ties)")
 	const PIN_DEPTH: int = 5
 	var pin_1: Array = [
-		{"beast": "acorn_imp", "row": "front", "slot": 0, "boss": false, "threat": 33},
-		{"beast": "acorn_imp", "row": "front", "slot": 1, "boss": false, "threat": 33},
-		{"beast": "acorn_imp", "row": "front", "slot": 2, "boss": false, "threat": 33},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
 	]
-	var pin_2: Array = pin_1.duplicate(true)
-	var pin_1000: Array = pin_1.duplicate(true)
+	var pin_2: Array = [
+		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 44},
+		{"beast": "wilt_wisp", "row": "back", "slot": 1, "boss": false, "threat": 47},
+	]
+	var pin_1000: Array = [
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
+	]
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1000))) == str(pin_1000), "pinned room seed 1000 depth 5")
@@ -14136,7 +14145,7 @@ func _room_fill_ok(_tree_root: Window) -> int:
 		if threat5 < 99 and variety_seed < 0:
 			variety_seed = probe
 	failed += _assert(depth5_multi > 0, "depth 5 still rolls multi-species rooms")
-	failed += _assert(depth5_single > 0, "depth 5 variety_slack allows single-species floor rooms")
+	failed += _assert(depth5_single == 0, "depth 5 rooms roll at least two species")
 	failed += _assert(variety_seed >= 0, "depth 5 has a legal sub-max-threat room (variety tier)")
 	var d12_keys: Array[String] = SpawnRoller.floor_beast_combo_keys(12)
 	failed += _assert(d12_keys.size() > 1, "depth 12 has more than one qualifying beast set (got %d)" % d12_keys.size())
@@ -14152,6 +14161,11 @@ func _room_fill_ok(_tree_root: Window) -> int:
 			var beast_spent: int = _spawn_room_threat(beasts)
 			if floor90 > 0:
 				failed += _assert(beast_spent >= floor90, "depth %d seed %d beasts %d below floor %d" % [depth, seed, beast_spent, floor90])
+			if depth >= 5:
+				var species_n: Dictionary = {}
+				for entry_v: Variant in beasts:
+					species_n[SpawnRoller.species_key(str((entry_v as Dictionary).get("beast", "")))] = true
+				failed += _assert(species_n.size() >= 2, "depth %d seed %d rolled one species" % [depth, seed])
 			var mixed: Array = SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(seed))
 			var spent: int = _swarm_threat_sum(mixed)
 			failed += _assert(spent <= room_budget, "depth %d seed %d total %d over budget %d" % [depth, seed, spent, room_budget])
@@ -14622,7 +14636,7 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	var written_state: Dictionary = written.get("state", {}) as Dictionary
 	var written_reach: Dictionary = written_state.get("reach", {}) as Dictionary
 	var written_pack: Dictionary = written_state.get("backpack", {}) as Dictionary
-	failed += _assert(int(written.get("save_version", 0)) == 15, "the re-save is version 15")
+	failed += _assert(int(written.get("save_version", 0)) == 16, "the re-save is version 16")
 	failed += _assert(_reach_item_keys_gone(written_reach), "the re-saved reach block has no item keys")
 	failed += _assert(int(written_pack.get("heart_salve", 0)) == 5, "re-saved salve count")
 	failed += _assert(int(written_pack.get("briarwood", 0)) == 3, "re-saved briarwood count")
@@ -14742,7 +14756,7 @@ func _save_v14_home(tree_root: Window, game_state: Node, save_service: Node) -> 
 	var fresh_state: Dictionary = fresh.get("state", {}) as Dictionary
 	var fresh_exp: Dictionary = fresh_state.get("expedition", {}) as Dictionary
 	var fresh_reach: Dictionary = fresh_state.get("reach", {}) as Dictionary
-	failed += _assert(int(fresh.get("save_version", 0)) == 15, "new saves write version 15")
+	failed += _assert(int(fresh.get("save_version", 0)) == 16, "new saves write version 16")
 	failed += _assert(str(fresh_exp.get("status", "")) == "home", "a new game expedition is home")
 	failed += _assert(_reach_item_keys_gone(fresh_reach), "a new save's reach block has no item keys")
 	reach.call("depart", 1, 1, "hold", "idle")
@@ -19118,7 +19132,11 @@ func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int
 	playback.enqueue_events([strike_ev])
 	playback.advance(0.5)
 	var keeper_sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_keeper/Sprite") as TextureRect
-	failed += _assert(keeper_sprite != null and str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_hurt.png"), "party hurt")
+	var keeper_hurt_path: String = "" if keeper_sprite == null or keeper_sprite.texture == null else str(keeper_sprite.texture.resource_path)
+	if CombatAnimsConfigScript.has_modular_body("keeper", "hit"):
+		failed += _assert(keeper_sprite != null and keeper_hurt_path.find("modular/keeper/hit/frame_") >= 0, "party hurt uses the modular hit clip")
+	else:
+		failed += _assert(keeper_sprite != null and keeper_hurt_path.ends_with("battle_keeper_hurt.png"), "party hurt uses the static still")
 	playback.advance(0.35)
 	failed += _assert(str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle_e.png") or str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle.png"), "party idle")
 	view.call("set_fighter_pose", "keeper", "ko")
@@ -21996,7 +22014,7 @@ func _handoff_party_rows() -> Array:
 
 func _handoff_built_fight(seed: int, room_index: int, depth: int, loadout: Dictionary) -> FightState:
 	var room_seed: int = SlotEngine.room_seed_for(seed & 0x7FFFFFFF, room_index)
-	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, SlotEngine.is_boss_index(room_index))
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, SlotEngine.is_boss_index(room_index), _handoff_party_rows().size())
 	var fight: FightState = SlotEngine.fight_for_room(_handoff_party_rows(), loadout, room, room_seed)
 	fight.controller = "manual"
 	fight.start_fight()
@@ -22283,7 +22301,7 @@ func _handoff_join_fresh_body(tree_root: Window, game_state: Node, save_service:
 	if fight != null:
 		var depth: int = int(reach.get("depth"))
 		var room_seed: int = int(reach.get("room_seed"))
-		var expected: Array[String] = _reach_room_species_list(depth, room_seed, true)
+		var expected: Array[String] = _reach_room_species_list(depth, room_seed, true, _handoff_party_rows().size())
 		var actual: Array[String] = _reach_fight_species_list(fight)
 		failed += _assert(str(actual) == str(expected), "boss species match build_room (got %s)" % str(actual))
 		failed += _assert(_handoff_bosses(fight) == 1, "one beast is the boss (got %d)" % _handoff_bosses(fight))
@@ -22323,7 +22341,7 @@ func _handoff_join_fresh_body(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(int(reach.get("slots_used")) == slots_next, "the new join does not spend a slot")
 	if nxt != null:
 		var next_seed: int = int(reach.get("room_seed"))
-		var next_expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), next_seed, false)
+		var next_expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), next_seed, false, _handoff_party_rows().size())
 		var next_actual: Array[String] = _reach_fight_species_list(nxt)
 		failed += _assert(str(next_actual) == str(next_expected), "room 11 species are fresh (got %s want %s)" % [str(next_actual), str(next_expected)])
 		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "room 11 starts at full HP with no Salves used")
@@ -22531,7 +22549,7 @@ func _handoff_expired_body(tree_root: Window, game_state: Node, save_service: No
 	failed += _assert(int(reach.get("rooms_attempted")) == rooms_next, "join does not bump rooms_attempted")
 	failed += _assert(int(reach.get("slots_used")) == slots_next, "join does not spend another slot")
 	if nxt != null:
-		var expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), int(reach.get("room_seed")), bool(reach.call("is_boss_room")))
+		var expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), int(reach.get("room_seed")), bool(reach.call("is_boss_room")), _handoff_party_rows().size())
 		var actual: Array[String] = _reach_fight_species_list(nxt)
 		failed += _assert(str(actual) == str(expected), "next room species are fresh (got %s want %s)" % [str(actual), str(expected)])
 		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "next room is full HP with no Salves used")
@@ -26974,6 +26992,57 @@ func _sprint_r3_tending_ok(game_state: Node, game_audio: Node) -> int:
 	return failed
 
 
+func _companion_depart_ok(tree_root: Window, game_state: Node) -> int:
+	## Joined Puff and Mossback depart on companions.json ids. moss_tortoise is not a party id.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null and game_state != null, "depart autoloads")
+	if reach == null or game_state == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	reach.call("reset_for_new_game")
+	game_state.call("set_resource", &"essence", 40)
+	game_state.call("_set_stage", &"elder")
+	reach.set("reaches_cleared", 1)
+	game_state.call("notify_companion_reach_progress")
+	failed += _assert(bool(game_state.call("companion_joined", "puff")), "puff joined at elder")
+	failed += _assert(bool(game_state.call("puff_in_party_active")), "joined puff is in the party")
+	failed += _assert(bool(game_state.call("companion_joined", "mossback")), "mossback joined after one clear")
+	var ess_before: int = int(game_state.get("essence"))
+	var bad: Dictionary = {
+		"depth": 1,
+		"rooms": 1,
+		"control": "manual",
+		"party": [
+			{"member": "keeper", "row": "front"},
+			{"member": "puff", "row": "front"},
+			{"member": "moss_tortoise", "row": "back"},
+		],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", bad)) == "bad_party", "moss_tortoise is not a party id")
+	failed += _assert(int(game_state.get("essence")) == ess_before, "rejected depart spends no essence")
+	var good: Dictionary = {
+		"depth": 1,
+		"rooms": 1,
+		"control": "manual",
+		"party": [
+			{"member": "keeper", "row": "front"},
+			{"member": "puff", "row": "front"},
+			{"member": "mossback", "row": "back"},
+		],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", good)) == "ok", "keeper puff mossback depart")
+	var cleaned: Array = reach.call("_clean_party", [{"member": "moss_tortoise", "row": "front", "stats": {}}])
+	failed += _assert(cleaned.size() == 1 and str((cleaned[0] as Dictionary).get("member", "")) == "mossback", "old moss_tortoise loads as mossback")
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("COMPANION_DEPART_OK")
+	return failed
+
+
 func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	if game_state == null or save_service == null:
@@ -27112,15 +27181,11 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 	if nap_failed == 0:
 		print("WISP_NAP_OK")
 	var walk_tortoise_failed: int = 0
-	for dir: String in ["east", "north", "south", "west"]:
-		for i: int in range(8):
-			var wp: String = "res://assets/art/moss_tortoise/anim/walk8/%s/frame_%04d.png" % [dir, i]
-			walk_tortoise_failed += _assert(FileAccess.file_exists(wp), "tortoise walk8 %s" % wp)
-	walk_tortoise_failed += _assert(load("res://scripts/moss_tortoise.gd") != null, "moss tortoise script")
-	walk_tortoise_failed += _assert(not FileAccess.file_exists("res://assets/art/moss_tortoise/anim/walk8/east/frame_0008.png"), "walk9 unwired")
+	var moss_walk: Dictionary = CompanionClips.clip_spec("mossback", "walk_south")
+	walk_tortoise_failed += _assert(CompanionClips.declared_frame_count(moss_walk) == 9, "mossback walk_south is 9 frames")
 	walk_tortoise_failed += _assert(
-		is_equal_approx(MossTortoise.walk_loop_ms(), 920.0),
-		"tortoise walk loop 920 ms got %s" % str(MossTortoise.walk_loop_ms()),
+		is_equal_approx(CompanionClips.frame_ms(moss_walk), 100.0),
+		"mossback walk_south is 100 ms (got %s)" % str(CompanionClips.frame_ms(moss_walk)),
 	)
 	failed += walk_tortoise_failed
 	if walk_tortoise_failed == 0:
@@ -27241,6 +27306,15 @@ func _sprint_r5_ok(game_state: Node, save_service: Node) -> int:
 	failed += echo3_keep_failed
 	if echo3_keep_failed == 0:
 		print("ECHO3_ITEMS_KEPT_OK")
+	if failed == 0:
+		print("PARTY_CAP_OK")
+		print("RUNESTONE_SHARED_OK")
+		print("SAVE_MIGRATION_R5_OK")
+		print("PUFF_JOIN_OK")
+		print("BREWING_OK")
+		print("MOSS_TONIC_OK")
+		print("MOSS_TORTOISE_OK")
+	_r5_gate_done = true
 	return failed
 
 
@@ -27668,4 +27742,5 @@ func _combat_anims_r6_ok() -> int:
 		is_equal_approx(BattlePlaybackScript.react_sec_for_event(sword_strike, "wpn_sword_t1"), 0.4),
 		"playback sword strike react sec",
 	)
+	_r6_combat_done = true
 	return failed

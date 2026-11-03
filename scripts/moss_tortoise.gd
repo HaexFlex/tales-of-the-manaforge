@@ -19,10 +19,26 @@ static func walk_loop_ms() -> float:
 @export var home_area: String = "clearing"
 
 
+func _auto(node_name: String) -> Variant:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+func _gs() -> Variant:
+	return _auto("GameState")
+
+
+func _strings() -> Variant:
+	return _auto("ContentStrings")
+
+
 func _ready() -> void:
 	super._ready()
-	if not GameState.echo_flags_changed.is_connected(_on_join_flags):
-		GameState.echo_flags_changed.connect(_on_join_flags)
+	var gs: Variant = _gs()
+	if not gs.is_connected("echo_flags_changed", _on_join_flags):
+		gs.connect("echo_flags_changed", _on_join_flags)
 	_apply_presence()
 
 
@@ -46,19 +62,19 @@ func actor_idle_uses_facing() -> bool:
 
 
 func actor_selected() -> bool:
-	return str(GameState.selected_companion_id) == "moss_tortoise"
+	return str(_gs().get("selected_companion_id")) == "moss_tortoise"
 
 
 func actor_select() -> void:
-	GameState.select_companion("moss_tortoise")
+	_gs().call("select_companion", "moss_tortoise")
 
 
 func actor_label_idle() -> String:
-	return ContentStrings.get_text("moss_tortoise_name")
+	return str(_strings().call("get_text", "moss_tortoise_name"))
 
 
 func actor_label_selected() -> String:
-	return ContentStrings.get_text("moss_tortoise_name")
+	return str(_strings().call("get_text", "moss_tortoise_name"))
 
 
 func _build_frames() -> SpriteFrames:
@@ -101,17 +117,18 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_presence() -> void:
-	var here: bool = GameState.moss_tortoise_joined() and not GameState.member_away("moss_tortoise")
-	if here and not GameState.moss_tortoise_has_pos:
+	var gs: Variant = _gs()
+	var here: bool = bool(gs.call("moss_tortoise_joined")) and not bool(gs.call("member_away", "moss_tortoise"))
+	if here and not bool(gs.get("moss_tortoise_has_pos")):
 		_spawn_beside_keeper()
 		here = true
 	_set_present(here)
 	if not here:
 		return
-	if GameState.moss_tortoise_has_pos:
-		global_position = GameState.moss_tortoise_pos
+	if bool(gs.get("moss_tortoise_has_pos")):
+		global_position = gs.get("moss_tortoise_pos")
 		_target = global_position
-	_facing = GameState.moss_tortoise_facing
+	_facing = str(gs.get("moss_tortoise_facing"))
 	if _facing == "":
 		_facing = "south"
 
@@ -121,9 +138,10 @@ func _spawn_beside_keeper() -> void:
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper") if is_inside_tree() else []
 	if not keepers.is_empty() and keepers[0] is Node2D:
 		spot = (keepers[0] as Node2D).global_position + Vector2(-96, 10)
-	GameState.moss_tortoise_has_pos = true
-	GameState.moss_tortoise_pos = spot
-	GameState.moss_tortoise_facing = "east"
+	var gs: Variant = _gs()
+	gs.set("moss_tortoise_has_pos", true)
+	gs.set("moss_tortoise_pos", spot)
+	gs.set("moss_tortoise_facing", "east")
 	global_position = spot
 	_target = spot
 	_facing = "east"
@@ -146,8 +164,9 @@ func _set_present(on: bool) -> void:
 
 
 func _remember_pose() -> void:
-	if not GameState.moss_tortoise_joined():
+	var gs: Variant = _gs()
+	if not bool(gs.call("moss_tortoise_joined")):
 		return
-	GameState.moss_tortoise_pos = global_position
-	GameState.moss_tortoise_has_pos = true
-	GameState.moss_tortoise_facing = _facing
+	gs.set("moss_tortoise_pos", global_position)
+	gs.set("moss_tortoise_has_pos", true)
+	gs.set("moss_tortoise_facing", _facing)

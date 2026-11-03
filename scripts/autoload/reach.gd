@@ -270,13 +270,16 @@ func _party_cfg_error(cfg: Dictionary) -> String:
 		if members_seen.has(member):
 			return "bad_party"
 		members_seen[member] = true
-		if member != "keeper" and member != "elaia" and member != "bramble" and member != "puff" and member != "moss_tortoise":
+		## moss_tortoise is the Echo/hub body id. Party slots use companions.json ids only.
+		if member == "moss_tortoise":
+			return "bad_party"
+		if member != "keeper" and not CompanionRoster.has_id(member):
 			return "bad_party"
 		if member == "bramble" and (not has_node("/root/GameState") or not GameState.bramble_joined()):
 			return "bad_party"
 		if member == "puff" and (not has_node("/root/GameState") or not GameState.puff_in_party_active()):
 			return "bad_party"
-		if member == "moss_tortoise" and (not has_node("/root/GameState") or not GameState.moss_tortoise_joined()):
+		if member == "mossback" and (not has_node("/root/GameState") or not GameState.companion_joined("mossback")):
 			return "bad_party"
 		if SlotEngine.member_stats(member).is_empty():
 			return "bad_party"
@@ -1150,7 +1153,8 @@ func _clean_loadout(raw: Variant) -> Dictionary:
 	if typeof(raw) != TYPE_DICTIONARY:
 		return out
 	for key_v: Variant in (raw as Dictionary).keys():
-		out[str(key_v)] = int((raw as Dictionary)[key_v])
+		var key: String = str(key_v)
+		out[key] = _party_stat_int((raw as Dictionary)[key_v], key, 0)
 	return out
 
 
@@ -1162,6 +1166,9 @@ func _clean_party(raw: Variant) -> Array[Dictionary]:
 		if typeof(entry_v) != TYPE_DICTIONARY:
 			continue
 		var entry: Dictionary = entry_v
+		var member: String = str(entry.get("member", ""))
+		if member == "moss_tortoise":
+			member = "mossback"
 		var stats_v: Variant = entry.get("stats", {})
 		var stats: Dictionary = {}
 		if typeof(stats_v) == TYPE_DICTIONARY:
@@ -1176,7 +1183,7 @@ func _clean_party(raw: Variant) -> Array[Dictionary]:
 				else:
 					stats[key] = _party_stat_int(stat_v, key)
 		out.append({
-			"member": str(entry.get("member", "")),
+			"member": member,
 			"row": "back" if str(entry.get("row", "")) == "back" else "front",
 			"stats": stats,
 		})
@@ -1197,7 +1204,7 @@ func _clean_boss_paid(raw: Variant) -> Array[int]:
 	if typeof(raw) != TYPE_ARRAY:
 		return out
 	for entry_v: Variant in raw as Array:
-		out.append(int(entry_v))
+		out.append(_party_stat_int(entry_v, "boss_paid", 0))
 	return out
 
 

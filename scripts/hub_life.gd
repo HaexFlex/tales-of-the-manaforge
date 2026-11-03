@@ -35,7 +35,7 @@ static func on_save_loaded() -> void:
 
 
 static func reset_new_game() -> void:
-	WeatherState.reset_default()
+	WeatherState.follow_hub()
 	CompanionChores.reset_for_new_game()
 
 

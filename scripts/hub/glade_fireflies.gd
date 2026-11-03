@@ -149,7 +149,8 @@ func _apply_emitter_strength(motes: CPUParticles2D, cap: int) -> void:
 	motes.modulate.a = _strength
 	motes.emitting = _strength > 0.04
 	var live_amount: int = int(round(lerpf(0.0, float(cap), _strength)))
-	motes.amount = maxi(live_amount, 1 if _strength > 0.04 else 0)
+	## Godot rejects amount 0. Daytime strength stays hidden via emitting and alpha.
+	motes.amount = maxi(live_amount, 1)
 
 
 func _refresh_strength(force: bool) -> void:

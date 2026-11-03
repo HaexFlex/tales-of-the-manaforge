@@ -26,14 +26,6 @@
     {
      "beast": "spore_moth",
      "weight": 1
-    },
-    {
-     "beast": "wilt_wisp",
-     "weight": 1
-    },
-    {
-     "beast": "root_snapper",
-     "weight": 1
     }
    ]
   },
@@ -226,7 +218,7 @@
   }
  ],
  "loot": {
-  "status": "Job 23 numbers, approved by Haex 2026-10-10 (go 22:51). Nothing reads this yet; the pack (job 23b) and the slot engine (job 24) will.",
+  "status": "Job 23 numbers, approved by Haex 2026-10-10 (go 22:51). RoomLoot reads this loot block.",
   "depth_curve": {
    "formula": "g(D) = 1 + a * log2(D)",
    "a": 0.25,
