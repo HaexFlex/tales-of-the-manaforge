@@ -3440,8 +3440,11 @@ func _run() -> void:
 	failed += _assert(abs(float(game_state.call("get_water_essence_pulse_sec")) - 1.0) < 0.01, "can leaves essence wait")
 	failed += _assert(int(game_state.call("get_water_shard_roll_mult")) == 2, "can doubles shard_roll")
 
-	# shard_roll ×2: even U{2,4,6}; Essence still +1
+	# shard_roll ×2: even U{2,4,6}; Essence still +1.
+	# A new game follows HubWeather. Blossom banks 1.1 Essence, so the 10th pulse
+	# returns 2. That bonus is checked on its own. This block pins clear.
 	game_state.call("reset_for_new_game")
+	WeatherState.reset_default()
 	failed += _assert(int(game_state.call("get_water_shard_roll_mult")) == 1, "no can: roll mult 1")
 	var bare_pulse: Dictionary = game_state.call("apply_water_pulse")
 	var bare_shards: int = int(bare_pulse.get("shards", 0))
