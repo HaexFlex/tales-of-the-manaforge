@@ -1,6 +1,6 @@
 {
   "owner": "Audio",
-  "version": "v0.3.2-weather-beds",
+  "version": "v0.3.3-cleanup-r1",
   "date": "2026-10-16",
   "source_spec": "CUE_NOTES_FIXPASS.md (box audio_restart/); supersedes AUDIO_RESTART_V01.md and CUE_NOTES_FORGE_V2.md where they differ; battle cues: CUE_NOTES_BATTLE_V1.md",
   "mirrors": "data/audio_cues.json: same cue ids, files (path) and buses. 54 cues: 38 from the fix pass/adventure + mus_battle_forest (reach manual fights) + 15 sfx_battle_* (in audio_cues.json, wired by battle playback job 21; rules in audio_cues.json battle_playback). This file is documentation; code reads audio_cues.json only.",
@@ -11,7 +11,7 @@
   "sonic_identity": {
     "mood": "cozy magical contemplative lightly melancholic",
     "motif": "mana sigil C-Eb-F-G",
-    "era": "Secret of Mana–leaning chip-orchestral"
+    "era": "Secret of Mana\u2013leaning chip-orchestral"
   },
   "buses": [
     "Music",
@@ -478,9 +478,9 @@
       "loop": false,
       "duration_sec": 0.25,
       "file_peak_dbfs": -10.4,
-      "base_db": 0.0,
+      "base_db": -3.0,
       "play_offset_db": -3.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Hit (core impact)). Normal Hit at -3 dB. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Hit (core impact)). Normal Hit at -3 dB. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_graze": {
       "file": "sfx_battle_graze.ogg",
@@ -489,9 +489,9 @@
       "loop": false,
       "duration_sec": 0.18,
       "file_peak_dbfs": -11.4,
-      "base_db": 0.0,
+      "base_db": -6.0,
       "play_offset_db": -6.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Graze). Graze at -6 dB; filtered sibling of hit. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Graze). Graze at -6 dB; filtered sibling of hit. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_crush": {
       "file": "sfx_battle_crush.ogg",
@@ -502,7 +502,7 @@
       "file_peak_dbfs": -10.4,
       "base_db": 0.0,
       "play_offset_db": 0.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Crushing). Crushing at 0 dB (~+3 dB over Hit as played); same family as hit, not a boom. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Crushing). Crushing at 0 dB (~+3 dB over Hit as played); same family as hit, not a boom. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_crit": {
       "file": "sfx_battle_crit.ogg",
@@ -511,9 +511,9 @@
       "loop": false,
       "duration_sec": 0.28,
       "file_peak_dbfs": -13.1,
-      "base_db": 0.0,
+      "base_db": -4.0,
       "play_offset_db": -4.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Fate crit: layer on the impact, same frame). Layered on the impact on the same frame at -4 dB; at 2x/4x skip or -6 dB. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Fate crit: layer on the impact, same frame). Layered on the impact on the same frame at -4 dB; at 2x/4x skip or -6 dB. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_miss": {
       "file": "sfx_battle_miss.ogg",
@@ -522,9 +522,9 @@
       "loop": false,
       "duration_sec": 0.22,
       "file_peak_dbfs": -17.0,
-      "base_db": 0.0,
+      "base_db": -3.0,
       "play_offset_db": -3.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Miss). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Strike result Miss). Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_brace": {
       "file": "sfx_battle_brace.ogg",
@@ -533,9 +533,9 @@
       "loop": false,
       "duration_sec": 0.3,
       "file_peak_dbfs": -13.1,
-      "base_db": 0.0,
+      "base_db": -3.0,
       "play_offset_db": -3.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Brace (guard stance)). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Brace (guard stance)). Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_salve": {
       "file": "sfx_battle_salve.ogg",
@@ -544,9 +544,9 @@
       "loop": false,
       "duration_sec": 0.5,
       "file_peak_dbfs": -12.5,
-      "base_db": 0.0,
+      "base_db": -2.0,
       "play_offset_db": -2.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Heart Salve heal). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Heart Salve heal). Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_flee": {
       "file": "sfx_battle_flee.ogg",
@@ -555,9 +555,9 @@
       "loop": false,
       "duration_sec": 0.5,
       "file_peak_dbfs": -13.2,
-      "base_db": 0.0,
+      "base_db": -2.0,
       "play_offset_db": -2.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Party flees). No ducking. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Party flees). No ducking. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_beast_hurt": {
       "file": "sfx_battle_beast_hurt.ogg",
@@ -566,9 +566,9 @@
       "loop": false,
       "duration_sec": 0.2,
       "file_peak_dbfs": -14.1,
-      "base_db": 0.0,
+      "base_db": -4.0,
       "play_offset_db": -4.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Beast takes damage, ~60 ms after the impact). ~60 ms after the impact; skip if the voice pool is full. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Beast takes damage, ~60 ms after the impact). ~60 ms after the impact; skip if the voice pool is full. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_ko": {
       "file": "sfx_battle_ko.ogg",
@@ -577,9 +577,9 @@
       "loop": false,
       "duration_sec": 0.45,
       "file_peak_dbfs": -12.3,
-      "base_db": 0.0,
+      "base_db": -2.0,
       "play_offset_db": -2.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Party member KO). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Party member KO). Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_overwhelmed": {
       "file": "sfx_battle_overwhelmed.ogg",
@@ -588,9 +588,9 @@
       "loop": false,
       "duration_sec": 1.2,
       "file_peak_dbfs": -12.5,
-      "base_db": 0.0,
+      "base_db": -2.0,
       "play_offset_db": -2.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Whole party overwhelmed (run lost)). No ducking; not on Progress. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Whole party overwhelmed (run lost)). No ducking; not on Progress. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_victory": {
       "file": "sfx_battle_victory.ogg",
@@ -599,9 +599,9 @@
       "loop": false,
       "duration_sec": 0.7,
       "file_peak_dbfs": -12.5,
-      "base_db": 0.0,
+      "base_db": -2.0,
       "play_offset_db": -2.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Room cleared (every room)). Fires every room; modest, quieter than stage_up; one per room clear. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Room cleared (every room)). Fires every room; modest, quieter than stage_up; one per room clear. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_turn": {
       "file": "sfx_battle_turn.ogg",
@@ -612,7 +612,7 @@
       "file_peak_dbfs": -18.5,
       "base_db": 0.0,
       "play_offset_db": 0.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Player turn begins). Throttle: skip if <0.3 s since the last. Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Player turn begins). Throttle: skip if <0.3 s since the last. Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_select": {
       "file": "sfx_battle_select.ogg",
@@ -623,7 +623,7 @@
       "file_peak_dbfs": -21.8,
       "base_db": 0.0,
       "play_offset_db": 0.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Battle menu move/select). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Battle menu move/select). Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_battle_confirm": {
       "file": "sfx_battle_confirm.ogg",
@@ -634,7 +634,7 @@
       "file_peak_dbfs": -11.8,
       "base_db": 0.0,
       "play_offset_db": 0.0,
-      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Target confirm). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
+      "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Target confirm). Fixed pitch, \u00b14% jitter/\u00b11 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
     },
     "sfx_mana_chime_1": {
       "file": "sfx_mana_chime_1.ogg",
@@ -687,7 +687,7 @@
       "loop": false,
       "duration_sec": 0.42,
       "file_peak_dbfs": -18.3,
-      "base_db": 0.0,
+      "base_db": -6.0,
       "play_offset_db": -6.0,
       "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 1 (G5). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
     },
@@ -698,7 +698,7 @@
       "loop": false,
       "duration_sec": 0.42,
       "file_peak_dbfs": -18.2,
-      "base_db": 0.0,
+      "base_db": -6.0,
       "play_offset_db": -6.0,
       "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 2 (C6). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
     },
@@ -709,7 +709,7 @@
       "loop": false,
       "duration_sec": 0.42,
       "file_peak_dbfs": -18.2,
-      "base_db": 0.0,
+      "base_db": -6.0,
       "play_offset_db": -6.0,
       "notes": "SPRINT, Haex go 2026-10-27. Firefly twinkle variant 3 (Eb6). Night only, visible fireflies only, max 1 per 4 s global; random variant, pitch_scale 1.0. See assets/library/audio_sprint_2026-10-27/CUE_NOTES_FIREFLY.md."
     },
