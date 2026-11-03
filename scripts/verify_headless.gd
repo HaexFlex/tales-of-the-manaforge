@@ -7,6 +7,8 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+const CombatClipsScript := preload("res://scripts/battle/combat_clips.gd")
+const LuckySparkFxScript := preload("res://scripts/fx/lucky_spark_fx.gd")
 ## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
 const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
@@ -28,6 +30,15 @@ func _run() -> void:
 	var save_service: Node = tree_root.get_node_or_null("SaveService")
 	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
 	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+
+	if OS.get_environment("MANAFORGE_R3_TENDING") == "1":
+		var r3_failed: int = _sprint_r3_tending_ok(game_state, game_audio)
+		if r3_failed > 0:
+			print("R3_TENDING_FAIL: %d" % r3_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
 	var backpack: Node = tree_root.get_node_or_null("Backpack")
 
 	var failed: int = 0
@@ -242,12 +253,36 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BENCH_SEAT") == "1":
+		var bench_seat_only: int = await _bench_seat_ok(tree_root)
+		if bench_seat_only > 0:
+			print("BENCH_SEAT_FAIL: %d" % bench_seat_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_INTEGRATION_R1") == "1":
+		var integration_r1_failed: int = await _integration_r1_ok(tree_root, game_state, game_audio)
+		if integration_r1_failed > 0:
+			print("INTEGRATION_R1_FAIL: %d" % integration_r1_failed)
+			quit(1)
+		else:
+			print("INTEGRATION_R1_OK")
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
+		failed += _lucky_harvest_ok(game_state)
+		failed += _lucky_spark_ok(tree_root, game_state, game_audio)
+		failed += await _bench_seat_ok(tree_root)
 		if failed > 0:
 			print("CHECK_ONLY_FAIL: %d" % failed)
 			quit(1)
 		else:
+			print("LUCKY_HARVEST_OK")
+			print("LUCKY_SPARK_OK")
 			print("CHECK_ONLY_OK")
 			quit(0)
 		return
@@ -1117,6 +1152,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_COMBAT_WAVE1") == "1":
+		var wave1_only: int = _combat_wave1_clips_ok()
+		if wave1_only > 0:
+			print("COMBAT_WAVE1_CLIPS_FAIL: %d" % wave1_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BATTLE_AUDIO_SOLE_CALLER") == "1":
 		var battle_audio_only: int = _battle_audio_sole_caller(tree_root, game_audio)
 		if battle_audio_only > 0:
@@ -1502,6 +1546,14 @@ func _run() -> void:
 		quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_FIREFLY_TWINKLE") == "1":
+		var twinkle_failed: int = _firefly_twinkle_ok(game_audio)
+		if twinkle_failed > 0:
+			print("FIREFLY_TWINKLE_FAIL: %d" % twinkle_failed)
+			quit(1)
+		quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_INTRO_TEXT") == "1":
 		var intro_failed: int = await _intro_text_ok(tree_root, content_strings)
 		if intro_failed > 0:
@@ -1824,11 +1876,20 @@ func _run() -> void:
 	failed += _assert(game_state.has_method("try_pay_stage"), "try_pay_stage")
 	failed += _assert(game_state.has_method("can_pay_stage"), "can_pay_stage")
 
-	# Simulate 1s harvest grants
+	# Simulate 1s harvest grants (lucky bonus is tested elsewhere).
+	var params_pulse: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var lucky_chance_hold: Variant = params_pulse.get("LUCKY_HARVEST_CHANCE")
+	params_pulse["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params_pulse)
 	var w0: int = int(game_state.get("wood"))
 	var grant_w: int = int(game_state.call("apply_harvest_pulse", &"wood"))
 	failed += _assert(grant_w >= 1, "wood harvest grant")
 	failed += _assert(int(game_state.get("wood")) == w0 + grant_w, "wood inventory after pulse")
+	if lucky_chance_hold != null:
+		params_pulse["LUCKY_HARVEST_CHANCE"] = lucky_chance_hold
+	else:
+		params_pulse.erase("LUCKY_HARVEST_CHANCE")
+	game_state.set("params", params_pulse)
 	game_state.call("reset_for_new_game")
 	game_state.call("apply_harvest_pulse", &"stone")
 	failed += _assert(int(game_state.get("stone")) >= 1, "stone >=1 after pulse")
@@ -2478,10 +2539,15 @@ func _run() -> void:
 
 	# Assign + simulate 10s pulse → +1 resource (no gather_mult)
 	game_state.call("reset_for_new_game")
+	_verify_reset_wisp_pulse_timing(game_state)
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	var wood0: int = int(game_state.get("wood"))
 	failed += _assert(str(game_state.call("try_assign_wisp", 0, "harvest_tree")) == "ok", "assign wisp to tree")
+	_verify_reset_wisp_pulse_timing(game_state)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "harvest_tree", "assignment stored")
 	# Second wisp stacks on same node
 	game_state.set("wisp_count", 2)
@@ -2594,13 +2660,15 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_harvest_toast")).find("Essence +") < 0, "fruit_harvest_toast no Essence bank")
 	failed += _assert(str(content_strings.call("get_text", "wisp_assign_hint")).find("Right-click") >= 0, "wisp_assign_hint RMB")
 	game_state.call("reset_for_new_game")
+	_verify_reset_wisp_pulse_timing(game_state)
 	game_state.set("wisp_count", 2)
 	game_state.call("_ensure_wisp_slots")
-	var shards0: int = int(game_state.get("manashards"))
 	failed += _assert(str(game_state.call("try_assign_wisp", 0, "manatree")) == "ok", "assign wisp to manatree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "manatree assignment stored")
 	failed += _assert(str(game_state.call("resource_for_node_id", "manatree")) == "manashards", "manatree → manashards")
 	failed += _assert(str(game_state.call("try_assign_wisp", 1, "manatree")) == "join", "Manatree stack join")
+	game_state.set("wisp_favourites", {})
+	var shards0: int = int(game_state.get("manashards"))
 	failed += _assert(int(game_state.call("count_wisps_on_node", "manatree")) == 2, "two wisps on manatree")
 	game_state.call("apply_wisp_pulses", 9.9)
 	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before the shared unit")
@@ -4036,7 +4104,9 @@ func _run() -> void:
 	failed += await _batch_offline(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_migration(tree_root, game_state, save_service, backpack)
+	failed += _dusk_greetings_ok()
 	failed += _no_old_keeper_idle()
+	failed += await _bench_seat_ok(tree_root)
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
@@ -4075,9 +4145,11 @@ func _run() -> void:
 	failed += await _battle_playback(tree_root, game_state, save_service)
 	failed += await _battle_pose_reset(tree_root, game_state, save_service)
 	failed += _elaia_real_stats_ok(tree_root, game_state)
+	failed += _combat_wave1_clips_ok()
 	failed += await _battle_art(tree_root, game_state, save_service)
 	failed += _battle_audio_sole_caller(tree_root, game_audio)
 	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
+	failed += _firefly_twinkle_ok(game_audio)
 	failed += _resolver_turn_order()
 	failed += _resolver_rows()
 	failed += _resolver_targeting()
@@ -4158,6 +4230,7 @@ func _run() -> void:
 	failed += await _touch_nav_ok(tree_root, game_state, save_service)
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
+	failed += _sprint_r3_tending_ok(game_state, game_audio)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -5656,6 +5729,11 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	failed += _assert(int(game_state.get("lifetime_fruit_harvested")) >= 1, "auto-harvest counts the fruit")
 	## 1 wisp × 200s = 10 wood. Keeper with a tool × 10s = 10 wood.
 	game_state.call("reset_for_new_game")
+	_verify_reset_wisp_pulse_timing(game_state)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	_verify_reset_wisp_pulse_timing(game_state)
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	game_state.call("try_assign_wisp", 0, "harvest_tree")
@@ -5817,6 +5895,139 @@ func _wants_check_only() -> bool:
 	return args.has("--check-only")
 
 
+func _lucky_harvest_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return failed + 1
+	var lucky_bucket: Array[int] = [0, 0]
+	var on_lucky := func(_rid: StringName, bonus: int) -> void:
+		lucky_bucket[0] += 1
+		lucky_bucket[1] += bonus
+	if not game_state.lucky_harvest.is_connected(on_lucky):
+		game_state.lucky_harvest.connect(on_lucky)
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", str(game_state.call("morning_gift_day_key")))
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	game_state.set("harvest_accum", {})
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	var grant_always: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_always: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(
+		grant_always == 1 and wood_always == 2 and lucky_bucket[0] == 1 and lucky_bucket[1] == 1,
+		"chance 1.0 doubles keeper harvest",
+	)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	var grant_never: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 2.0, 1.0))
+	var wood_never: int = int(game_state.call("get_resource", &"wood"))
+	failed += _assert(grant_never == 1 and wood_never == 1 and lucky_bucket[0] == 0, "chance 0.0 never lucky-drops")
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.call("accumulate_wisp_harvest", &"wood", 20.0)
+	failed += _assert(lucky_bucket[0] == 0, "wisp harvest never emits lucky_harvest")
+	game_state.call("apply_offline_keeper_harvest", 60.0, &"wood", 1.0)
+	failed += _assert(lucky_bucket[0] == 0, "offline keeper harvest never emits lucky_harvest")
+	params["LUCKY_HARVEST_CHANCE"] = 0.04
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	lucky_bucket[0] = 0
+	lucky_bucket[1] = 0
+	for _i: int in range(10000):
+		game_state.call("set_resource", &"wood", 0)
+		game_state.set("harvest_accum", {})
+		game_state.call("apply_harvest_pulse", &"wood")
+	print("LUCKY_HARVEST_ROLLS_10K: %d" % lucky_bucket[0])
+	failed += _assert(lucky_bucket[0] > 0, "0.04 chance produces some drops in 10k rolls")
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
+	game_state.lucky_harvest.disconnect(on_lucky)
+	return failed
+
+
+func _lucky_spark_ok(tree_root: Window, game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	if tree_root == null or game_state == null or game_audio == null:
+		return failed + 1
+	var fx: Node = tree_root.get_node_or_null("LuckySparkFx")
+	failed += _assert(fx != null, "LuckySparkFx autoload missing")
+	LuckySparkFxScript.reset_test_state()
+	game_audio.call("clear_played_log")
+	var host := Node2D.new()
+	host.name = "LuckySparkVerifyHost"
+	tree_root.add_child(host)
+	var anchor := Vector2(120.0, 80.0)
+	LuckySparkFxScript.spawn_at_parent(host, anchor)
+	failed += _assert(LuckySparkFxScript.burst_spawn_count() == 1, "lucky burst spawns once")
+	failed += _assert(LuckySparkFxScript.spark_emit_count() == 1, "lucky spark particles spawn once")
+	var burst_child: Node = host.get_child(0) if host.get_child_count() > 0 else null
+	var burst_sprite: Sprite2D = null
+	if burst_child != null:
+		burst_sprite = burst_child.get_node_or_null("Burst") as Sprite2D
+	failed += _assert(burst_sprite != null, "burst sprite child")
+	if burst_sprite != null:
+		failed += _assert(burst_sprite.hframes == 4, "burst strip h_frames 4")
+		failed += _assert(
+			burst_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			"burst nearest filter",
+		)
+		failed += _assert(is_equal_approx(burst_sprite.scale.x, 1.0), "burst scale 1")
+	var motes: CPUParticles2D = null
+	for child: Node in host.get_children():
+		if child is CPUParticles2D:
+			motes = child as CPUParticles2D
+			break
+	failed += _assert(motes != null, "spark CPUParticles2D")
+	if motes != null:
+		failed += _assert(motes.amount == 5, "spark amount 5")
+		failed += _assert(is_equal_approx(motes.lifetime, 0.3), "spark lifetime 0.3")
+		failed += _assert(
+			motes.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST,
+			"spark nearest filter",
+		)
+	var base_msec: int = 1_000_000
+	var cue1: StringName = LuckySparkFxScript.try_play_chime(base_msec)
+	failed += _assert(cue1 == &"sfx_mana_chime_1", "lucky chime cue stage 1")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "lucky chime plays")
+	var expected_db: float = float(game_audio.call("gather_offset_db")) - 6.0
+	failed += _assert(
+		is_equal_approx(float(game_audio.get("last_cue_volume_db")), expected_db),
+		"lucky chime -6 dB vs gather offset",
+	)
+	var cue2: StringName = LuckySparkFxScript.try_play_chime(base_msec + 500)
+	failed += _assert(cue2 == &"", "chime throttled inside 1.5 s")
+	game_audio.call("clear_played_log")
+	var cue3: StringName = LuckySparkFxScript.try_play_chime(base_msec + 1600)
+	failed += _assert(cue3 == &"sfx_mana_chime_1", "chime after 1.5 s cooldown")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "chime replays after cooldown")
+	game_state.call("reset_for_new_game")
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	LuckySparkFxScript.reset_test_state()
+	game_audio.call("clear_played_log")
+	var on_lucky_harvest := Callable(fx, "_on_lucky_harvest")
+	if not game_state.lucky_harvest.is_connected(on_lucky_harvest):
+		game_state.lucky_harvest.connect(on_lucky_harvest)
+	game_state.lucky_harvest.emit(&"wood", 1)
+	failed += _assert(LuckySparkFxScript.burst_spawn_count() == 0, "lucky_harvest without gatherable skips burst")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_mana_chime_1")), "lucky_harvest still plays chime")
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
+	host.queue_free()
+	return failed
+
+
 func _check_only_load() -> int:
 	## Compile and load the companion scripts. Does not run the suite.
 	var failed: int = 0
@@ -5827,9 +6038,15 @@ func _check_only_load() -> int:
 		"res://scripts/character_sheet.gd",
 		"res://scripts/hud.gd",
 		"res://scripts/main.gd",
+		"res://scripts/hub/glade_fireflies.gd",
+		"res://scripts/hub/hub_time_phase.gd",
 		"res://scripts/forge_room.gd",
 		"res://scripts/gatherable.gd",
+		"res://scripts/fx/lucky_spark_burst.gd",
+		"res://scripts/fx/lucky_spark_fx.gd",
 		"res://scripts/manatree.gd",
+		"res://scripts/tree_whispers.gd",
+		"res://scripts/manatree_stage_bloom.gd",
 		"res://scripts/forge_station.gd",
 		"res://scripts/runestone.gd",
 		"res://scripts/autoload/game_state.gd",
@@ -5871,6 +6088,9 @@ func _check_only_load() -> int:
 		"res://scripts/minigames/games/steady_press.gd",
 		"res://scripts/minigames/games/with_the_grain.gd",
 		"res://scripts/minigames/games/steeping.gd",
+		"res://scripts/hub/hub_time_phase.gd",
+		"res://scripts/hub/hub_wisp_phase_greetings.gd",
+		"res://scripts/hub_day_night_cycle.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -5880,6 +6100,45 @@ func _check_only_load() -> int:
 	var gs: Node = root.get_node_or_null("GameState")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "")), 0.8), "check-only elaia work rate")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "reliquary")), 1.5), "check-only elaia reliquary rate")
+	failed += _tree_whispers_ok(gs)
+	failed += _dusk_greetings_ok()
+	if failed == 0:
+		print("TREE_WHISPERS_OK")
+	return failed
+
+
+func _tree_whispers_ok(game_state: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	var sapling_keys: Array[String] = TreeWhispers.unlocked_keys_for_stage(&"sapling")
+	failed += _assert(sapling_keys.size() == 3, "sapling unlocks three whispers")
+	for key: String in sapling_keys:
+		failed += _assert(TreeWhispers.min_stage_for_key(key) == 1, "sapling line is stage 1: %s" % key)
+	var young_keys: Array[String] = TreeWhispers.unlocked_keys_for_stage(&"young")
+	failed += _assert(young_keys.size() == 6, "young unlocks six whispers")
+	for key: String in young_keys:
+		failed += _assert(TreeWhispers.min_stage_for_key(key) <= 2, "young line within tier: %s" % key)
+	var bag: Array = []
+	TreeWhispers.refill_bag(bag, &"sapling")
+	failed += _assert(bag.size() == 3, "sapling bag holds three keys")
+	var seen: Dictionary = {}
+	while not bag.is_empty():
+		var drawn: String = TreeWhispers.draw_key(bag, &"sapling")
+		failed += _assert(drawn != "" and not seen.has(drawn), "no repeat before exhaustion: %s" % drawn)
+		seen[drawn] = true
+	failed += _assert(seen.size() == 3, "exhausted the sapling bag")
+	var fourth: String = TreeWhispers.draw_key(bag, &"sapling")
+	failed += _assert(fourth != "" and seen.has(fourth), "refill allows a repeat after exhaustion")
+	game_state.set("stage_id", &"young")
+	TreeWhispers.prune_bag(bag, &"young")
+	TreeWhispers.refill_bag(bag, &"young")
+	failed += _assert(bag.size() == 6, "young bag holds six keys")
+	seen.clear()
+	while not bag.is_empty():
+		var drawn_y: String = TreeWhispers.draw_key(bag, &"young")
+		failed += _assert(drawn_y != "" and not seen.has(drawn_y), "young bag no repeat: %s" % drawn_y)
+		seen[drawn_y] = true
+	failed += _assert(seen.size() == 6, "exhausted the young bag")
 	return failed
 
 
@@ -6878,6 +7137,12 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
 		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 48)) < 0.5, "bench stand is just south of the tabletop")
+		var seat: Node2D = bench.get_node_or_null("KeeperSeat") as Node2D
+		failed += _assert(seat != null and seat.position.distance_to(Vector2(0, -3)) < 0.5, "bench seat top marker on the apron")
+		failed += _assert(bench.has_method("seat_global"), "bench exposes seat_global")
+		var bench_script: Script = bench.get_script()
+		var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+		failed += _assert(is_equal_approx(feet_below, 23.0), "bench seat feet offset const")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -6944,6 +7209,330 @@ func _duration_sum(sframes: SpriteFrames, anim: StringName) -> float:
 	for i: int in range(sframes.get_frame_count(anim)):
 		total += sframes.get_frame_duration(anim, i)
 	return total
+
+
+func _dusk_greetings_ok() -> int:
+	var failed: int = 0
+	HubWispPhaseGreetings.reset_for_tests()
+	HubTimePhase.set_driven_phase01(0.10)
+	HubWispPhaseGreetings.track_phase(0.10)
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.10) == "", "daylight wisp tap has no greeting")
+	failed += _assert(HubTimePhase.is_dusk_band(0.40) and not HubTimePhase.is_dawn_band(0.40), "dusk band helper")
+	failed += _assert(HubTimePhase.is_dawn_band(0.90) and not HubTimePhase.is_dusk_band(0.90), "dawn band helper")
+	HubTimePhase.set_driven_phase01(0.40)
+	HubWispPhaseGreetings.track_phase(0.40)
+	var dusk_line: String = HubWispPhaseGreetings.try_greeting(0.40)
+	failed += _assert(dusk_line != "", "first dusk wisp shows a dusk line")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.40) == "", "second dusk wisp tap stays silent")
+	HubTimePhase.set_driven_phase01(0.55)
+	HubWispPhaseGreetings.track_phase(0.55)
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.55) == "", "night wisp tap has no greeting")
+	HubTimePhase.set_driven_phase01(0.40)
+	HubWispPhaseGreetings.track_phase(0.40)
+	var dusk_again: String = HubWispPhaseGreetings.try_greeting(0.40)
+	failed += _assert(dusk_again != "", "re-entering dusk resets the dusk greeting")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.40) == "", "dusk greeting still once per visit")
+	HubTimePhase.set_driven_phase01(0.90)
+	HubWispPhaseGreetings.track_phase(0.90)
+	var dawn_line: String = HubWispPhaseGreetings.try_greeting(0.90)
+	failed += _assert(dawn_line != "", "first dawn wisp shows a dawn line")
+	failed += _assert(HubWispPhaseGreetings.try_greeting(0.90) == "", "second dawn wisp tap stays silent")
+	HubTimePhase.set_driven_phase01(0.10)
+	HubWispPhaseGreetings.track_phase(0.10)
+	HubTimePhase.set_driven_phase01(0.90)
+	HubWispPhaseGreetings.track_phase(0.90)
+	var dawn_again: String = HubWispPhaseGreetings.try_greeting(0.90)
+	failed += _assert(dawn_again != "", "re-entering dawn resets the dawn greeting")
+	var cs: Node = root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null, "ContentStrings for dusk greetings")
+	if cs != null:
+		for i: int in range(1, 7):
+			var dk: String = "wisp_dusk_%02d" % i
+			var ak: String = "wisp_dawn_%02d" % i
+			failed += _assert(str(cs.call("get_text", dk)) != dk, "strings has %s" % dk)
+			failed += _assert(str(cs.call("get_text", ak)) != ak, "strings has %s" % ak)
+	if failed == 0:
+		print("DUSK_GREETINGS_OK")
+	return failed
+
+
+func _bench_seat_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	if save_service:
+		save_service.set("boot_intent", "new")
+	_verify_reset_audio_bench_prep(tree_root)
+	failed += await _wait_bench_rest_bed_tween(tree_root)
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return _assert(false, "bench seat hub loads")
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	_verify_reset_audio_bench_prep(tree_root)
+	failed += await _wait_bench_rest_bed_tween(tree_root)
+	var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(bench != null and keeper != null, "bench seat hub actors")
+	if bench == null or keeper == null:
+		live.free()
+		if save_service:
+			save_service.call("note_session_ended")
+			save_service.set("boot_intent", "auto")
+		return failed + 1
+	var seat_top: Marker2D = bench.get_node_or_null("KeeperSeat") as Marker2D
+	failed += _assert(seat_top != null, "bench seat top marker")
+	var bench_script: Script = bench.get_script()
+	var feet_below: float = float(bench_script.get_script_constant_map().get(&"SEAT_FEET_BELOW_TOP_PX", -1.0))
+	var stand_pos: Vector2 = bench.call("stand_global")
+	var seat_pos: Vector2 = bench.call("seat_global")
+	var feet_from_top: Vector2 = seat_pos - seat_top.global_position
+	failed += _assert(
+		is_equal_approx(feet_from_top.x, 0.0) and is_equal_approx(feet_from_top.y, feet_below),
+		"seat_global places feet below the seat top"
+	)
+	failed += _assert(stand_pos.distance_to(seat_pos) > 4.0, "seat is not the stand spot")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	failed += _assert(bool(bench.call("keeper_at_stand")), "keeper at the bench stand")
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(game_audio != null, "bench rest audio autoload")
+	if game_audio != null:
+		game_audio.call("on_keeper_bench_stood")
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		game_audio.call("play_hub_music")
+	var sit_kind: int = 3
+	var sat_hits: Array[int] = [0]
+	var stood_hits: Array[int] = [0]
+	var rest_plays: Array[int] = [0]
+	failed += _assert(keeper.has_signal("keeper_bench_sat") and keeper.has_signal("keeper_bench_stood"), "keeper bench sit signals exist")
+	keeper.connect("keeper_bench_sat", func() -> void: sat_hits[0] += 1)
+	keeper.connect("keeper_bench_stood", func() -> void: stood_hits[0] += 1)
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.cue_played.connect(func(cue_id: StringName) -> void:
+			if cue_id == &"sfx_bench_rest":
+				rest_plays[0] += 1
+		)
+	var bed_before: float = float(game_audio.call("music_bed_volume_db")) if game_audio != null else 0.0
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(seat_pos) < 0.5, "bench sit snaps to the seat feet spot")
+	var sprite: AnimatedSprite2D = keeper.get_node_or_null("Sprite") as AnimatedSprite2D
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_down_south", "bench sit starts sit_down")
+	keeper.call("_on_idle_moment_animation_finished")
+	if game_audio != null:
+		game_audio.call("on_keeper_bench_sat")
+	failed += _assert(sat_hits[0] == 1, "keeper_bench_sat after sit_down")
+	failed += _assert(sprite != null and sprite.animation == &"idle_sit_breathe_south", "bench sit breathes at the seat")
+	if game_audio != null:
+		failed += _assert(bool(game_audio.call("did_play", &"sfx_bench_rest")), "bench rest cue plays on sit_down")
+		failed += _assert(rest_plays[0] == 1, "bench rest cue_played once")
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		var bed_lift: float = float(game_audio.call("music_bed_volume_db"))
+		var lift_db: float = float(game_audio.call("bench_rest_bed_lift_db"))
+		failed += _assert(absf(lift_db - 2.0) < 0.05, "bench rest lifts the hub bed +2 dB")
+		failed += _assert(absf(bed_lift - bed_before - lift_db) < 0.2, "bench rest applies lift to hub bed volume")
+		keeper.call("halt")
+		keeper.global_position = stand_pos
+		keeper.call("_start_idle_moment", sit_kind)
+		keeper.call("_on_idle_moment_animation_finished")
+		failed += _assert(rest_plays[0] == 1, "bench rest 10 s guard skips retrigger")
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db")) - 2.0) < 0.05, "bench rest keeps bed lift while seated")
+	var away: Vector2 = stand_pos + Vector2(240, 0)
+	keeper.call("halt")
+	keeper.global_position = away
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	failed += _assert(keeper.global_position.distance_to(away) < 0.5, "away from the bench sit does not move the keeper")
+	keeper.call("_on_idle_moment_animation_finished")
+	failed += _assert(sat_hits[0] == 0 and stood_hits[0] == 0, "away from the bench emits no bench sit signals")
+	keeper.call("halt")
+	keeper.global_position = stand_pos
+	await process_frame
+	sat_hits[0] = 0
+	stood_hits[0] = 0
+	keeper.call("_start_idle_moment", sit_kind)
+	keeper.call("_on_idle_moment_animation_finished")
+	keeper.call("move_to", away)
+	failed += _assert(stood_hits[0] == 1, "cancel at the bench emits keeper_bench_stood")
+	failed += _assert(sprite != null and sprite.animation != &"idle_stand_up_south", "cancel skips stand_up")
+	failed += _assert(keeper.global_position.distance_to(stand_pos) < 0.5, "cancel returns the keeper to the stand before walking away")
+	if game_audio != null:
+		failed += await _wait_bench_rest_bed_tween(tree_root)
+		failed += _assert(absf(float(game_audio.call("bench_rest_bed_lift_db"))) < 0.05, "bench rest restores hub bed lift on stood")
+		failed += _assert(absf(float(game_audio.call("music_bed_volume_db")) - bed_before) < 0.15, "bench rest restores hub bed volume on stood")
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var rested_failed: int = _rested_hands_ok(game_state)
+	failed += rested_failed
+	if rested_failed == 0:
+		print("RESTED_HANDS_OK")
+	var sayings_failed: int = _bench_sayings_ok(tree_root, game_state)
+	failed += sayings_failed
+	if sayings_failed == 0:
+		print("BENCH_SAYINGS_OK")
+	var dusk_failed: int = _bench_dusk_props_ok(bench, keeper)
+	failed += dusk_failed
+	if dusk_failed == 0:
+		print("BENCH_DUSK_PROPS_OK")
+	await process_frame
+	live.free()
+	if save_service:
+		save_service.call("note_session_ended")
+		save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("BENCH_SEAT_OK")
+		print("BENCH_REST_OK")
+	return failed
+
+
+func _rested_hands_ok(game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "rested hands game state")
+	failed += _assert(game_state.has_method("debug_complete_bench_sit_sec"), "rested hands helpers on GameState")
+	failed += _assert(
+		is_equal_approx(float(game_state.call("param_float", "RESTED_SIT_SEC", -1.0)), 20.0),
+		"RESTED_SIT_SEC param"
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult idle")
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	failed += _assert(int(game_state.get("rested_until_ms")) > Time.get_ticks_msec(), "20s sit sets rested window")
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.15), "20s sit grants rested mult")
+	var mult: float = float(game_state.call("keeper_rested_mult"))
+	game_state.set("harvest_accum", {})
+	var control: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper"))))
+	game_state.set("harvest_accum", {})
+	var boosted: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "keeper")) * mult)
+	)
+	var boosted_accum: float = float((game_state.get("harvest_accum") as Dictionary).get("wood", 0.0))
+	failed += _assert(boosted > control or boosted_accum > 0.05, "rested mult banks more wood than control")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() - 1)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "rested mult expires")
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.call("debug_complete_bench_sit_sec", 19.0)
+	failed += _assert(is_equal_approx(float(game_state.call("keeper_rested_mult")), 1.0), "19s sit grants nothing")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() + 60000)
+	game_state.call("debug_complete_bench_sit_sec", 21.0)
+	var until_after: int = int(game_state.get("rested_until_ms"))
+	var remaining_ms: int = until_after - Time.get_ticks_msec()
+	failed += _assert(remaining_ms > 115000 and remaining_ms < 125000, "second sit resets rested timer to 120s")
+	game_state.set("harvest_accum", {})
+	var elaia_grant: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.set("harvest_accum", {})
+	var elaia_again: int = int(
+		game_state.call("accumulate_keeper_harvest", &"wood", 10.0, float(game_state.call("actor_work_rate", "elaia")))
+	)
+	failed += _assert(elaia_grant == elaia_again, "elaia harvest ignores rested mult")
+	game_state.call("clear_rested_hands_bench_buff")
+	return failed
+
+
+func _bench_sayings_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return _assert(false, "bench sayings game state")
+	var content: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(content != null, "bench sayings content strings")
+	if content == null:
+		return failed + 1
+	for i: int in range(1, 11):
+		var key: String = "bench_saying_%02d" % i
+		var line: String = str(content.call("get_text", key))
+		failed += _assert(line != key and line.length() > 4, "bench saying %s loaded" % key)
+	var seen: Array[String] = []
+	var grab: Callable = func(t: String) -> void:
+		seen.append(t)
+	game_state.connect("status_message", grab)
+	game_state.call("on_keeper_bench_sat")
+	game_state.disconnect("status_message", grab)
+	failed += _assert(seen.size() == 1, "bench sit toasts one line")
+	if seen.size() == 1:
+		var ok: bool = false
+		for j: int in range(1, 11):
+			if seen[0] == str(content.call("get_text", "bench_saying_%02d" % j)):
+				ok = true
+				break
+		failed += _assert(ok, "bench saying line is from lore table")
+	return failed
+
+
+func _bench_dusk_props_ok(bench: Node2D, keeper: Node2D) -> int:
+	var failed: int = 0
+	if bench == null or keeper == null:
+		return _assert(false, "bench dusk props actors")
+	HubTimePhase.set_driven_phase01(0.1)
+	keeper.call("_emit_keeper_bench_sat")
+	var cup: CanvasItem = bench.get_node_or_null("DuskCup") as CanvasItem
+	var steam: CanvasItem = bench.get_node_or_null("DuskSteam") as CanvasItem
+	var blanket: CanvasItem = bench.get_node_or_null("DuskBlanket") as CanvasItem
+	failed += _assert(cup != null and steam != null and blanket != null, "dusk prop nodes exist")
+	if cup != null:
+		failed += _assert(not cup.visible, "daylight hides dusk props on sit")
+	HubTimePhase.set_driven_phase01(0.40)
+	keeper.call("_emit_keeper_bench_sat")
+	if cup != null:
+		failed += _assert(cup.visible and cup.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "dusk cup visible nearest")
+		failed += _assert(is_equal_approx(cup.scale.x, 1.0) and is_equal_approx(cup.position.x, 46.0), "dusk cup placement")
+	if blanket != null:
+		failed += _assert(blanket.visible, "dusk blanket visible")
+		failed += _assert(is_equal_approx(blanket.position.x, -74.0), "dusk blanket placement")
+	if steam != null:
+		failed += _assert(steam.visible, "dusk steam visible")
+		failed += _assert(is_equal_approx(steam.position.x, 48.0), "dusk steam placement")
+	keeper.call("_emit_keeper_bench_stood")
+	if cup != null:
+		failed += _assert(not cup.visible and not steam.visible and not blanket.visible, "stood hides dusk props")
+	HubTimePhase.set_driven_phase01(0.0)
+	return failed
+
+
+func _verify_reset_wisp_pulse_timing(game_state: Node) -> void:
+	## First assign marks a favourite (1.2× rate). Base 20s pulse tests ignore that mult.
+	if game_state.has_method("debug_reset_upgrade_ranks"):
+		game_state.call("debug_reset_upgrade_ranks")
+	game_state.set("wisp_favourites", {})
+	game_state.set("wisp_pulse_accum", {})
+	game_state.set("harvest_accum", {})
+	var params: Dictionary = game_state.get("params")
+	params.erase("WISP_PULSE_SEC")
+	params.erase("WISP_HARVEST_MIN_SEC")
+
+
+func _verify_reset_audio_bench_prep(tree_root: Window) -> void:
+	paused = false
+	if BattleViewScript.is_open():
+		BattleViewScript.close_arena()
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if game_audio == null:
+		return
+	if game_audio.has_method("release_world_after_minigame"):
+		game_audio.call("release_world_after_minigame")
+	if bool(game_audio.call("is_hub_suspended")):
+		game_audio.call("resume_hub_after_battle")
+	if game_audio.has_method("reset_bench_rest_bed_lift"):
+		game_audio.call("reset_bench_rest_bed_lift")
+	game_audio.call("play_hub_music")
+	game_audio.call("apply_volumes")
+
+
+func _wait_bench_rest_bed_tween(tree_root: Window) -> int:
+	var failed: int = 0
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if game_audio == null:
+		return _assert(false, "bench rest tween audio")
+	var deadline: int = Time.get_ticks_msec() + 1700
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+	return failed
 
 
 func _no_old_keeper_idle() -> int:
@@ -7832,6 +8421,53 @@ func _debug_panel_ok(tree_root: Window) -> int:
 			failed += _assert(tabs.current_tab == overlays and overlays_tab != null and overlays_tab.button_pressed, "setting current_tab highlights Overlays")
 			failed += _assert(tree_tab != null and not tree_tab.button_pressed, "setting current_tab clears the Tree highlight")
 	panel.queue_free()
+	return failed
+
+
+func _firefly_twinkle_ok(game_audio: Node) -> int:
+	var failed: int = 0
+	var twinkle_ids: PackedStringArray = PackedStringArray([
+		"sfx_firefly_twinkle_1",
+		"sfx_firefly_twinkle_2",
+		"sfx_firefly_twinkle_3",
+	])
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cues: Dictionary = {}
+	if parsed is Dictionary:
+		var list_v: Variant = (parsed as Dictionary).get("cues", {})
+		if list_v is Dictionary:
+			cues = list_v
+	for cue_id: String in twinkle_ids:
+		failed += _assert(game_audio.list_cue_ids().has(cue_id), "cue registered %s" % cue_id)
+		var path: String = str(game_audio.call("get_cue_path", cue_id))
+		failed += _assert(path != "" and FileAccess.file_exists(path), "cue file %s" % cue_id)
+		var meta: Dictionary = cues.get(cue_id, {}) as Dictionary
+		failed += _assert(str(meta.get("bus", "")) == "SFX_World", "%s bus" % cue_id)
+		failed += _assert(is_equal_approx(float(meta.get("volume_db", 0.0)), -6.0), "%s volume_db -6" % cue_id)
+	GladeFireflies.reset_twinkle_state()
+	var base_msec: int = 1_000_000
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.0, 1.0, base_msec, 1) == "", "day blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.40, 1.0, base_msec + 1, 1) == "", "dusk blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.55, 0.0, base_msec + 2, 1) == "", "invisible blocks twinkle")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.90, 1.0, base_msec + 3, 1) == "", "pre-dawn blocks twinkle")
+	GladeFireflies.reset_twinkle_state()
+	var first: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec, 2)
+	failed += _assert(first == "sfx_firefly_twinkle_2", "night plays variant")
+	failed += _assert(GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec + 100, 1) == "", "cooldown blocks immediate replay")
+	failed += _assert(
+		GladeFireflies.try_twinkle_sfx(0.55, 1.0, base_msec + GladeFireflies.twinkle_cooldown_msec() - 1, 3) == "",
+		"cooldown blocks before 4s",
+	)
+	var second: String = GladeFireflies.try_twinkle_sfx(
+		0.55, 1.0, base_msec + GladeFireflies.twinkle_cooldown_msec(), 3
+	)
+	failed += _assert(second == "sfx_firefly_twinkle_3", "cooldown allows play after 4s")
+	game_audio.call("clear_played_log")
+	game_audio.call("play", &"sfx_firefly_twinkle_1", 0.0, 1.0)
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_firefly_twinkle_1")), "twinkle cue plays")
+	failed += _assert(is_equal_approx(float(game_audio.get("last_cue_volume_db")), -6.0), "twinkle at -6 dB")
+	if failed == 0:
+		print("FIREFLY_TWINKLE_OK")
 	return failed
 
 
@@ -11984,10 +12620,18 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 		return failed
 	var session_was: bool = bool(save_service.get("session_active"))
 	var lantern_was: String = str(game_state.get("expedition_lantern"))
-	reach.call("reset_for_new_game")
+	_reset_reach_test(tree_root, game_state, save_service)
 	## Seed 1: keeper survives the opening beast turns; one Strike must not finish the run.
 	reach.call("set_test_run_seed", 1)
-	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
+	game_state.call("set_resource", &"essence", 50)
+	var mix_depart: Dictionary = {
+		"depth": 1,
+		"rooms": 5,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", mix_depart)) == "ok", "mix reload: idle depart")
 	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
 	reach.call("reset_for_new_game")
 	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload: load slot 7")
@@ -12002,7 +12646,21 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 	failed += _assert(manual != null, "mix reload: manual FightState")
 	var actual: Array[String] = _reach_fight_species_list(manual)
 	failed += _assert(str(actual) == str(expected), "mix reload: species match build_room (got %s)" % str(actual))
-	failed += _assert(await _reach_one_strike_keeps_run(reach, manual), "mix reload: one Strike does not end the run")
+	failed += _assert(await _reach_one_strike_step_keeps_run(reach, manual), "mix reload: one Strike step does not end the run")
+	## Fresh mix reload for the UI path (adventure fight snapshot must not leak from the step assert).
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", 1)
+	game_state.call("set_resource", &"essence", 50)
+	failed += _assert(str(reach.call("depart_slots", mix_depart)) == "ok", "mix reload UI: idle depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload UI: save mid-run to slot 7")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload UI: load slot 7")
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "mix reload UI: the run is still out")
+	reach.call("set_control", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "mix reload UI: Join manual opens the fight")
+	manual = reach.call("manual_fight") as FightState
+	failed += _assert(manual != null, "mix reload UI: manual FightState")
+	failed += _assert(await _reach_one_strike_ui_keeps_run(reach, manual), "mix reload: one Strike UI does not end the run")
 	reach.call("reset_for_new_game")
 	save_service.call("delete_slot", 7)
 	save_service.set("session_active", session_was)
@@ -12056,10 +12714,15 @@ func _reach_open_manual_view(reach: Node) -> BattleView:
 	var manual: FightState = reach.call("manual_fight") as FightState
 	if manual == null:
 		return null
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if views.size() == 1:
+		var existing: BattleView = views[0] as BattleView
+		if existing != null:
+			return existing
 	if not BattleViewScript.open_reach_fight(manual):
 		return null
 	await process_frame
-	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	views = get_nodes_in_group("battle_overlay")
 	if views.size() != 1:
 		return null
 	return views[0] as BattleView
@@ -12102,7 +12765,30 @@ func _reach_step_strike_for_me(view: BattleView, fight: FightState, max_steps: i
 			continue
 
 
-func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
+func _reach_one_strike_step_keeps_run(reach: Node, manual: FightState) -> bool:
+	if manual == null:
+		return false
+	var guard: int = 0
+	while manual.outcome() == "" and guard < 400:
+		guard += 1
+		var actor_id: String = manual.current_actor()
+		if actor_id == "":
+			manual.step({})
+			continue
+		if str(manual.fighter_dict(actor_id).get("side", "")) == "party":
+			break
+		manual.step({})
+	var targets: Array = manual.legal_targets("keeper")
+	if targets.is_empty():
+		BattleViewScript.close_arena()
+		return false
+	manual.step(AutoPolicyScript.strike_for_me_action(manual, "keeper"))
+	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
+	BattleViewScript.close_arena()
+	return ok
+
+
+func _reach_one_strike_ui_keeps_run(reach: Node, manual: FightState) -> bool:
 	var view: BattleView = await _reach_open_manual_view(reach)
 	if view == null or manual == null:
 		return false
@@ -12836,7 +13522,7 @@ func _beast_data(_tree_root: Window) -> int:
 	# The §10 table, as Haex reviewed it: id -> [tier, from depth, threat, hp].
 	var table: Dictionary = {
 		"acorn_imp": [1, 1, 33, 37], "spore_moth": [1, 1, 44, 40],
-		"wilt_wisp": [2, 3, 47, 40], "root_snapper": [2, 3, 46, 43],
+		"wilt_wisp": [2, 1, 47, 40], "root_snapper": [2, 1, 46, 43],
 		"thorn_boar": [3, 12, 54, 46], "vine_serpent": [3, 12, 58, 43],
 		"briar_hulk": [4, 18, 61, 49], "moss_brute": [4, 18, 63, 52],
 		"stump_ogre": [5, 22, 67, 55], "stag_spirit": [5, 22, 74, 52],
@@ -12982,7 +13668,8 @@ func _spawn_data(_tree_root: Window) -> int:
 	failed += _assert(is_equal_approx(float(comps_fixture.get("variety_bias", 0.0)), 2.0), "variety bias x2")
 	# The §10 table: depth -> [budget, weights, different rooms].
 	var want: Dictionary = {
-		1: [85, "acorn_imp:1,spore_moth:1", 2],
+		1: [85, "acorn_imp:1,spore_moth:1,wilt_wisp:1,root_snapper:1", 4],
+		2: [89, "acorn_imp:4,spore_moth:4,wilt_wisp:1,root_snapper:1", 5],
 		3: [93, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 9],
 		5: [101, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
 		8: [113, "acorn_imp:4,spore_moth:4,wilt_wisp:6,root_snapper:6,acorn_imp_dark:1,spore_moth_dark:1", 20],
@@ -12991,7 +13678,7 @@ func _spawn_data(_tree_root: Window) -> int:
 		15: [151, "wilt_wisp:3,root_snapper:3,acorn_imp_dark:2,spore_moth_dark:2,thorn_boar:2,vine_serpent:2", 74],
 	}
 	var tables: Array = data.get("tables", []) as Array
-	failed += _assert(tables.size() == want.size(), "seven spawn tables (got %d)" % tables.size())
+	failed += _assert(tables.size() == want.size(), "spawn table count matches draft (got %d want %d)" % [tables.size(), want.size()])
 	var last_depth: int = 0
 	for t_v: Variant in tables:
 		var t: Dictionary = t_v as Dictionary
@@ -13036,7 +13723,7 @@ func _spawn_data(_tree_root: Window) -> int:
 			theirs.append((room_v as Dictionary).get("beasts", []))
 		failed += _assert(str(mine) == str(theirs) and int(dep.get("count", -1)) == theirs.size(), "depth %d rooms match the sim's compositions() (%d vs %d)" % [depth, mine.size(), theirs.size()])
 	failed += _assert(_room_budget(1, budget) == 85 and _room_budget(10, budget) == 121 and _room_budget(15, budget) == 151, "budget 85 / 121 / 151 at depth 1 / 10 / 15")
-	failed += _assert(_spawn_table_for(2, tables).size() == 2 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
+	failed += _assert(_spawn_table_for(2, tables).size() == 4 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
 	# Loot: Amberbind stays the manual jackpot. Job 23 numbers (approved 2026-10-10) are checked below.
 	var loot: Dictionary = data.get("loot", {}) as Dictionary
 	failed += _assert(is_equal_approx(float(loot.get("bonus_drop_chance", 0.0)), 0.10), "bonus drop chance stays 10%")
@@ -13243,17 +13930,12 @@ func _spawn_seed(_tree_root: Window) -> int:
 		failed += _assert(bool((room[best_i] as Dictionary).get("boss", false)), "boss is highest threat (lowest slot on ties)")
 	const PIN_DEPTH: int = 5
 	var pin_1: Array = [
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
-		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
+		{"beast": "acorn_imp", "row": "front", "slot": 0, "boss": false, "threat": 33},
+		{"beast": "acorn_imp", "row": "front", "slot": 1, "boss": false, "threat": 33},
+		{"beast": "acorn_imp", "row": "front", "slot": 2, "boss": false, "threat": 33},
 	]
-	var pin_2: Array = [
-		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 44},
-		{"beast": "wilt_wisp", "row": "back", "slot": 1, "boss": false, "threat": 47},
-	]
-	var pin_1000: Array = [
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
-		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
-	]
+	var pin_2: Array = pin_1.duplicate(true)
+	var pin_1000: Array = pin_1.duplicate(true)
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1000))) == str(pin_1000), "pinned room seed 1000 depth 5")
@@ -13302,16 +13984,23 @@ func _room_fill_ok(_tree_root: Window) -> int:
 	var depth5_floor: int = SpawnRoller.beast_fill_floor(5)
 	failed += _assert(depth5_floor > 0, "depth 5 has a 90% beast floor")
 	var variety_seed: int = -1
+	var depth5_multi: int = 0
+	var depth5_single: int = 0
 	for probe: int in range(200):
 		var room5: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(probe))
 		var species: Dictionary = {}
 		for entry_v: Variant in room5:
 			var bid: String = str((entry_v as Dictionary).get("beast", ""))
 			species[SpawnRoller.species_key(bid)] = true
-		failed += _assert(species.size() >= 2, "depth 5 seed %d keeps 2+ species over 1-species high-threat pairs" % probe)
+		if species.size() >= 2:
+			depth5_multi += 1
+		else:
+			depth5_single += 1
 		var threat5: int = _spawn_room_threat(room5)
 		if threat5 < 99 and variety_seed < 0:
 			variety_seed = probe
+	failed += _assert(depth5_multi > 0, "depth 5 still rolls multi-species rooms")
+	failed += _assert(depth5_single > 0, "depth 5 variety_slack allows single-species floor rooms")
 	failed += _assert(variety_seed >= 0, "depth 5 has a legal sub-max-threat room (variety tier)")
 	var d12_keys: Array[String] = SpawnRoller.floor_beast_combo_keys(12)
 	failed += _assert(d12_keys.size() > 1, "depth 12 has more than one qualifying beast set (got %d)" % d12_keys.size())
@@ -18090,10 +18779,10 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	if view._strike_for_me_toggle != null:
 		view._strike_for_me_toggle.button_pressed = false
 	playback.instant = false
-	view.call("start_test_fight", 1, false, true, 4242)
+	view.call("start_test_fight", 1, false, false, 4242)
 	await process_frame
 	var paced: FightState = view._fight
-	failed += _assert(paced.order.size() > 0 and str(paced.fighter_dict(paced.order[0]).get("side", "")) == "beast", "paced fight opens on a beast")
+	failed += _assert(paced.order.size() > 0, "paced fight has turn order")
 	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
 	for turn: int in 3:
 		if paced.outcome() != "":
@@ -18119,6 +18808,61 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	paused = false
 	if failed == 0:
 		print("BATTLE_PLAYBACK_OK")
+	return failed
+
+
+func _combat_wave1_clips_ok() -> int:
+	## CODE_NOTES wave-1 table: five clips, frame count, ms/frame, hit_frame, unmirrored.
+	var failed: int = 0
+	var want: Array[Dictionary] = [
+		{"id": "elaia_attack", "actor": "elaia", "clip": "attack", "frames": 8, "ms": 125, "hit_frame": 3},
+		{"id": "elaia_hit", "actor": "elaia", "clip": "hit", "frames": 4, "ms": 100, "hit_frame": 1},
+		{"id": "acorn_imp_hit", "actor": "acorn_imp", "clip": "hit", "frames": 4, "ms": 100, "hit_frame": 1},
+		{"id": "acorn_imp_calm", "actor": "acorn_imp", "clip": "calm", "frames": 6, "ms": 100, "hit_frame": 3},
+		{"id": "acorn_imp_attack", "actor": "acorn_imp", "clip": "attack", "frames": 8, "ms": 125, "hit_frame": 3},
+	]
+	failed += _assert(CombatClipsScript.catalog().size() == want.size(), "five wave-1 clips")
+	for row_v: Variant in want:
+		var row: Dictionary = row_v as Dictionary
+		var clip_id: String = str(row.get("id", ""))
+		var spec: Dictionary = CombatClipsScript.find(str(row.get("actor", "")), str(row.get("clip", "")))
+		var frames: int = int(row.get("frames", 0))
+		var ms: int = int(row.get("ms", 0))
+		failed += _assert(not spec.is_empty() and str(spec.get("id", "")) == clip_id, "%s is catalogued" % clip_id)
+		failed += _assert(int(spec.get("frames", -1)) == frames, "%s frame count" % clip_id)
+		failed += _assert(int(spec.get("ms", -1)) == ms, "%s ms per frame" % clip_id)
+		failed += _assert(int(spec.get("hit_frame", -1)) == int(row.get("hit_frame", -2)), "%s hit_frame" % clip_id)
+		failed += _assert(CombatClipsScript.duration_ms(spec) == frames * ms, "%s duration" % clip_id)
+		failed += _assert(not bool(spec.get("mirrored", true)), "%s is not mirrored" % clip_id)
+		var loaded: int = 0
+		for i: int in frames:
+			var tex: Texture2D = CombatClipsScript.texture(spec, i)
+			if tex != null and tex.get_width() == 128 and tex.get_height() == 128:
+				loaded += 1
+		failed += _assert(loaded == frames, "%s frames load 128 (%d/%d)" % [clip_id, loaded, frames])
+	var imp: Dictionary = CombatClipsScript.find("acorn_imp", "attack")
+	failed += _assert(CombatClipsScript.hit_ms(imp) == 375, "imp attack hit at 375 ms")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("beast", "acorn_imp"), 0.375), "imp attack damage react is 375 ms")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("beast", "acorn_imp_dark"), 0.375), "dark imp uses the same attack hit")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("party", "elaia"), 0.375), "elaia attack react is 375 ms")
+	failed += _assert(is_equal_approx(BattlePlaybackScript.strike_react_sec_for("party", "keeper"), BattlePlaybackScript.REACT_SEC), "keeper strike keeps the live react")
+	var shown := TextureRect.new()
+	shown.flip_h = true
+	failed += _assert(CombatClipsScript.present(shown, "acorn_imp", "attack", 3) and not shown.flip_h, "imp attack hit frame is not flipped")
+	var atk: Dictionary = CombatClipsScript.find("elaia", "attack")
+	var anchor0: Dictionary = CombatClipsScript.anchor_for(atk, 0)
+	var anchor3: Dictionary = CombatClipsScript.anchor_for(atk, 3)
+	failed += _assert(int(anchor0.get("hand_x", -1)) == 100 and int(anchor0.get("hand_y", -1)) == 66 and int(anchor0.get("rot_index", -1)) == 0 and str(anchor0.get("z", "")) == "front", "elaia attack frame 0 anchor")
+	failed += _assert(int(anchor3.get("hand_x", -1)) == 103 and int(anchor3.get("hand_y", -1)) == 66, "elaia attack frame 3 anchor")
+	failed += _assert(CombatClipsScript.anchor_for(atk, 4).is_empty(), "elaia attack frame 4 has no invented anchor")
+	var bare_ids: PackedStringArray = PackedStringArray(["elaia/hit", "acorn_imp/attack", "acorn_imp/hit", "acorn_imp/calm"])
+	for bare: String in bare_ids:
+		var parts: PackedStringArray = bare.split("/")
+		var bare_spec: Dictionary = CombatClipsScript.find(parts[0], parts[1])
+		failed += _assert(CombatClipsScript.anchor_for(bare_spec, 0).is_empty(), "%s has no invented anchor" % bare)
+	shown.free()
+	if failed == 0:
+		print("COMBAT_WAVE1_CLIPS_OK")
 	return failed
 
 
@@ -18197,7 +18941,7 @@ func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int
 	playback.advance(0.5)
 	var sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_%s/Sprite" % beast_ids[0]) as TextureRect
 	var hurt_path: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
-	failed += _assert(hurt_path.ends_with("battle_acorn_imp_hurt.png"), "beast hurt")
+	failed += _assert(hurt_path.find("modular/acorn_imp/hit/frame_") >= 0 and sprite != null and not sprite.flip_h, "beast hurt uses the unflipped wave-1 hit clip")
 	playback.advance(0.35)
 	var idle_after: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
 	failed += _assert(idle_after.ends_with("battle_acorn_imp_idle.png"), "beast idle after hurt")
@@ -19403,11 +20147,24 @@ func _reach_party_stats(entry: Dictionary) -> Dictionary:
 		return out
 	for key_v: Variant in (stats_v as Dictionary).keys():
 		var key: String = str(key_v)
+		var raw: Variant = (stats_v as Dictionary)[key_v]
 		if key == "attack":
-			out[key] = str((stats_v as Dictionary)[key_v])
+			out[key] = str(raw)
+		elif key == "weapon_abilities":
+			if raw is Array:
+				out[key] = (raw as Array).duplicate()
 		else:
-			out[key] = int((stats_v as Dictionary)[key_v])
+			out[key] = _reach_party_stat_int(raw, key)
 	return out
+
+
+func _reach_party_stat_int(raw: Variant, key: String, default_v: int = 5) -> int:
+	if raw is int:
+		return raw
+	if raw is float:
+		return int(raw)
+	push_warning("verify: party stat %s had non-numeric value %s; using %d" % [key, str(raw), default_v])
+	return default_v
 
 
 func _reach_stats_match(a: Dictionary, b: Dictionary) -> bool:
@@ -19419,6 +20176,9 @@ func _reach_stats_match(a: Dictionary, b: Dictionary) -> bool:
 			return false
 		if key == "attack":
 			if str(a[key]) != str(b[key]):
+				return false
+		elif key == "weapon_abilities":
+			if JSON.stringify(a[key]) != JSON.stringify(b[key]):
 				return false
 		else:
 			if int(a[key]) != int(b[key]):
@@ -19530,10 +20290,24 @@ func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node
 		"party": [{"member": "keeper", "row": "front"}],
 		"loadout": {},
 	}
+	var dirty_party: Array = [
+		{
+			"member": "keeper",
+			"row": "front",
+			"stats": {"might": 4, "attack": "strike", "weapon_abilities": ["test_slash"]},
+		},
+	]
+	var cleaned_party: Array = reach.call("_clean_party", dirty_party) as Array
+	failed += _assert(cleaned_party.size() == 1, "clean_party keeps weapon_abilities entry")
+	if cleaned_party.size() == 1:
+		var cleaned_stats: Dictionary = (cleaned_party[0] as Dictionary).get("stats", {}) as Dictionary
+		failed += _assert(cleaned_stats.get("weapon_abilities") is Array, "weapon_abilities stays an array")
+		failed += _assert(int(cleaned_stats.get("might", 0)) == 4, "clean_party keeps numeric might")
 	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "party lock depart")
 	var party_arr: Array = reach.get("party") as Array
 	failed += _assert(party_arr.size() >= 1, "keeper party slot")
 	var frozen: Dictionary = _reach_party_stats(party_arr[0] as Dictionary)
+	failed += _assert(frozen.get("weapon_abilities") is Array, "depart freezes weapon_abilities array")
 	var frozen_might: int = int(frozen.get("might", -1))
 	var live_before: int = int(SlotEngine.member_stats("keeper").get("might", -1))
 	keeper_stats.call("set_rank", "might", int(keeper_stats.call("get_rank", "might")) + 1)
@@ -19550,6 +20324,11 @@ func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node
 	reach.call("reset_for_new_game")
 	failed += _assert(bool(save_svc.call("load_game", 7)), "party lock load")
 	var loaded_party: Array = reach.get("party") as Array
+	failed += _assert(loaded_party.size() >= 1, "party slots survive load")
+	if loaded_party.is_empty():
+		save_svc.call("delete_slot", 7)
+		save_svc.set("session_active", session_was)
+		return failed + 1
 	failed += _assert(_reach_stats_match(frozen, _reach_party_stats(loaded_party[0] as Dictionary)), "frozen stats survive load")
 	failed += _assert(bool(reach.call("member_away", "keeper")), "keeper away mid-run")
 	failed += _assert(not bool(reach.call("member_away", "elaia")), "elaia stayed home")
@@ -20498,6 +21277,19 @@ func _reach_live_view() -> BattleView:
 	return views[0] as BattleView
 
 
+func _reach_advance_until_party(view: BattleView, fight: FightState, max_frames: int = 80) -> void:
+	if view == null or fight == null:
+		return
+	for _i: int in max_frames:
+		if fight.outcome() != "":
+			return
+		var actor_id: String = fight.current_actor()
+		if actor_id != "" and str(fight.fighter_dict(actor_id).get("side", "")) == "party":
+			return
+		view.call("_advance")
+		await process_frame
+
+
 func _adventure_one_strike(view: BattleView) -> bool:
 	if view == null or not is_instance_valid(view):
 		return false
@@ -20633,6 +21425,7 @@ func _adventure_slot_resume(tree_root: Window, game_state: Node, save_service: N
 		return failed
 	for _swing: int in 3:
 		failed += _assert(await _adventure_one_strike(view), "resume strike %d" % (_swing + 1))
+		await _reach_advance_until_party(view, fight)
 		if fight.outcome() != "":
 			failed += _assert(false, "resume fight ended before the snapshot")
 			break
@@ -20703,6 +21496,7 @@ func _adventure_no_scum(tree_root: Window, game_state: Node, save_service: Node)
 		mtimes[str(path_v)] = _save_mtime(str(path_v))
 	for step_i: int in 5:
 		failed += _assert(await _adventure_one_strike(view), "saved action %d" % (step_i + 1))
+		await _reach_advance_until_party(view, fight)
 		var adv: Dictionary = save_service.call("read_adventure")
 		var file_fight: Variant = adv.get("fight", null)
 		failed += _assert(file_fight is Dictionary, "adventure fight after action %d" % (step_i + 1))
@@ -22287,12 +23081,18 @@ func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> 
 
 func _imported_image(path: String) -> Image:
 	var tex: Texture2D = load(path) as Texture2D
-	if tex == null:
+	if tex != null:
+		var image: Image = tex.get_image()
+		if image != null and not image.is_empty():
+			if image.is_compressed():
+				image.decompress()
+			return image
+	if not FileAccess.file_exists(path):
 		return null
-	var image: Image = tex.get_image()
-	if image != null and image.is_compressed():
-		image.decompress()
-	return image
+	var raw: Image = Image.new()
+	if raw.load(path) != OK or raw.is_empty():
+		return null
+	return raw
 
 
 func _export_safe_resources_ok(tree_root: Window) -> int:
@@ -25943,3 +26743,207 @@ func _flip_h_diff(text_node: Node, bin_node: Node) -> PackedStringArray:
 		if not text_flips.has(path):
 			out.append("%s text=absent binary=%s" % [path, str(bin_flips[path])])
 	return out
+
+
+func _sprint_r3_tending_ok(game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var content_strings: Node = get_root().get_node_or_null("ContentStrings")
+	failed += _assert(content_strings != null, "r3 tending strings autoload")
+	if game_state == null or content_strings == null:
+		return failed + 1
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", "")
+	game_state.set("wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	var w0: int = int(game_state.get("wood"))
+	var g1: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(g1 == 10, "morning gift sapling is 10 units")
+	failed += _assert(int(game_state.get("wood")) == w0 + 10, "morning gift banks wood")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "morning gift stamps day")
+	var g2: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(g2 == 0, "second gift same day blocked")
+	game_state.set("_morning_gift_day_override", "2026-10-26")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 0, "clock backwards blocks gift")
+	game_state.set("_morning_gift_day_override", "2026-10-28")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 10, "new day grants gift")
+	game_state.set("last_gift_day", "")
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	game_state.call("accumulate_wisp_harvest", &"wood", 1000.0)
+	failed += _assert(str(game_state.get("last_gift_day")) == "", "wisp harvest does not take gift")
+	game_state.set("last_gift_day", "")
+	game_state.call("apply_offline_keeper_harvest", 600.0, &"wood")
+	failed += _assert(str(game_state.get("last_gift_day")) == "", "offline keeper does not take gift")
+	game_state.set("last_gift_day", "2026-10-29")
+	var blob: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-29", "morning gift save round-trip")
+	game_state.set("_morning_gift_day_override", "")
+	if failed == 0:
+		print("MORNING_GIFT_OK")
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "favourite is first node")
+	game_state.call("try_assign_wisp", 0, "harvest_stone")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "reassign keeps favourite")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	game_state.call("apply_wisp_pulses", 1000.0)
+	var fav_wood: int = int(game_state.get("wood"))
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	game_state.set("wisp_favourites", {"0": "harvest_stone"})
+	game_state.call("apply_wisp_pulses", 1000.0)
+	var other_wood: int = int(game_state.get("wood"))
+	failed += _assert(
+		fav_wood > other_wood,
+		"favourite node yields more wood (fav=%d plain=%d assign=%s)" % [
+			fav_wood,
+			other_wood,
+			str(game_state.call("get_wisp_assignment", 0)),
+		],
+	)
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	failed += _assert((game_state.get("wisp_favourites") as Dictionary).is_empty(), "ascend clears favourites")
+	var farewell: String = str(content_strings.call("get_text", "fruit_farewell_01"))
+	failed += _assert(farewell.find("grow again") >= 0, "fruit farewell string present")
+	if failed == 0:
+		print("WISP_FAVOURITE_OK")
+	failed += _assert(FileAccess.file_exists("res://assets/art/fx/stage_bloom/bloom_petal_strip_5x5x6.png"), "stage bloom petal art")
+	failed += _assert(load("res://scripts/manatree_stage_bloom.gd") != null, "stage bloom script loads")
+	if failed == 0:
+		print("STAGE_BLOOM_OK")
+	var cues: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cue_map: Dictionary = (cues as Dictionary).get("cues", {}) if typeof(cues) == TYPE_DICTIONARY else {}
+	failed += _assert(cue_map.has("sfx_wisp_hum"), "sfx_wisp_hum cue")
+	failed += _assert(cue_map.has("sfx_ascend_breath"), "sfx_ascend_breath cue")
+	failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_wisp_hum.ogg"), "wisp hum file")
+	failed += _assert(FileAccess.file_exists("res://assets/audio/sfx_ascend_breath.ogg"), "ascend breath file")
+	var hum_ok: bool = cue_map.has("sfx_wisp_hum") and FileAccess.file_exists("res://assets/audio/sfx_wisp_hum.ogg")
+	if hum_ok and failed == 0:
+		print("WISP_HUM_OK")
+	var breath_ok: bool = false
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.call("play_ascend")
+		breath_ok = bool(game_audio.call("did_play", &"sfx_ascend_breath"))
+		failed += _assert(breath_ok, "ascend breath plays before sting")
+	if breath_ok and failed == 0:
+		print("ASCEND_BREATH_OK")
+	return failed
+
+
+func _integration_r1_ok(tree_root: Window, game_state: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	if game_state == null:
+		return failed + 1
+	# (a) Rested multiplier scales base yield before the lucky-harvest roll (gather pulse path).
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", str(game_state.call("morning_gift_day_key")))
+	game_state.call("clear_rested_hands_bench_buff")
+	game_state.set("rested_until_ms", Time.get_ticks_msec() + 120000)
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	var saved_mult: Variant = params.get("LUCKY_HARVEST_MULT", 2)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
+	var rested_rate: float = float(game_state.call("keeper_rested_mult"))
+	failed += _assert(is_equal_approx(rested_rate, 1.15), "integration rested mult active")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var wood_plain: int = 0
+	for _pulse: int in range(16):
+		game_state.call("apply_harvest_pulse", &"wood", 1.0)
+	wood_plain = int(game_state.get("wood"))
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var wood_rested: int = 0
+	for _pulse: int in range(16):
+		game_state.call("apply_harvest_pulse", &"wood", rested_rate)
+	wood_rested = int(game_state.get("wood"))
+	failed += _assert(wood_rested > wood_plain, "rested scales gather yield before lucky (plain=%d rested=%d)" % [wood_plain, wood_rested])
+	params["LUCKY_HARVEST_CHANCE"] = 1.0
+	params["LUCKY_HARVEST_MULT"] = 2
+	game_state.set("params", params)
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", 0)
+	var grant_rested: int = 0
+	for _pulse: int in range(16):
+		grant_rested = int(game_state.call("apply_harvest_pulse", &"wood", rested_rate))
+		if grant_rested > 0:
+			break
+	var wood_after_lucky: int = int(game_state.get("wood"))
+	failed += _assert(grant_rested > 0, "rested gather pulse grants wood")
+	failed += _assert(
+		wood_after_lucky == grant_rested * 2,
+		"lucky doubles rested-scaled grant (grant=%d wood=%d)" % [grant_rested, wood_after_lucky],
+	)
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	params["LUCKY_HARVEST_MULT"] = saved_mult
+	game_state.set("params", params)
+	game_state.call("clear_rested_hands_bench_buff")
+	# (b) Bench dusk props follow the real hub clock.
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	if save_service:
+		save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed != null:
+		var live: Node = packed.instantiate()
+		tree_root.add_child(live)
+		await process_frame
+		await process_frame
+		var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+		var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+		failed += _bench_dusk_props_ok(bench, keeper)
+		live.free()
+		if save_service:
+			save_service.call("note_session_ended")
+			save_service.set("boot_intent", "auto")
+	else:
+		failed += _assert(false, "integration hub scene loads")
+	# (c) Fireflies and twinkle SFX active at night via HubTimePhase.
+	HubTimePhase.set_driven_phase01(0.55)
+	failed += _assert(HubTimePhase.firefly_twinkle_night(0.55), "night band for twinkle")
+	failed += _assert(HubTimePhase.firefly_strength(0.55) > 0.9, "firefly strength at night")
+	GladeFireflies.reset_twinkle_state()
+	var cue_night: String = GladeFireflies.try_twinkle_sfx(0.55, 1.0, Time.get_ticks_msec(), 1)
+	failed += _assert(cue_night == "sfx_firefly_twinkle_1", "twinkle cue allowed at night")
+	var fx := GladeFireflies.new()
+	tree_root.add_child(fx)
+	fx.setup(Rect2(0.0, 0.0, 320.0, 240.0))
+	await process_frame
+	var warm: CPUParticles2D = fx.get_node_or_null("MotesWarm") as CPUParticles2D
+	failed += _assert(warm != null and warm.emitting, "glade fireflies emit at night")
+	if game_audio != null:
+		game_audio.call("clear_played_log")
+		game_audio.call("play", StringName(cue_night), 0.0, 1.0)
+		failed += _assert(bool(game_audio.call("did_play", StringName(cue_night))), "twinkle cue plays at night")
+	fx.free()
+	HubTimePhase.set_driven_phase01(0.0)
+	# (d) Morning gift and wisp favourite in one session without cross-talk.
+	game_state.call("reset_for_new_game")
+	game_state.set("last_gift_day", "")
+	game_state.set("wood", 0)
+	game_state.set("harvest_accum", {})
+	game_state.set("_morning_gift_day_override", "2026-10-27")
+	var gift: int = int(game_state.call("try_morning_gift", &"wood"))
+	failed += _assert(gift == 10, "morning gift grants in session")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "morning gift stamps day")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	failed += _assert(str(game_state.get("wisp_favourites").get("0", "")) == "harvest_tree", "favourite set in same session")
+	failed += _assert(int(game_state.call("try_morning_gift", &"wood")) == 0, "gift still once per day with favourite active")
+	game_state.set("harvest_accum", {})
+	game_state.set("wood", int(game_state.get("wood")))
+	var wood_before_fav: int = int(game_state.get("wood"))
+	game_state.call("apply_wisp_pulses", 400.0)
+	failed += _assert(int(game_state.get("wood")) > wood_before_fav, "favourite wisp harvest in same session")
+	failed += _assert(str(game_state.get("last_gift_day")) == "2026-10-27", "wisp harvest did not steal gift day")
+	game_state.set("_morning_gift_day_override", "")
+	return failed

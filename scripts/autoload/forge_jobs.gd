@@ -827,7 +827,9 @@ func _tick_absent_keeper(delta: float) -> void:
 	if kind == "harvest":
 		var rid: StringName = _harvest_resource(target)
 		if rid != &"":
-			GameState.accumulate_keeper_harvest(rid, delta, GameState.actor_work_rate("keeper"))
+			GameState.accumulate_keeper_harvest(
+				rid, delta, GameState.actor_work_rate("keeper") * GameState.keeper_rested_mult()
+			)
 	elif kind == "water":
 		GameState.tick_hero_water("keeper", delta)
 

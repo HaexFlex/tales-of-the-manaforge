@@ -37,6 +37,9 @@ shape = SubResource("RectangleShape2D_pick")
 [node name="KeeperStand" type="Marker2D" parent="."]
 position = Vector2(0, 48)
 
+[node name="KeeperSeat" type="Marker2D" parent="."]
+position = Vector2(0, -3)
+
 [node name="WalkBody" type="StaticBody2D" parent="."]
 input_pickable = false
 collision_layer = 1

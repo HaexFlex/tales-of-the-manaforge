@@ -3,6 +3,7 @@ extends Node
 ## Away-panel copy is overlaid from data/offline_summary_v2_FINAL.json (Lore FINAL).
 
 const OFFLINE_SUMMARY_FINAL: String = "res://data/offline_summary_v2_FINAL.json"
+const SPRINT_R3_LORE_DRAFT: String = "res://data/sprint_r3_lore_DRAFT_v1.json"
 
 var _table: Dictionary = {}
 var _touch: Dictionary = {}
@@ -22,6 +23,29 @@ func _ready() -> void:
 		_table = root.duplicate(true)
 		_table.erase("touch")
 	_merge_offline_summary_final()
+	_merge_sprint_r3_lore_draft()
+
+
+func _merge_sprint_r3_lore_draft() -> void:
+	var lore_file := FileAccess.open(SPRINT_R3_LORE_DRAFT, FileAccess.READ)
+	if lore_file == null:
+		push_error("ContentStrings: missing %s" % SPRINT_R3_LORE_DRAFT)
+		return
+	var lore_parsed: Variant = JSON.parse_string(lore_file.get_as_text())
+	lore_file.close()
+	if typeof(lore_parsed) != TYPE_DICTIONARY:
+		push_error("ContentStrings: %s did not parse" % SPRINT_R3_LORE_DRAFT)
+		return
+	for key_v: Variant in (lore_parsed as Dictionary).keys():
+		var key: String = str(key_v)
+		if key.begins_with("_"):
+			continue
+		_table[key] = (lore_parsed as Dictionary)[key_v]
+
+
+func random_bench_saying() -> String:
+	var idx: int = randi_range(1, 10)
+	return get_text("bench_saying_%02d" % idx)
 
 
 func _merge_offline_summary_final() -> void:

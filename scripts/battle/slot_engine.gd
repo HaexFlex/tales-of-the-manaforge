@@ -57,9 +57,16 @@ static func _sheet_stats_for(actor: String) -> Dictionary:
 			value = base + gear
 		stats[stat_id] = value
 	var attack: String = "magic" if actor == "elaia" else "physical"
+	var weapon_abilities: Array[String] = []
 	if equipment != null:
 		var weapon_id: String = str(equipment.call("equipped_id_for", actor, "weapon"))
 		var item_def: Dictionary = equipment.call("get_item_def", weapon_id)
+		var abilities_v: Variant = item_def.get("abilities", [])
+		if abilities_v is Array:
+			for ability_v: Variant in abilities_v as Array:
+				var ability_id: String = str(ability_v).strip_edges()
+				if ability_id != "":
+					weapon_abilities.append(ability_id)
 		if str(item_def.get("damage_kind", "")) == "magical":
 			attack = "magic"
 		elif str(item_def.get("damage_kind", "")) == "physical":
@@ -69,6 +76,7 @@ static func _sheet_stats_for(actor: String) -> Dictionary:
 			var mode: String = str(mode_node.get("arrow_mode")) if mode_node != null else "physical"
 			attack = "magic" if mode == "magical" else "physical"
 	stats["attack"] = attack
+	stats["weapon_abilities"] = weapon_abilities
 	return stats
 
 

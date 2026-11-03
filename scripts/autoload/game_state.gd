@@ -17,6 +17,7 @@ signal wisp_pulsed(resource_id: StringName)
 signal echo_flags_changed
 signal ancient_expired
 signal keeper_harvested(resource_id: StringName, amount: int)
+signal lucky_harvest(resource_id: StringName, bonus: int)
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -81,6 +82,10 @@ const PLAY_SPEEDS: Array[int] = [1, 2, 4, 8]
 var play_speed: int = 1
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
+## Shuffle bag for Manatree whispers (string keys). Saved with the run.
+var tree_whisper_bag: Array = []
+## Next whisper when run_time_sec reaches this value.
+var tree_whisper_next_at: float = TreeWhispers.INTERVAL_SEC
 ## Fractional harvest remainders, one float per resource (wood/stone/food/manashards).
 var harvest_accum: Dictionary = {}
 ## Counts down only while Ancient, the game is open, and the tree is unpaused.
@@ -116,6 +121,12 @@ var first_minigame_played: bool = false
 var wisp_count: int = 0
 var wisp_assignments: Dictionary = {}
 var wisp_pulse_accum: Dictionary = {}
+## Real-calendar morning gift (YYYY-MM-DD at MORNING_GIFT_RESET_HOUR local). Not cleared on Ascend.
+var last_gift_day: String = ""
+## Wisp id string → first-assigned harvest node id. Cleared on Ascend.
+var wisp_favourites: Dictionary = {}
+## Headless/tests only. When non-empty, morning_gift_day_key() returns this value.
+var _morning_gift_day_override: String = ""
 ## Runtime selection (RTS: LMB select unit; mutually exclusive Keeper XOR one Wisp).
 ## Wisp select does not require Keeper selected.
 var keeper_selected: bool = false
@@ -149,6 +160,10 @@ var _companions: Dictionary = {}
 var stages_data: Array = []
 var upgrades_data: Array = []
 var params: Dictionary = {}
+## Bench rest buff (wall clock, not saved). Cleared on Ascend.
+var _sit_started_ms: int = -1
+var rested_until_ms: int = 0
+var _rested_sit_granted: bool = false
 
 
 func _ready() -> void:
@@ -162,6 +177,8 @@ func _ready() -> void:
 	_ensure_character_sheet_action()
 	if has_node("/root/Backpack") and not Backpack.inventory_changed.is_connected(_on_backpack_changed):
 		Backpack.inventory_changed.connect(_on_backpack_changed)
+	if not stage_changed.is_connected(_on_tree_whisper_stage_changed):
+		stage_changed.connect(_on_tree_whisper_stage_changed)
 
 
 func _ensure_character_sheet_action() -> void:
@@ -236,11 +253,101 @@ func advance_open_play(delta: float) -> void:
 	active_since_load_sec += delta
 	tick_ancient(play_delta)
 	apply_wisp_pulses(play_delta)
+	_tick_tree_whispers()
+	_tick_rested_sit_timer()
+
+
+func _tick_rested_sit_timer() -> void:
+	if _sit_started_ms < 0 or _rested_sit_granted:
+		return
+	var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+	if float(Time.get_ticks_msec() - _sit_started_ms) >= sit_sec * 1000.0:
+		_grant_rested_hands_buff()
+
+
+func on_keeper_bench_sat() -> void:
+	_sit_started_ms = Time.get_ticks_msec()
+	_rested_sit_granted = false
+	status_message.emit(ContentStrings.random_bench_saying())
+
+
+func on_keeper_bench_stood() -> void:
+	if _sit_started_ms >= 0 and not _rested_sit_granted:
+		var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+		if float(Time.get_ticks_msec() - _sit_started_ms) >= sit_sec * 1000.0:
+			_grant_rested_hands_buff()
+	_sit_started_ms = -1
+
+
+func _grant_rested_hands_buff() -> void:
+	var duration_sec: float = param_float("RESTED_DURATION_SEC", 120.0)
+	rested_until_ms = Time.get_ticks_msec() + int(duration_sec * 1000.0)
+	_rested_sit_granted = true
+
+
+func keeper_rested_mult() -> float:
+	if Time.get_ticks_msec() < rested_until_ms:
+		return param_float("RESTED_GATHER_MULT", 1.15)
+	return 1.0
+
+
+func _clear_rested_hands_buff() -> void:
+	_sit_started_ms = -1
+	rested_until_ms = 0
+	_rested_sit_granted = false
+
+
+## Headless verify: backdate an active bench sit without waiting on wall clock.
+func debug_backdate_bench_sit_sec(elapsed_sec: float) -> void:
+	if _sit_started_ms < 0:
+		return
+	_sit_started_ms = Time.get_ticks_msec() - int(elapsed_sec * 1000.0)
+
+
+func clear_rested_hands_bench_buff() -> void:
+	_clear_rested_hands_buff()
+
+
+func debug_complete_bench_sit_sec(elapsed_sec: float) -> void:
+	on_keeper_bench_sat()
+	_sit_started_ms = Time.get_ticks_msec() - int(elapsed_sec * 1000.0)
+	var sit_sec: float = param_float("RESTED_SIT_SEC", 20.0)
+	if elapsed_sec + 0.001 >= sit_sec and not _rested_sit_granted:
+		_grant_rested_hands_buff()
+	on_keeper_bench_stood()
 
 
 func idle_catch_up_seconds(gap_sec: float) -> float:
 	## Same 1× curve as a closed game. Play speed is not a factor.
 	return offline_effective_seconds(gap_sec)
+
+
+func _reset_tree_whispers() -> void:
+	tree_whisper_bag.clear()
+	tree_whisper_next_at = TreeWhispers.INTERVAL_SEC
+
+
+func _on_tree_whisper_stage_changed(_stage_id: StringName) -> void:
+	TreeWhispers.prune_bag(tree_whisper_bag, stage_id)
+
+
+func _tick_tree_whispers() -> void:
+	if applying_save:
+		return
+	if not _play_session_open():
+		return
+	if run_time_sec + 0.0001 < tree_whisper_next_at:
+		return
+	while tree_whisper_next_at <= run_time_sec:
+		tree_whisper_next_at += TreeWhispers.INTERVAL_SEC
+	_emit_tree_whisper()
+
+
+func _emit_tree_whisper() -> void:
+	var key: String = TreeWhispers.draw_key(tree_whisper_bag, stage_id)
+	if key == "":
+		return
+	status_message.emit(ContentStrings.get_text(key))
 
 
 func _load_tables() -> void:
@@ -534,6 +641,7 @@ func _ensure_wisp_slots() -> void:
 		if int(ks) >= wisp_count:
 			wisp_assignments.erase(ks)
 			wisp_pulse_accum.erase(ks)
+			wisp_favourites.erase(ks)
 
 
 func grant_wisp_from_stage() -> void:
@@ -597,8 +705,16 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 			status_message.emit(ContentStrings.get_text("wisp_cross_scene_away"))
 			return "cross_scene"
 	var joining: bool = count_wisps_on_node(node_id) > 0
+	var first_assign: bool = prev == ""
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
+	if first_assign and resource_for_node_id(node_id) != &"":
+		if not wisp_favourites.has(key):
+			wisp_favourites[key] = node_id
+			var toast_key: String = "wisp_favourite_toast_%d" % randi_range(1, 3)
+			status_message.emit(
+				ContentStrings.get_text(toast_key, {"node": assignment_target_display(node_id)})
+			)
 	_forget_selected_wisp(wisp_id)
 	wisps_changed.emit()
 	selection_changed.emit()
@@ -659,7 +775,10 @@ func apply_wisp_pulses(delta: float) -> void:
 		var rid: StringName = resource_for_node_id(nid)
 		if rid == &"":
 			continue
-		if accumulate_wisp_harvest(rid, delta) > 0:
+		var fav_mult: float = 1.0
+		if str(wisp_favourites.get(key, "")) == nid:
+			fav_mult = param_float("WISP_FAVOURITE_RATE_MULT", 1.2)
+		if accumulate_wisp_harvest(rid, delta * fav_mult) > 0:
 			pulsed_nodes[nid] = rid
 	for nid2: Variant in pulsed_nodes.keys():
 		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
@@ -1106,6 +1225,43 @@ func accumulate_harvest(resource_id: StringName, units: float) -> int:
 	return grant
 
 
+func morning_gift_day_key() -> String:
+	if _morning_gift_day_override != "":
+		return _morning_gift_day_override
+	var reset_hour: int = param_int("MORNING_GIFT_RESET_HOUR", 4)
+	var tz: Dictionary = Time.get_time_zone_from_system()
+	var bias_sec: int = int(tz.get("bias", 0)) * 60
+	var shifted: int = int(Time.get_unix_time_from_system()) + bias_sec - reset_hour * 3600
+	return Time.get_date_string_from_unix_time(shifted)
+
+
+func try_morning_gift(resource_id: StringName) -> int:
+	if fruit_committed or ancient_frozen:
+		return 0
+	if not resource_id in HARVEST_IDS:
+		return 0
+	var day: String = morning_gift_day_key()
+	if last_gift_day != "":
+		if day == last_gift_day or day < last_gift_day:
+			return 0
+	var units_base: int = param_int("MORNING_GIFT_UNITS", 10)
+	var scale_by_stage: bool = bool(params.get("MORNING_GIFT_SCALE_BY_STAGE", true))
+	var stage_mult: int = get_stage_index() + 1 if scale_by_stage else 1
+	if stage_mult < 1:
+		stage_mult = 1
+	var gift: int = units_base * stage_mult
+	add_resource(resource_id, gift)
+	last_gift_day = day
+	var item_key: String = "hud_%s" % String(resource_id)
+	status_message.emit(
+		ContentStrings.get_text("harvest_pulse_hud", {
+			"amount": str(gift),
+			"item": ContentStrings.get_text(item_key),
+		})
+	)
+	return gift
+
+
 func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0) -> int:
 	if fruit_committed or ancient_frozen or delta <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
@@ -1114,6 +1270,7 @@ func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: floa
 	var grant: int = accumulate_harvest(resource_id, units)
 	if grant > 0:
 		keeper_harvested.emit(resource_id, grant)
+		_apply_lucky_harvest_bonus(resource_id, grant)
 	return grant
 
 
@@ -1146,10 +1303,31 @@ func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
 
 
 ## One base yield at the active factor, remainder kept. Not a one-second pulse.
-func apply_harvest_pulse(resource_id: StringName) -> int:
+func apply_harvest_pulse(resource_id: StringName, rate: float = 1.0) -> int:
 	if not resource_id in HARVEST_IDS:
 		return 0
-	return accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+	var grant: int = accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor() * rate)
+	if grant > 0:
+		_apply_lucky_harvest_bonus(resource_id, grant)
+	return grant
+
+
+func _apply_lucky_harvest_bonus(resource_id: StringName, grant: int) -> void:
+	if grant <= 0:
+		return
+	var chance: float = param_float("LUCKY_HARVEST_CHANCE", 0.0)
+	if chance <= 0.0:
+		return
+	if randf() >= chance:
+		return
+	var mult: int = param_int("LUCKY_HARVEST_MULT", 2)
+	var bonus: int = grant * (mult - 1)
+	if bonus <= 0:
+		return
+	add_resource(resource_id, bonus)
+	var key: String = String(resource_id)
+	lifetime_harvested[key] = int(lifetime_harvested.get(key, 0)) + bonus
+	lucky_harvest.emit(resource_id, bonus)
 
 
 func get_harvest_grant(resource_id: StringName) -> int:
@@ -1204,7 +1382,10 @@ func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds
 		return {"ok": false, "reason": "resource", "units": 0.0, "granted": 0}
 	var key: String = String(resource_id)
 	var before: float = float(harvest_accum.get(key, 0.0))
-	var granted: int = accumulate_keeper_harvest(resource_id, seconds, actor_work_rate(actor))
+	var rate: float = actor_work_rate(actor)
+	if actor == "keeper":
+		rate *= keeper_rested_mult()
+	var granted: int = accumulate_keeper_harvest(resource_id, seconds, rate)
 	var after: float = float(harvest_accum.get(key, 0.0))
 	return {"ok": true, "reason": "ok", "granted": granted, "units": float(granted) + after - before}
 
@@ -1826,7 +2007,11 @@ func ascend() -> void:
 	wisp_count = get_upgrade_rank("bonus_wisp")
 	wisp_assignments.clear()
 	wisp_pulse_accum.clear()
+	wisp_favourites.clear()
+	var farewell_idx: int = (ascensions - 1) % 8 + 1
+	status_message.emit(ContentStrings.get_text("fruit_farewell_%02d" % farewell_idx))
 	harvest_accum.clear()
+	_clear_rested_hands_buff()
 	_ensure_wisp_slots()
 	clear_selection()
 	wisps_changed.emit()
@@ -1938,6 +2123,8 @@ func to_save_dict() -> Dictionary:
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"welcome_shown": welcome_shown,
 		"run_time_sec": run_time_sec,
+		"tree_whisper_bag": tree_whisper_bag.duplicate(true),
+		"tree_whisper_next_at": tree_whisper_next_at,
 		"harvest_accum": harvest_accum.duplicate(true),
 		"ancient_remaining_sec": ancient_remaining_sec,
 		"offline_closed_sec": offline_closed_sec,
@@ -1958,6 +2145,8 @@ func to_save_dict() -> Dictionary:
 		"first_minigame_played": first_minigame_played,
 		"wisp_count": wisp_count,
 		"wisp_assignments": wisp_assignments.duplicate(true),
+		"last_gift_day": last_gift_day,
+		"wisp_favourites": wisp_favourites.duplicate(true),
 		"backpack": Backpack.to_save_dict(),
 		"owns_stone_axe": Backpack.owns_item("stone_axe"),
 		"owns_stone_pickaxe": Backpack.owns_item("stone_pickaxe"),
@@ -2032,6 +2221,16 @@ func apply_save_dict(data: Dictionary) -> void:
 	active_since_load_sec = maxf(0.0, float(data.get("active_since_load_sec", 0.0)))
 	welcome_shown = bool(data.get("welcome_shown", false))
 	run_time_sec = float(data.get("run_time_sec", 0.0))
+	var whisper_bag_v: Variant = data.get("tree_whisper_bag", [])
+	if typeof(whisper_bag_v) == TYPE_ARRAY:
+		tree_whisper_bag = (whisper_bag_v as Array).duplicate(true)
+	else:
+		tree_whisper_bag.clear()
+	if data.has("tree_whisper_next_at"):
+		tree_whisper_next_at = maxf(TreeWhispers.INTERVAL_SEC, float(data.get("tree_whisper_next_at", TreeWhispers.INTERVAL_SEC)))
+	else:
+		tree_whisper_next_at = maxf(run_time_sec + TreeWhispers.INTERVAL_SEC, TreeWhispers.INTERVAL_SEC)
+	TreeWhispers.prune_bag(tree_whisper_bag, stage_id)
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
 	portal_unlocked = bool(data.get("portal_unlocked", false)) or ascensions >= 1
 	portal_fee_paid = bool(data.get("portal_fee_paid", false))
@@ -2120,6 +2319,12 @@ func apply_save_dict(data: Dictionary) -> void:
 		wisp_assignments = (assigns as Dictionary).duplicate(true)
 	else:
 		wisp_assignments = {}
+	last_gift_day = str(data.get("last_gift_day", ""))
+	var fav_v: Variant = data.get("wisp_favourites", {})
+	if typeof(fav_v) == TYPE_DICTIONARY:
+		wisp_favourites = (fav_v as Dictionary).duplicate(true)
+	else:
+		wisp_favourites = {}
 	wisp_pulse_accum.clear()
 	_ensure_wisp_slots()
 	Backpack.apply_save_dict(data.get("backpack", {}))
@@ -2240,6 +2445,7 @@ func reset_for_new_game() -> void:
 	first_minigame_played = false
 	wisp_count = 0
 	wisp_assignments.clear()
+	wisp_favourites.clear()
 	wisp_pulse_accum.clear()
 	harvest_accum.clear()
 	ancient_remaining_sec = 0.0
@@ -2250,6 +2456,7 @@ func reset_for_new_game() -> void:
 	selected_wisp_ids.clear()
 	selected_companion_id = ""
 	run_time_sec = 0.0
+	_reset_tree_whispers()
 	portal_unlocked = false
 	portal_fee_paid = false
 	echo_01_resolved = false

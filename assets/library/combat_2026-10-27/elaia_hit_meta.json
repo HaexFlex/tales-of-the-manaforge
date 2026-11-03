@@ -1,0 +1,24 @@
+{
+  "source": "elaia_hit_try1.mp4",
+  "src_indices": [
+    0,
+    24,
+    48,
+    72
+  ],
+  "phases": [
+    "rest",
+    "hunch",
+    "deep",
+    "recover"
+  ],
+  "ms_per_frame": 100,
+  "hit_frame": 1,
+  "sole": 123,
+  "live": "battle_elaia_idle_e.png",
+  "mirror": false,
+  "note": null,
+  "frames": 4,
+  "actor": "elaia",
+  "clip": "hit"
+}

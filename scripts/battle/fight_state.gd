@@ -151,6 +151,7 @@ func add_fighter(
 	who.max_bugs = int(stats.get("max_bugs", 0))
 	who.bugs = int(stats.get("bugs", 0)) if who.swarm else 0
 	who.weave = WEAVE_BASE if who.side == "party" else 0
+	who.weapon_abilities = _string_name_array(stats.get("weapon_abilities", []))
 	who.shield = 0
 	who.brace = false
 	who.poison_ticks = []
@@ -480,6 +481,8 @@ func _step_party(actor: Fighter, action: Dictionary, action_round: int) -> Dicti
 		return _act_flee(actor, action_round)
 	if kind == "item":
 		return _act_item(actor, action, action_round)
+	if kind == "ability":
+		return _act_ability(actor, action, action_round)
 	return _step_packet(actor.id, kind, target_id, {}, action_round, "illegal action", [])
 
 
@@ -503,6 +506,82 @@ func _skip_beast(actor_id: String, kind: String, target_id: String, action_round
 	if _outcome == "":
 		_roll_round_if_spent()
 	return _step_packet(actor_id, kind, target_id, {}, action_round, error, [])
+
+
+func actor_has_ability(actor_id: String, ability_id: StringName) -> bool:
+	var who := _fighter(actor_id)
+	if who == null:
+		return false
+	return ability_id in who.weapon_abilities
+
+
+func sweeping_arc_targets(actor_id: String) -> Array[String]:
+	var legal: Array[String] = legal_targets(actor_id)
+	var out: Array[String] = []
+	var cap: int = mini(WeaponAbilities.SWEEPING_ARC_MAX_TARGETS, legal.size())
+	for i: int in cap:
+		out.append(legal[i])
+	return out
+
+
+func can_sweeping_arc(actor_id: String) -> bool:
+	if not actor_has_ability(actor_id, WeaponAbilities.SWEEPING_ARC):
+		return false
+	var who := _fighter(actor_id)
+	if who == null:
+		return false
+	if who.weave < WeaponAbilities.SWEEPING_ARC_WEAVE:
+		return false
+	return legal_targets(actor_id).size() >= 2
+
+
+func _act_ability(actor: Fighter, action: Dictionary, action_round: int) -> Dictionary:
+	var ability_id: String = str(action.get("ability", ""))
+	if ability_id == String(WeaponAbilities.SWEEPING_ARC):
+		return _act_sweeping_arc(actor, action, action_round)
+	return _step_packet(actor.id, "ability", "", {}, action_round, "illegal action", [])
+
+
+func _act_sweeping_arc(actor: Fighter, action: Dictionary, action_round: int) -> Dictionary:
+	var actor_id: String = actor.id
+	if not can_sweeping_arc(actor_id):
+		return _step_packet(actor_id, "ability", "", {}, action_round, "illegal action", [])
+	var targets: Array[String] = []
+	var targets_v: Variant = action.get("targets", [])
+	if targets_v is Array and (targets_v as Array).size() > 0:
+		for tid_v: Variant in targets_v as Array:
+			var tid: String = str(tid_v)
+			if legal_targets(actor_id).has(tid):
+				targets.append(tid)
+			if targets.size() >= WeaponAbilities.SWEEPING_ARC_MAX_TARGETS:
+				break
+	else:
+		targets = sweeping_arc_targets(actor_id)
+	if targets.size() < 2:
+		return _step_packet(actor_id, "ability", "", {}, action_round, "illegal target", [])
+	var events: Array = []
+	_maybe_round_start(events, action_round)
+	_poison_ticks_at_turn_start(actor_id, events)
+	if not _is_active(_fighter(actor_id)):
+		return _lost_turn(actor_id, action_round, events)
+	var acted := _fighter(actor_id)
+	if acted != null:
+		acted.weave = maxi(0, acted.weave - WeaponAbilities.SWEEPING_ARC_WEAVE)
+	var arc_mult: Vector2i = Vector2i(WeaponAbilities.SWEEPING_ARC_DAMAGE_NUM, WeaponAbilities.SWEEPING_ARC_DAMAGE_DEN)
+	var blows: Array = []
+	for target_id: String in targets:
+		var target := _fighter(target_id)
+		var status_before: String = target.status if target != null else "active"
+		var blow: Dictionary = strike(actor_id, target_id, to_hit_mod_for(actor_id, target_id), arc_mult)
+		blows.append(blow)
+		events.append(_strike_event_from_blow(actor_id, target_id, blow, to_hit_mod_for(actor_id, target_id), arc_mult))
+		_status_events(target_id, status_before, events)
+	if acted != null:
+		acted.turns += 1
+	var outcome_before: String = _outcome
+	_commit_turn()
+	_outcome_events(outcome_before, events)
+	return _step_packet(actor_id, "ability", "", {"ability": String(WeaponAbilities.SWEEPING_ARC), "targets": targets, "blows": blows}, action_round, "", events)
 
 
 func _act_strike(actor: Fighter, target_id: String, mod: int, mult: Variant, action_round: int, beast_chosen: Dictionary = {}) -> Dictionary:
@@ -951,6 +1030,16 @@ static func telegraph_ratio(mult: Variant) -> Vector2i:
 	return Vector2i(_as_int(mult, 1), 1)
 
 
+static func _string_name_array(raw: Variant) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if raw is Array:
+		for entry_v: Variant in raw as Array:
+			var entry: String = str(entry_v).strip_edges()
+			if entry != "":
+				out.append(StringName(entry))
+	return out
+
+
 static func _stat(stats: Dictionary, full_name: String, short_name: String) -> int:
 	if stats.has(full_name):
 		return int(stats[full_name])
@@ -1317,6 +1406,7 @@ class Fighter extends RefCounted:
 	var hp: int = 0
 	var max_hp: int = 0
 	var weave: int = 0
+	var weapon_abilities: Array[StringName] = []
 	var shield: int = 0
 	var brace: bool = false
 	var poison_ticks: Array[int] = []

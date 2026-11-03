@@ -363,6 +363,12 @@ static func roll_room(depth: int, rng: BattleRng, boss: bool = false) -> Array[D
 			tier_variety = variety
 		if variety == tier_variety:
 			tier.append(picks)
+	var slack: int = int(fill.get("variety_slack", 0))
+	if slack > 0:
+		tier.clear()
+		for picks_v: Variant in candidates:
+			if _variety_count(picks_v as Array) >= tier_variety - slack:
+				tier.append(picks_v)
 	if tier.is_empty():
 		tier = candidates
 	tier.sort_custom(func(a: Array, b: Array) -> bool:
