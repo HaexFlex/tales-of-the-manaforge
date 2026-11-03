@@ -58,6 +58,8 @@ const STAGE_TEXTURES: Dictionary = {
 	&"elder": "res://assets/art/manatree/native/manatree_elder.png",
 	&"ancient": "res://assets/art/manatree/native/manatree_ancient.png",
 }
+const TINT_FOLDER_IDS: PackedStringArray = ["default", "blossom", "autumn"]
+const TINT_LUT_PATH: String = "res://assets/art/manatree/native/tints/canopy_tint_lut.json"
 
 
 func _ready() -> void:
@@ -78,6 +80,11 @@ func _ready() -> void:
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
 	GameState.stage_changed.connect(_on_stage_changed)
+	_apply_manatree_tint()
+	if not GameState.load_completed.is_connected(_on_tint_or_save):
+		GameState.load_completed.connect(_on_tint_or_save)
+	if not GameState.echo_flags_changed.is_connected(_on_tint_or_save):
+		GameState.echo_flags_changed.connect(_on_tint_or_save)
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
 	GameState.selection_changed.connect(_refresh_label)
@@ -454,9 +461,24 @@ func _display_scale(stage: StringName) -> float:
 	return visual_scale_for(stage)
 
 
+func _on_tint_or_save() -> void:
+	if Engine.is_editor_hint():
+		return
+	_refresh_visual()
+
+
+func _tint_texture_path(stage: StringName) -> String:
+	var idx: int = clampi(GameState.manatree_tint, 0, TINT_FOLDER_IDS.size() - 1)
+	var folder: String = TINT_FOLDER_IDS[idx]
+	var tinted: String = "res://assets/art/manatree/native/tints/%s/manatree_%s.png" % [folder, String(stage)]
+	if FileAccess.file_exists(tinted):
+		return tinted
+	return str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
+
+
 func _refresh_visual() -> void:
 	var stage: StringName = StringName(preview_stage) if Engine.is_editor_hint() else GameState.stage_id
-	var path: String = str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
+	var path: String = _tint_texture_path(stage) if not Engine.is_editor_hint() else str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
 	var meta: Dictionary = {}
 	var raw_meta: Variant = _meta_stages.get(String(stage), {})
 	if typeof(raw_meta) == TYPE_DICTIONARY:
@@ -939,3 +961,9 @@ func _exit_tree() -> void:
 	if _damp_sprite != null and is_instance_valid(_damp_sprite):
 		_damp_sprite.queue_free()
 		_damp_sprite = null
+
+
+func _apply_manatree_tint() -> void:
+	if Engine.is_editor_hint():
+		return
+	_refresh_visual()

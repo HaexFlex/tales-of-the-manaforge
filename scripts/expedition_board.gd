@@ -279,6 +279,8 @@ func available_members() -> Array[String]:
 	for actor_id: String in CompanionRoster.ids():
 		if GameState.companion_portrait_visible(actor_id) and not out.has(actor_id):
 			out.append(actor_id)
+	if GameState.moss_tortoise_joined() and not out.has("moss_tortoise"):
+		out.append("moss_tortoise")
 	return out
 
 

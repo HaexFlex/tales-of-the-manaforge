@@ -24,6 +24,7 @@ const MANATREE_DECOR_RADIUS: float = 200.0
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
 const PORTAL_SCENE: PackedScene = preload("res://scenes/echo_portal.tscn")
+const BREWING_STAND_SCENE: PackedScene = preload("res://scenes/brewing_stand.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
@@ -134,6 +135,7 @@ func _ready() -> void:
 	_attach_hub_day_night()
 	_ensure_glade_fireflies()
 	_ensure_glade_weather_fx()
+	_setup_r5_hub()
 
 
 func _attach_hub_day_night() -> void:
@@ -141,6 +143,37 @@ func _attach_hub_day_night() -> void:
 	cycle.dusk_ground_changed.connect(_on_hub_dusk_ground_changed)
 	add_child(cycle)
 	move_child(cycle, 0)
+
+
+func _setup_r5_hub() -> void:
+	if has_node("/root/BrewingJobs"):
+		BrewingJobs.note_hub_scene(true)
+	if world and world.get_node_or_null("BrewingStand") == null and BREWING_STAND_SCENE != null:
+		var stand: Node2D = BREWING_STAND_SCENE.instantiate() as Node2D
+		stand.name = "BrewingStand"
+		stand.global_position = BrewingJobs.hub_pos() if has_node("/root/BrewingJobs") else Vector2(1688, 2580)
+		world.add_child(stand)
+	if get_node_or_null("FireflyRing") == null:
+		var ring := preload("res://scripts/hub/firefly_ring.gd").new()
+		ring.name = "FireflyRing"
+		add_child(ring)
+	_ensure_r5_companion_bodies()
+
+
+func _ensure_r5_companion_bodies() -> void:
+	if world == null:
+		return
+	var keeper_scene: PackedScene = preload("res://scenes/keeper.tscn")
+	if world.get_node_or_null("Puff") == null:
+		var puff: CharacterBody2D = keeper_scene.instantiate() as CharacterBody2D
+		puff.name = "Puff"
+		puff.set_script(preload("res://scripts/puff.gd"))
+		world.add_child(puff)
+	if world.get_node_or_null("MossTortoise") == null:
+		var tortoise: CharacterBody2D = keeper_scene.instantiate() as CharacterBody2D
+		tortoise.name = "MossTortoise"
+		tortoise.set_script(preload("res://scripts/moss_tortoise.gd"))
+		world.add_child(tortoise)
 
 
 func _ensure_glade_fireflies() -> void:

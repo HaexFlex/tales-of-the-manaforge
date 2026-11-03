@@ -474,7 +474,7 @@ func _trait_speed_rows() -> int:
 	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "", false)
 	sheet.set("_actor_id", "puff")
 	sheet.call("open_trait_popup")
-	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.0×", true)
+	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.5×", true)
 	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
 	sheet.queue_free()
 	if failed == 0:

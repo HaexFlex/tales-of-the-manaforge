@@ -223,6 +223,16 @@
       "unique": false,
       "brew_only": true,
       "color": "#9ec4e0"
+    },
+    {
+      "id": "moss_tonic",
+      "display_name": "Moss Tonic",
+      "string_key": "item_moss_tonic",
+      "kind": "consumable",
+      "category": "potions",
+      "unique": false,
+      "color": "#6a9a5a",
+      "art_name": "icon_heart_salve"
     }
   ],
   "recipes": [

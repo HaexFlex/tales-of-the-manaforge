@@ -22,15 +22,18 @@ static func is_boss_index(room_index: int) -> bool:
 	return room_index > 0 and room_index % BOSS_EVERY == 0
 
 
-static func build_room(depth: int, room_seed: int, boss: bool) -> Array[Dictionary]:
+static func build_room(depth: int, room_seed: int, boss: bool, party_size: int = 1) -> Array[Dictionary]:
 	## Beasts roll first. Mossmites spend only the leftover threat, and boss rooms stay beast-only.
-	return SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(room_seed), boss)
+	return SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(room_seed), boss, party_size)
 
 
 static func member_stats(member: String) -> Dictionary:
 	var id: String = CompanionRoster.canonical_id(member)
 	if id == "keeper" or CompanionRoster.has_id(id):
 		return _sheet_stats_for(id)
+	## Echo tortoise is not a roster id. Keep its sheet so the Echo still fights.
+	if member == "moss_tortoise":
+		return _sheet_stats_for(member)
 	push_error("SlotEngine: unknown member %s" % member)
 	return {}
 
@@ -55,7 +58,15 @@ static func _sheet_stats_for(actor: String) -> Dictionary:
 				gear = int(equipment.call("gear_bonus_for", actor, stat_id))
 			value = base + gear
 		stats[stat_id] = value
-	var attack: String = str(CompanionRoster.row(actor).get("attack", "physical"))
+	var attack: String = ""
+	if CompanionRoster.has_id(actor):
+		attack = str(CompanionRoster.row(actor).get("attack", ""))
+	if attack == "":
+		var sheets: Node = _autoload("CompanionSheets")
+		if sheets != null and bool(sheets.call("has_actor", actor)):
+			attack = str(sheets.call("attack_kind", actor))
+		elif actor == "elaia":
+			attack = "magic"
 	if attack == "":
 		attack = "physical"
 	var weapon_abilities: Array[String] = []
