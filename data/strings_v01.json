@@ -634,7 +634,7 @@
   "battle_log_mode_mag": "You shift to a magical strike.",
   "echo_leave_body": "Leaving now counts as Flee. Run, then. The arch keeps your Essence. The snares keep the road.",
   "echo_leave_warn": "No rewards for this attempt.",
-  "echo_speech_hint": "Tap the box or ▼ · Space / Enter\nMenu unlocks on the last page.",
+  "echo_speech_hint": "Next: click, Space or Enter.\nThe menu opens on the last page.",
   "echo_speech_page": "Page {page}/{pages} · {chars} chars",
   "echo_rewards_footer": "The Keeper wakes at the Manatree. The game saves.",
   "echo_01_narrator": "An echo of a woman who once stood where you stand. She does not raise her voice.",
@@ -776,6 +776,7 @@
   "board_bosses_up_to": "Bosses: up to {n}",
   "board_bosses_none": "Bosses: none",
   "board_need_party": "Pick at least one member.",
+  "board_who_stands": "Who stands here?",
   "board_need_essence": "Departing costs 20 Essence.",
   "board_depart_no_essence": "Not enough Essence to depart (20).",
   "board_depart_bad_loadout": "The loadout holds items you don't have.",
@@ -785,6 +786,7 @@
   "board_pack": "Pack: {n}",
   "board_loadout_left": "Loadout: {list}",
   "board_simulate": "Simulate",
+  "sim_forecast_note": "Only a guess. The real walk will differ.",
   "sim_summary": "{cleared} of {rooms} rooms cleared · {exp} exp",
   "sim_banked": "Would bank: {list}",
   "sim_items_used": "Used: {list}",
@@ -986,7 +988,7 @@
     "help_touch_drag": "Drag: look around the clearing.",
     "help_touch_pinch": "Pinch: zoom in or out.",
     "help_touch_box": "Box button: then drag to choose several at once.",
-    "touch_box_select_button": "Box select"
+    "touch_box_select_button": "Select area"
   },
   "bench_saying_01": "The bark is warm today.",
   "bench_saying_02": "A good place to sit. It always was.",

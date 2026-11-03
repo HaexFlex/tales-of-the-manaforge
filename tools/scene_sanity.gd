@@ -1543,7 +1543,7 @@ func _battle_view() -> int:
 	failed += _check(phys_chip != null and strike_btn != null and not phys_chip.get_rect().intersects(strike_btn.get_rect()) and phys_chip.position.x >= strike_btn.position.x + strike_btn.size.x - 0.5, "Phys chip sits clear of Strike")
 	failed += _check(ability_slot != null and phys_chip != null and phys_chip.position.x + phys_chip.size.x <= ability_slot.position.x + 0.5, "Phys chip stops before Ability")
 	failed += _check(strike_cap != null and strike_text_left + strike_word <= strike_cap.position.x - 1.0, "Strike label shows in full beside the hotkey")
-	failed += _check(str(view.call("log_text")).find("Tap the box") >= 0 and str(view.call("log_text")).find("Page ") >= 0, "speech log explains the page")
+	failed += _check(str(view.call("log_text")).find("Next: click, Space or Enter.") >= 0 and str(view.call("log_text")).find("Page ") >= 0, "speech log explains the page")
 	echo.set("reentry", true)
 	view.call("_refresh_status_chip")
 	var attempt: Label = view.get_node_or_null("EchoStatusChip/Label") as Label

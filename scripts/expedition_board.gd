@@ -1037,10 +1037,7 @@ func _refresh_simulate_result() -> void:
 	if _shell_view != null and _shell_view.simulate_essence_icon != null:
 		_shell_view.simulate_essence_icon.visible = essence_back > 0
 	if note_lbl != null:
-		var disc: String = ContentStrings.get_text("sim_forecast_note")
-		if disc == "" or disc == "sim_forecast_note":
-			disc = "A forecast with a random seed; the real run will differ."
-		note_lbl.text = disc
+		note_lbl.text = ContentStrings.get_text("sim_forecast_note")
 
 
 func _format_item_dict(items: Dictionary) -> String:
@@ -1147,10 +1144,7 @@ func _populate_picker(row: String, cell: int) -> void:
 	if _shell_view == null:
 		return
 	var current: String = _member_at_slot(row, cell)
-	var title: String = ContentStrings.get_text("board_who_stands")
-	if title == "board_who_stands":
-		title = "Who stands here?"
-	_shell_view.picker_title.text = title
+	_shell_view.picker_title.text = ContentStrings.get_text("board_who_stands")
 	var choices: Array[Dictionary] = []
 	var listed: Dictionary = {}
 	for member: String in available_members():

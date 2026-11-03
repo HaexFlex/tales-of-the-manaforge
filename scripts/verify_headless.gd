@@ -25301,7 +25301,7 @@ func _touch_marquee_ok(tree_root: Window, game_state: Node, save_service: Node) 
 		Input.emulate_touch_from_mouse = was_emulated
 		return failed
 	await tree_root.get_tree().process_frame
-	failed += _assert(button.visible and button.text == "Box select", "the box-select button shows the placeholder")
+	failed += _assert(button.visible and button.text == "Select area", "the box-select button shows the touch label")
 	Input.emulate_touch_from_mouse = false
 	await tree_root.get_tree().process_frame
 	failed += _assert(not button.visible, "the box-select button hides when touch mode is off")
