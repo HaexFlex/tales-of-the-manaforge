@@ -135,6 +135,8 @@
         "walk_east": {"dir": "walk_e", "frame_ms": 100, "frames": 9},
         "walk_west": {"dir": "walk_w", "frame_ms": 100, "frames": 9},
         "walk_front": {"dir": "walk_s", "frame_ms": 100, "frames": 9},
+        "harvest_berries_east": {"dir": "harvest_berries_east", "ms": [160, 90, 90, 100, 160, 100, 90, 110]},
+        "harvest_berries_west": {"dir": "harvest_berries_west", "ms": [160, 90, 90, 100, 160, 100, 90, 110]},
         "battle_attack": {"dir": "battle_attack", "frame_ms": 125, "frames": 8, "hit_frame": 3},
         "battle_hit": {"dir": "battle_hit", "frame_ms": 100, "frames": 4},
         "work_brew": {"dir": "work_brew", "frame_ms": 100, "frames": 8}
