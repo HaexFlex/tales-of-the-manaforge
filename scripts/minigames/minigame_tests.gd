@@ -1173,7 +1173,7 @@ func _save_stays_put() -> int:
 	failed += _check(int(migrated.get("wood", -1)) == 4, "migration keeps the wood")
 	failed += _check(migrated.has("first_minigame_played"), "existing flag still defaults in")
 	failed += _check(not migrated.has("minigame_session"), "migration does not invent a session")
-	failed += _check(int(SaveService.get("SAVE_VERSION")) == 15, "save version stays 15")
+	failed += _check(int(SaveService.get("SAVE_VERSION")) == 16, "save version stays 16")
 	return failed
 
 

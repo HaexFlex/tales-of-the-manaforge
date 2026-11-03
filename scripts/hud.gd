@@ -2799,9 +2799,10 @@ func open_fruit_confirm() -> void:
 
 
 func confirm_fruit_step() -> void:
+	## One box. Yes harvests. There is no second prompt.
 	if _fruit_confirm_step != 1:
 		return
-	_show_seed_tint_picker()
+	_commit_primordial_fruit()
 
 
 func _ensure_seed_tint_panel() -> void:

@@ -276,7 +276,14 @@ func reset_for_new_game() -> void:
 
 
 func to_save_dict() -> Dictionary:
-	return {"ranks_by_actor": ranks_by_actor.duplicate(true)}
+	## Flat keeper ranks stay on the blob (might … fate). ranks_by_actor keeps every actor.
+	var keeper_v: Variant = ranks_by_actor.get("keeper", {})
+	var keeper: Dictionary = keeper_v if typeof(keeper_v) == TYPE_DICTIONARY else {}
+	var out: Dictionary = {"ranks_by_actor": ranks_by_actor.duplicate(true)}
+	for sid: StringName in STAT_ORDER:
+		var key: String = String(sid)
+		out[key] = int(keeper.get(key, 0))
+	return out
 
 
 func normalize_loaded_rank(present: bool, raw: int) -> int:

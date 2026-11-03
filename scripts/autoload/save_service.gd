@@ -1144,18 +1144,31 @@ func _migrate_gear_v7(out: Dictionary) -> void:
 
 
 func _normalize_stat_ranks(out: Dictionary) -> void:
+	## Every path through v16 keeps might, arcana, resilience, ward, vitality,
+	## swiftness and fate on keeper_stats. A missing rank becomes 0. Values are
+	## not remapped. ranks_by_actor.keeper mirrors those same numbers, and any
+	## other actor already stored there is left in place.
 	var raw_v: Variant = out.get("keeper_stats", {})
-	var src: Dictionary = raw_v if typeof(raw_v) == TYPE_DICTIONARY else {}
-	if src.has("ranks_by_actor") and typeof(src.get("ranks_by_actor")) == TYPE_DICTIONARY:
-		out["keeper_stats"] = src
-		return
-	var stats: Dictionary = {}
+	var src: Dictionary = raw_v.duplicate(true) if typeof(raw_v) == TYPE_DICTIONARY else {}
+	var by_actor_v: Variant = src.get("ranks_by_actor", null)
+	var by_actor: Dictionary = (by_actor_v as Dictionary).duplicate(true) if typeof(by_actor_v) == TYPE_DICTIONARY else {}
+	var keeper_v: Variant = by_actor.get("keeper", {})
+	var keeper_src: Dictionary = keeper_v if typeof(keeper_v) == TYPE_DICTIONARY else {}
+	var flat: Dictionary = {}
 	for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
-		if not src.has(sid):
-			stats[sid] = 0
+		if keeper_src.has(sid):
+			flat[sid] = maxi(0, int(keeper_src[sid]))
+		elif src.has(sid):
+			flat[sid] = maxi(0, int(src[sid]))
 		else:
-			stats[sid] = maxi(0, int(src[sid]))
-	out["keeper_stats"] = {"ranks_by_actor": {"keeper": stats}}
+			flat[sid] = 0
+	var keeper_out: Dictionary = keeper_src.duplicate(true)
+	for sid: String in flat.keys():
+		keeper_out[sid] = flat[sid]
+		src[sid] = flat[sid]
+	by_actor["keeper"] = keeper_out
+	src["ranks_by_actor"] = by_actor
+	out["keeper_stats"] = src
 
 
 func delete_slot(slot: int) -> void:
