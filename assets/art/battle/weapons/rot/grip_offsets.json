@@ -1,0 +1,751 @@
+{
+  "wpn_sword_t0_r0": {
+    "gx": 0,
+    "gy": 2,
+    "w": 27,
+    "h": 5
+  },
+  "wpn_sword_t0_r1": {
+    "gx": 1,
+    "gy": 1,
+    "w": 21,
+    "h": 20
+  },
+  "wpn_sword_t0_r2": {
+    "gx": 2,
+    "gy": 0,
+    "w": 5,
+    "h": 27
+  },
+  "wpn_sword_t0_r3": {
+    "gx": 18,
+    "gy": 1,
+    "w": 20,
+    "h": 21
+  },
+  "wpn_sword_t0_r4": {
+    "gx": 26,
+    "gy": 2,
+    "w": 27,
+    "h": 5
+  },
+  "wpn_sword_t0_r5": {
+    "gx": 19,
+    "gy": 18,
+    "w": 21,
+    "h": 20
+  },
+  "wpn_sword_t0_r6": {
+    "gx": 2,
+    "gy": 26,
+    "w": 5,
+    "h": 27
+  },
+  "wpn_sword_t0_r7": {
+    "gx": 1,
+    "gy": 19,
+    "w": 20,
+    "h": 21
+  },
+  "wpn_sword_t1_r0": {
+    "gx": 0,
+    "gy": 2,
+    "w": 27,
+    "h": 5
+  },
+  "wpn_sword_t1_r1": {
+    "gx": 1,
+    "gy": 1,
+    "w": 21,
+    "h": 20
+  },
+  "wpn_sword_t1_r2": {
+    "gx": 2,
+    "gy": 0,
+    "w": 5,
+    "h": 27
+  },
+  "wpn_sword_t1_r3": {
+    "gx": 18,
+    "gy": 1,
+    "w": 20,
+    "h": 21
+  },
+  "wpn_sword_t1_r4": {
+    "gx": 26,
+    "gy": 2,
+    "w": 27,
+    "h": 5
+  },
+  "wpn_sword_t1_r5": {
+    "gx": 19,
+    "gy": 18,
+    "w": 21,
+    "h": 20
+  },
+  "wpn_sword_t1_r6": {
+    "gx": 2,
+    "gy": 26,
+    "w": 5,
+    "h": 27
+  },
+  "wpn_sword_t1_r7": {
+    "gx": 1,
+    "gy": 19,
+    "w": 20,
+    "h": 21
+  },
+  "wpn_sword_t2_r0": {
+    "gx": 0,
+    "gy": 2,
+    "w": 27,
+    "h": 5
+  },
+  "wpn_sword_t2_r1": {
+    "gx": 1,
+    "gy": 1,
+    "w": 21,
+    "h": 20
+  },
+  "wpn_sword_t2_r2": {
+    "gx": 2,
+    "gy": 0,
+    "w": 5,
+    "h": 27
+  },
+  "wpn_sword_t2_r3": {
+    "gx": 18,
+    "gy": 1,
+    "w": 20,
+    "h": 21
+  },
+  "wpn_sword_t2_r4": {
+    "gx": 26,
+    "gy": 2,
+    "w": 27,
+    "h": 5
+  },
+  "wpn_sword_t2_r5": {
+    "gx": 19,
+    "gy": 18,
+    "w": 21,
+    "h": 20
+  },
+  "wpn_sword_t2_r6": {
+    "gx": 2,
+    "gy": 26,
+    "w": 5,
+    "h": 27
+  },
+  "wpn_sword_t2_r7": {
+    "gx": 1,
+    "gy": 19,
+    "w": 20,
+    "h": 21
+  },
+  "wpn_wand_t0_r0": {
+    "gx": 23,
+    "gy": 2,
+    "w": 35,
+    "h": 5
+  },
+  "wpn_wand_t0_r1": {
+    "gx": 18,
+    "gy": 18,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t0_r2": {
+    "gx": 2,
+    "gy": 23,
+    "w": 5,
+    "h": 35
+  },
+  "wpn_wand_t0_r3": {
+    "gx": 9,
+    "gy": 18,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t0_r4": {
+    "gx": 11,
+    "gy": 2,
+    "w": 35,
+    "h": 5
+  },
+  "wpn_wand_t0_r5": {
+    "gx": 9,
+    "gy": 9,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t0_r6": {
+    "gx": 2,
+    "gy": 11,
+    "w": 5,
+    "h": 35
+  },
+  "wpn_wand_t0_r7": {
+    "gx": 18,
+    "gy": 9,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t1_r0": {
+    "gx": 23,
+    "gy": 2,
+    "w": 35,
+    "h": 5
+  },
+  "wpn_wand_t1_r1": {
+    "gx": 18,
+    "gy": 18,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t1_r2": {
+    "gx": 2,
+    "gy": 23,
+    "w": 5,
+    "h": 35
+  },
+  "wpn_wand_t1_r3": {
+    "gx": 9,
+    "gy": 18,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t1_r4": {
+    "gx": 11,
+    "gy": 2,
+    "w": 35,
+    "h": 5
+  },
+  "wpn_wand_t1_r5": {
+    "gx": 9,
+    "gy": 9,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t1_r6": {
+    "gx": 2,
+    "gy": 11,
+    "w": 5,
+    "h": 35
+  },
+  "wpn_wand_t1_r7": {
+    "gx": 18,
+    "gy": 9,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t2_r0": {
+    "gx": 23,
+    "gy": 2,
+    "w": 35,
+    "h": 5
+  },
+  "wpn_wand_t2_r1": {
+    "gx": 18,
+    "gy": 18,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t2_r2": {
+    "gx": 2,
+    "gy": 23,
+    "w": 5,
+    "h": 35
+  },
+  "wpn_wand_t2_r3": {
+    "gx": 9,
+    "gy": 18,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t2_r4": {
+    "gx": 11,
+    "gy": 2,
+    "w": 35,
+    "h": 5
+  },
+  "wpn_wand_t2_r5": {
+    "gx": 9,
+    "gy": 9,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_wand_t2_r6": {
+    "gx": 2,
+    "gy": 11,
+    "w": 5,
+    "h": 35
+  },
+  "wpn_wand_t2_r7": {
+    "gx": 18,
+    "gy": 9,
+    "w": 28,
+    "h": 28
+  },
+  "wpn_bow_t0_r0": {
+    "gx": 21,
+    "gy": 3,
+    "w": 42,
+    "h": 14
+  },
+  "wpn_bow_t0_r1": {
+    "gx": 16,
+    "gy": 17,
+    "w": 33,
+    "h": 34
+  },
+  "wpn_bow_t0_r2": {
+    "gx": 10,
+    "gy": 21,
+    "w": 14,
+    "h": 42
+  },
+  "wpn_bow_t0_r3": {
+    "gx": 16,
+    "gy": 16,
+    "w": 34,
+    "h": 33
+  },
+  "wpn_bow_t0_r4": {
+    "gx": 20,
+    "gy": 10,
+    "w": 42,
+    "h": 14
+  },
+  "wpn_bow_t0_r5": {
+    "gx": 16,
+    "gy": 16,
+    "w": 33,
+    "h": 34
+  },
+  "wpn_bow_t0_r6": {
+    "gx": 3,
+    "gy": 20,
+    "w": 14,
+    "h": 42
+  },
+  "wpn_bow_t0_r7": {
+    "gx": 17,
+    "gy": 16,
+    "w": 34,
+    "h": 33
+  },
+  "wpn_bow_t1_r0": {
+    "gx": 21,
+    "gy": 3,
+    "w": 42,
+    "h": 14
+  },
+  "wpn_bow_t1_r1": {
+    "gx": 16,
+    "gy": 17,
+    "w": 33,
+    "h": 34
+  },
+  "wpn_bow_t1_r2": {
+    "gx": 10,
+    "gy": 21,
+    "w": 14,
+    "h": 42
+  },
+  "wpn_bow_t1_r3": {
+    "gx": 16,
+    "gy": 16,
+    "w": 34,
+    "h": 33
+  },
+  "wpn_bow_t1_r4": {
+    "gx": 20,
+    "gy": 10,
+    "w": 42,
+    "h": 14
+  },
+  "wpn_bow_t1_r5": {
+    "gx": 16,
+    "gy": 16,
+    "w": 33,
+    "h": 34
+  },
+  "wpn_bow_t1_r6": {
+    "gx": 3,
+    "gy": 20,
+    "w": 14,
+    "h": 42
+  },
+  "wpn_bow_t1_r7": {
+    "gx": 17,
+    "gy": 16,
+    "w": 34,
+    "h": 33
+  },
+  "wpn_bow_t2_r0": {
+    "gx": 21,
+    "gy": 3,
+    "w": 42,
+    "h": 14
+  },
+  "wpn_bow_t2_r1": {
+    "gx": 16,
+    "gy": 17,
+    "w": 33,
+    "h": 34
+  },
+  "wpn_bow_t2_r2": {
+    "gx": 10,
+    "gy": 21,
+    "w": 14,
+    "h": 42
+  },
+  "wpn_bow_t2_r3": {
+    "gx": 16,
+    "gy": 16,
+    "w": 34,
+    "h": 33
+  },
+  "wpn_bow_t2_r4": {
+    "gx": 20,
+    "gy": 10,
+    "w": 42,
+    "h": 14
+  },
+  "wpn_bow_t2_r5": {
+    "gx": 16,
+    "gy": 16,
+    "w": 33,
+    "h": 34
+  },
+  "wpn_bow_t2_r6": {
+    "gx": 3,
+    "gy": 20,
+    "w": 14,
+    "h": 42
+  },
+  "wpn_bow_t2_r7": {
+    "gx": 17,
+    "gy": 16,
+    "w": 34,
+    "h": 33
+  },
+  "string_tips": {
+    "wpn_bow_t0": {
+      "native_size": [
+        22,
+        42
+      ],
+      "grip": [
+        4,
+        20
+      ],
+      "native": {
+        "top": [
+          1,
+          0
+        ],
+        "bottom": [
+          1,
+          41
+        ]
+      },
+      "note": "native = tip-up 22\u00d742 (same orientation as upright \u2248 r6). r0 = tip-east.",
+      "rots": {
+        "r0": {
+          "top": [
+            1,
+            6
+          ],
+          "bottom": [
+            42,
+            6
+          ]
+        },
+        "r1": {
+          "top": [
+            4,
+            33
+          ],
+          "bottom": [
+            33,
+            4
+          ]
+        },
+        "r2": {
+          "top": [
+            13,
+            41
+          ],
+          "bottom": [
+            13,
+            0
+          ]
+        },
+        "r3": {
+          "top": [
+            32,
+            28
+          ],
+          "bottom": [
+            3,
+            -1
+          ]
+        },
+        "r4": {
+          "top": [
+            40,
+            7
+          ],
+          "bottom": [
+            -1,
+            7
+          ]
+        },
+        "r5": {
+          "top": [
+            28,
+            0
+          ],
+          "bottom": [
+            -1,
+            29
+          ]
+        },
+        "r6": {
+          "top": [
+            0,
+            0
+          ],
+          "bottom": [
+            0,
+            41
+          ]
+        },
+        "r7": {
+          "top": [
+            1,
+            4
+          ],
+          "bottom": [
+            30,
+            33
+          ]
+        }
+      }
+    },
+    "wpn_bow_t1": {
+      "native_size": [
+        22,
+        42
+      ],
+      "grip": [
+        4,
+        20
+      ],
+      "native": {
+        "top": [
+          1,
+          0
+        ],
+        "bottom": [
+          1,
+          41
+        ]
+      },
+      "note": "native = tip-up 22\u00d742 (same orientation as upright \u2248 r6). r0 = tip-east.",
+      "rots": {
+        "r0": {
+          "top": [
+            1,
+            6
+          ],
+          "bottom": [
+            42,
+            6
+          ]
+        },
+        "r1": {
+          "top": [
+            4,
+            33
+          ],
+          "bottom": [
+            33,
+            4
+          ]
+        },
+        "r2": {
+          "top": [
+            13,
+            41
+          ],
+          "bottom": [
+            13,
+            0
+          ]
+        },
+        "r3": {
+          "top": [
+            32,
+            28
+          ],
+          "bottom": [
+            3,
+            -1
+          ]
+        },
+        "r4": {
+          "top": [
+            40,
+            7
+          ],
+          "bottom": [
+            -1,
+            7
+          ]
+        },
+        "r5": {
+          "top": [
+            28,
+            0
+          ],
+          "bottom": [
+            -1,
+            29
+          ]
+        },
+        "r6": {
+          "top": [
+            0,
+            0
+          ],
+          "bottom": [
+            0,
+            41
+          ]
+        },
+        "r7": {
+          "top": [
+            1,
+            4
+          ],
+          "bottom": [
+            30,
+            33
+          ]
+        }
+      }
+    },
+    "wpn_bow_t2": {
+      "native_size": [
+        22,
+        42
+      ],
+      "grip": [
+        4,
+        20
+      ],
+      "native": {
+        "top": [
+          1,
+          0
+        ],
+        "bottom": [
+          1,
+          41
+        ]
+      },
+      "note": "native = tip-up 22\u00d742 (same orientation as upright \u2248 r6). r0 = tip-east.",
+      "rots": {
+        "r0": {
+          "top": [
+            1,
+            6
+          ],
+          "bottom": [
+            42,
+            6
+          ]
+        },
+        "r1": {
+          "top": [
+            4,
+            33
+          ],
+          "bottom": [
+            33,
+            4
+          ]
+        },
+        "r2": {
+          "top": [
+            13,
+            41
+          ],
+          "bottom": [
+            13,
+            0
+          ]
+        },
+        "r3": {
+          "top": [
+            32,
+            28
+          ],
+          "bottom": [
+            3,
+            -1
+          ]
+        },
+        "r4": {
+          "top": [
+            40,
+            7
+          ],
+          "bottom": [
+            -1,
+            7
+          ]
+        },
+        "r5": {
+          "top": [
+            28,
+            0
+          ],
+          "bottom": [
+            -1,
+            29
+          ]
+        },
+        "r6": {
+          "top": [
+            0,
+            0
+          ],
+          "bottom": [
+            0,
+            41
+          ]
+        },
+        "r7": {
+          "top": [
+            1,
+            4
+          ],
+          "bottom": [
+            30,
+            33
+          ]
+        }
+      }
+    }
+  },
+  "string_tips_math": {
+    "native": "tip-up (Y\u2212); grip (4,20); tips top/bottom in native px",
+    "to_rot_local": "pil_deg = -((rot_index*45 - 270) % 360); rotate tip about grip; then subtract crop origin (same as grip_offsets)",
+    "to_canvas": "canvas = (hand_x - gx + tip_x, hand_y - gy + tip_y) using rot grip_offsets + string_tips[id].rots[rN]",
+    "or_from_native": "place upright native tips relative to hand with same CW rot as the bow sprite from tip-up to rot_index"
+  }
+}
