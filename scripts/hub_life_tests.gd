@@ -149,7 +149,11 @@ func chores(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	failed += _assert(CompanionChores.assignment_of("elaia") == "manatree", "elaia defaults to the manatree")
 	failed += _assert(CompanionChores.assignment_of("puff") == "harvest_berry", "puff defaults to berries")
 	failed += _assert(CompanionChores.assignment_of("tortoise") == "harvest_stone", "tortoise defaults to stone")
-	# 50% of the Keeper's gather rate.
+	# 50% of the Keeper's gather rate. Lucky Harvest would add a random extra and hide the half.
+	var params: Dictionary = (game_state.get("params") as Dictionary).duplicate()
+	var saved_chance: Variant = params.get("LUCKY_HARVEST_CHANCE", 0.04)
+	params["LUCKY_HARVEST_CHANCE"] = 0.0
+	game_state.set("params", params)
 	game_state.call("clear_rested_hands_bench_buff")
 	game_state.set("harvest_accum", {})
 	game_state.call("set_resource", &"food", 0)
@@ -160,6 +164,8 @@ func chores(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	CompanionChores.set_forced_present("puff", true)
 	CompanionChores.grant_online_seconds(4.0)
 	var chore_food: int = int(game_state.get("food"))
+	params["LUCKY_HARVEST_CHANCE"] = saved_chance
+	game_state.set("params", params)
 	failed += _assert(keeper_food == 2 and chore_food == 1, "berry chore is half the keeper (keeper %d chore %d)" % [keeper_food, chore_food])
 	# One companion per node.
 	CompanionChores.set_forced_present("elaia", true)
