@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "notes": [
+    "R6 PLACEHOLDER. Proposed new data/weather.json. Not on origin/main.",
+    "Pillars: cozy, never stressful, no punishment. No negative weather effects.",
+    "Offline: do not simulate weather across the closed gap; reroll state on load.",
+    "Day/night hooks live on origin/sprint/day-night-fireflies (not merged): HubDayNightCycle + HubTimePhase."
+  ],
+  "season_mode": "soft_season_wheel",
+  "season_mode_note": "PROPOSE soft seasonal weight bias (not hard gate). Alt OPEN: pure random.",
+  "season_wheel": {
+    "order": ["spring", "summer", "autumn", "winter"],
+    "season_duration_real_sec": 259200,
+    "season_duration_note": "PLACEHOLDER 3 real days per season (12-day wheel). Ascension does not reset season.",
+    "bias": {
+      "spring": { "blossom_fall": 2.0, "soft_rain": 1.2, "mist": 1.1, "clear": 1.0, "light_snow": 0.25 },
+      "summer": { "clear": 1.4, "soft_rain": 0.9, "mist": 0.8, "blossom_fall": 0.6, "light_snow": 0.1 },
+      "autumn": { "mist": 1.4, "soft_rain": 1.3, "clear": 1.0, "blossom_fall": 0.9, "light_snow": 0.4 },
+      "winter": { "light_snow": 2.0, "mist": 1.2, "clear": 1.0, "soft_rain": 0.7, "blossom_fall": 0.2 }
+    }
+  },
+  "states": {
+    "clear": {
+      "duration_min_sec": 180,
+      "duration_max_sec": 480,
+      "particles": "none",
+      "effects": []
+    },
+    "soft_rain": {
+      "duration_min_sec": 90,
+      "duration_max_sec": 240,
+      "particles": "soft_rain",
+      "effects": ["auto_water"]
+    },
+    "mist": {
+      "duration_min_sec": 60,
+      "duration_max_sec": 180,
+      "particles": "mist",
+      "effects": ["wisp_glow"]
+    },
+    "light_snow": {
+      "duration_min_sec": 90,
+      "duration_max_sec": 210,
+      "particles": "light_snow",
+      "effects": []
+    },
+    "blossom_fall": {
+      "duration_min_sec": 60,
+      "duration_max_sec": 150,
+      "particles": "blossom_fall",
+      "effects": []
+    }
+  },
+  "transition_weights": {
+    "clear": { "clear": 0.0, "soft_rain": 0.40, "mist": 0.30, "light_snow": 0.15, "blossom_fall": 0.15 },
+    "soft_rain": { "clear": 0.55, "soft_rain": 0.0, "mist": 0.25, "light_snow": 0.10, "blossom_fall": 0.10 },
+    "mist": { "clear": 0.50, "soft_rain": 0.25, "mist": 0.0, "light_snow": 0.15, "blossom_fall": 0.10 },
+    "light_snow": { "clear": 0.60, "soft_rain": 0.15, "mist": 0.20, "light_snow": 0.0, "blossom_fall": 0.05 },
+    "blossom_fall": { "clear": 0.55, "soft_rain": 0.20, "mist": 0.15, "light_snow": 0.05, "blossom_fall": 0.0 }
+  },
+  "transition_note": "PLACEHOLDER. Self-weight 0 forces a change when duration ends. Multiply column by season bias, renormalize. Day-phase nudge OPEN.",
+  "day_night": {
+    "cycle_sec_live_on_branch": 1200,
+    "phase_hooks": [
+      "HubDayNightCycle._process → HubTimePhase.set_driven_phase01(phase)",
+      "HubTimePhase.sample_phase01()",
+      "HubTimePhase.firefly_strength(phase01)"
+    ],
+    "phase_bias_open": {
+      "light_snow_night_mult": 1.35,
+      "blossom_fall_day_mult": 1.25,
+      "night_phase01_range": [0.48, 0.82],
+      "day_phase01_range": [0.00, 0.32]
+    },
+    "toggle": "GameAudio.day_night_enabled — when off, weather still runs; particles ignore dusk tint"
+  },
+  "effects": {
+    "auto_water": {
+      "states": ["soft_rain"],
+      "pulse_interval_sec": 8.0,
+      "essence_per_pulse": 0.4,
+      "shard_roll_min": 0,
+      "shard_roll_max": 1,
+      "ignores_watering_can": true,
+      "ignores_deep_roots": true,
+      "ignores_shard_sight": true,
+      "ignores_actor_water_mult": true,
+      "pauses_when_fruit_committed": true,
+      "pauses_when_world_frozen": true,
+      "only_while_hub_foreground": true,
+      "hourly_expected": {
+        "essence": 180,
+        "shards": 225,
+        "note": "PLACEHOLDER ~5% of active Keeper essence/hour (3600), ~3% shards (7200 avg). Nice AFK glade drip; never replaces play."
+      },
+      "active_baseline_cite": {
+        "CHANNEL_PULSE_SEC": 1.0,
+        "WATER_ESSENCE_PER_SEC": 1,
+        "WATER_SHARD_MIN": 1,
+        "WATER_SHARD_MAX": 3,
+        "source": "data/manatree_stages.json params"
+      }
+    },
+    "wisp_glow": {
+      "states": ["mist"],
+      "modulate_add": 0.15,
+      "pulse_scale_bonus": 0.0,
+      "pulse_scale_bonus_open": 0.05,
+      "note": "PLACEHOLDER default pure cosmetic glow. OPEN: +5% wisp harvest rate while mist (below one wisp_haste rank 0.08)."
+    },
+    "light_snow": { "cosmetic_only": true },
+    "blossom_fall": { "cosmetic_only": true }
+  },
+  "offline": {
+    "simulate": false,
+    "on_load": "reroll",
+    "reroll_uses_season_bias": true,
+    "discard_saved_elapsed": true,
+    "note": "Lean: weather does not advance across the closed gap. Reroll state + fresh duration on load."
+  },
+  "save_fields": {
+    "weather_state": "clear",
+    "weather_elapsed_sec": 0.0,
+    "weather_duration_sec": 0.0,
+    "weather_season_index": 0,
+    "weather_season_elapsed_sec": 0.0,
+    "weather_essence_frac": 0.0,
+    "additive": true,
+    "ascend_keeps": ["weather_season_index", "weather_season_elapsed_sec"]
+  },
+  "hooks": {
+    "tick": "GameState hub _process / new WeatherService.process — only when hub scene live",
+    "save": "game_state.gd to_save_dict / apply_save_dict additive keys",
+    "particles": "CanvasLayer under hub World, below HUD, above ground",
+    "audio_parked": "rain hush SFX parked (Director 2026-10-27) until weather ships"
+  }
+}

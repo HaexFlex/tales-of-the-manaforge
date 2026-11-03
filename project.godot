@@ -38,6 +38,7 @@ GameInput="*res://scripts/autoload/game_input.gd"
 PhotoMode="*res://scripts/autoload/photo_mode.gd"
 LuckySparkFx="*res://scripts/fx/lucky_spark_fx.gd"
 MinigameHost="*res://scripts/minigames/minigame_host.gd"
+HubWeather="*res://scripts/autoload/hub_weather.gd"
 
 [input_devices]
 
